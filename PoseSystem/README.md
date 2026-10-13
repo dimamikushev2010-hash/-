@@ -68,3 +68,26 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 | `StarterPlayerScripts/InvisibilityClient.client.lua` | StarterPlayer → StarterPlayerScripts | **LocalScript** | `InvisibilityClient` |
 
 Все времена, прозрачность, цвета и клавишу можно поменять в `InvisibilityConfig`.
+
+## Лазеры из глаз
+
+| Кнопка | Что делает |
+|---|---|
+| **R** (геймпад: X), или кнопка 🔴 рядом с невидимостью | Стрелять лазерами 3 секунды. Повторное нажатие: выключить раньше |
+
+- Целишься **мышкой**, на телефоне — **центром экрана**. Персонаж сам разворачивается к цели.
+- Два красных луча с яркой серединой. Глаза светятся, луч мерцает, в точке попадания летят искры и горит свет. Лучи **видят все игроки**.
+- **Урон**: 35 в секунду, дальность 200 стадов. Урон считает сервер. Игроков своей команды не бьёт.
+- **Кулдаун**: 12 секунд после окончания. Кнопка показывает его так же, как у невидимости.
+- Звук по умолчанию выключен. Чтобы включить, вставь ID любого звука лазера из Toolbox в `LaserConfig.SoundId`.
+
+Файлы:
+
+| Файл | Куда положить | Тип объекта | Имя |
+|---|---|---|---|
+| `ReplicatedStorage/LaserConfig.lua` | ReplicatedStorage | **ModuleScript** | `LaserConfig` |
+| `ReplicatedStorage/AbilityButton.lua` | ReplicatedStorage | **ModuleScript** | `AbilityButton` |
+| `ServerScriptService/LaserServer.server.lua` | ServerScriptService | **Script** | `LaserServer` |
+| `StarterPlayerScripts/LaserClient.client.lua` | StarterPlayer → StarterPlayerScripts | **LocalScript** | `LaserClient` |
+
+`AbilityButton` — общая кнопка с таймером. Она нужна и невидимости, и лазерам.

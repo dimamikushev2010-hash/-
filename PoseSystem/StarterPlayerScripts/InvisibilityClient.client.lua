@@ -8,7 +8,6 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 local ContextActionService = game:GetService("ContextActionService")
 local Lighting = game:GetService("Lighting")
 local Debris = game:GetService("Debris")
@@ -241,121 +240,7 @@ end
 -- Кнопка и таймеры
 ---------------------------------------------------------------------
 
-local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-
-local gui = Instance.new("ScreenGui")
-gui.Name = "InvisibilityGui"
-gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
-
-local button = Instance.new("TextButton")
-button.Name = "InvisibilityButton"
-button.AnchorPoint = Vector2.new(1, 1)
-button.Position = isTouch and UDim2.new(1, -20, 1, -175) or UDim2.new(1, -24, 1, -34)
-button.Size = UDim2.fromOffset(78, 78)
-button.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
-button.BackgroundTransparency = 0.2
-button.AutoButtonColor = true
-button.Text = ""
-button.ClipsDescendants = true
-button.Parent = gui
-Instance.new("UICorner", button).CornerRadius = UDim.new(0, 14)
-
-local stroke = Instance.new("UIStroke")
-stroke.Thickness = 2
-stroke.Color = Color3.fromRGB(90, 100, 120)
-stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-stroke.Parent = button
-
-local icon = Instance.new("TextLabel")
-icon.BackgroundTransparency = 1
-icon.Size = UDim2.new(1, 0, 1, -18)
-icon.Text = "👻"
-icon.TextScaled = true
-icon.Font = Enum.Font.GothamBold
-icon.TextColor3 = WHITE
-icon.ZIndex = 2
-icon.Parent = button
-local iconPad = Instance.new("UIPadding")
-iconPad.PaddingTop = UDim.new(0, 8)
-iconPad.PaddingLeft = UDim.new(0, 14)
-iconPad.PaddingRight = UDim.new(0, 14)
-iconPad.Parent = icon
-
-local nameLabel = Instance.new("TextLabel")
-nameLabel.BackgroundTransparency = 1
-nameLabel.AnchorPoint = Vector2.new(0, 1)
-nameLabel.Position = UDim2.new(0, 0, 1, -4)
-nameLabel.Size = UDim2.new(1, 0, 0, 14)
-nameLabel.Text = Config.ButtonText
-nameLabel.TextColor3 = Color3.fromRGB(210, 220, 235)
-nameLabel.Font = Enum.Font.GothamMedium
-nameLabel.TextSize = 11
-nameLabel.ZIndex = 2
-nameLabel.Parent = button
-
-if not isTouch then
-	local keyLabel = Instance.new("TextLabel")
-	keyLabel.BackgroundColor3 = Color3.new(0, 0, 0)
-	keyLabel.BackgroundTransparency = 0.4
-	keyLabel.Position = UDim2.fromOffset(5, 5)
-	keyLabel.Size = UDim2.fromOffset(18, 18)
-	keyLabel.Text = Config.Keys[1].Name
-	keyLabel.TextColor3 = WHITE
-	keyLabel.Font = Enum.Font.GothamBold
-	keyLabel.TextSize = 12
-	keyLabel.ZIndex = 4
-	keyLabel.Parent = button
-	Instance.new("UICorner", keyLabel).CornerRadius = UDim.new(0, 4)
-end
-
--- Затемнение кулдауна (опускается сверху вниз по мере отката)
-local cooldownShade = Instance.new("Frame")
-cooldownShade.AnchorPoint = Vector2.new(0, 1)
-cooldownShade.Position = UDim2.fromScale(0, 1)
-cooldownShade.Size = UDim2.fromScale(1, 0)
-cooldownShade.BackgroundColor3 = Color3.new(0, 0, 0)
-cooldownShade.BackgroundTransparency = 0.35
-cooldownShade.BorderSizePixel = 0
-cooldownShade.ZIndex = 3
-cooldownShade.Parent = button
-
-local cooldownText = Instance.new("TextLabel")
-cooldownText.BackgroundTransparency = 1
-cooldownText.Size = UDim2.fromScale(1, 1)
-cooldownText.Text = ""
-cooldownText.TextColor3 = WHITE
-cooldownText.Font = Enum.Font.GothamBlack
-cooldownText.TextSize = 28
-cooldownText.TextStrokeTransparency = 0.5
-cooldownText.ZIndex = 4
-cooldownText.Parent = button
-
--- Полоска оставшейся невидимости под кнопкой
-local barBack = Instance.new("Frame")
-barBack.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
-barBack.BackgroundTransparency = 0.2
-barBack.BorderSizePixel = 0
-barBack.Visible = false
-barBack.Parent = gui
-Instance.new("UICorner", barBack).CornerRadius = UDim.new(1, 0)
-
-local barFill = Instance.new("Frame")
-barFill.Size = UDim2.fromScale(1, 1)
-barFill.BackgroundColor3 = Config.ActiveColor
-barFill.BorderSizePixel = 0
-barFill.Parent = barBack
-Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
-
-local function placeBar()
-	-- Полоска живёт в ScreenGui (у кнопки обрезка), ставим её прямо под кнопкой
-	local pos, size = button.AbsolutePosition, button.AbsoluteSize
-	barBack.Position = UDim2.fromOffset(pos.X, pos.Y + size.Y + 6)
-	barBack.Size = UDim2.fromOffset(size.X, 6)
-end
-button:GetPropertyChangedSignal("AbsolutePosition"):Connect(placeBar)
-button:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeBar)
-placeBar()
+local AbilityButton = require(ReplicatedStorage:WaitForChild("AbilityButton"))
 
 local lastRequest = 0
 
@@ -368,7 +253,16 @@ local function request()
 	remote:FireServer()
 end
 
-button.Activated:Connect(request)
+local button = AbilityButton.new({
+	Name = Config.ButtonText,
+	Icon = "👻",
+	KeyName = Config.Keys[1].Name,
+	Slot = Config.ButtonSlot,
+	Duration = Config.Duration,
+	Cooldown = Config.Cooldown,
+	ActiveColor = Config.ActiveColor,
+	OnActivate = request,
+})
 
 ContextActionService:BindAction("Invisibility", function(_, inputState)
 	if inputState == Enum.UserInputState.Begin then
@@ -401,28 +295,7 @@ RunService.Heartbeat:Connect(function(dt)
 	local now = serverNow()
 	local character = player.Character
 	local active = character ~= nil and character:GetAttribute(Config.ActiveAttribute) == true
-
-	if active then
-		local left = math.max(0, (character:GetAttribute(Config.UntilAttribute) or 0) - now)
-		barBack.Visible = true
-		barFill.Size = UDim2.fromScale(math.clamp(left / Config.Duration, 0, 1), 1)
-		stroke.Color = Config.ActiveColor
-		cooldownShade.Size = UDim2.fromScale(1, 0)
-		cooldownText.Text = ""
-		icon.TextTransparency = 0.4
-	else
-		barBack.Visible = false
-		local cdLeft = math.max(0, (player:GetAttribute(Config.CooldownAttribute) or 0) - now)
-		if cdLeft > 0 then
-			cooldownShade.Size = UDim2.fromScale(1, math.clamp(cdLeft / Config.Cooldown, 0, 1))
-			cooldownText.Text = tostring(math.ceil(cdLeft))
-			stroke.Color = Color3.fromRGB(90, 100, 120)
-			icon.TextTransparency = 0.5
-		else
-			cooldownShade.Size = UDim2.fromScale(1, 0)
-			cooldownText.Text = ""
-			stroke.Color = Color3.fromRGB(150, 165, 190)
-			icon.TextTransparency = 0
-		end
-	end
+	local activeLeft = active and math.max(0, (character:GetAttribute(Config.UntilAttribute) or 0) - now) or nil
+	local cooldownLeft = math.max(0, (player:GetAttribute(Config.CooldownAttribute) or 0) - now)
+	button:Update(activeLeft, cooldownLeft)
 end)

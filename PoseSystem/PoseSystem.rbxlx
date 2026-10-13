@@ -1,4 +1,4 @@
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Workspace" referent="RBX3"><Properties><string name="Name">Workspace</string></Properties><Item class="Part" referent="RBX1"><Properties><string name="Name">Baseplate</string><bool name="Anchored">true</bool><CoordinateFrame name="CFrame"><X>0</X><Y>-4</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Vector3 name="size"><X>512</X><Y>8</Y><Z>512</Z></Vector3><Color3uint8 name="Color3uint8">4284702562</Color3uint8><bool name="Locked">true</bool></Properties></Item><Item class="SpawnLocation" referent="RBX2"><Properties><string name="Name">SpawnLocation</string><bool name="Anchored">true</bool><CoordinateFrame name="CFrame"><X>0</X><Y>0.5</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Vector3 name="size"><X>12</X><Y>1</Y><Z>12</Z></Vector3><Color3uint8 name="Color3uint8">4293322470</Color3uint8></Properties></Item></Item><Item class="ReplicatedStorage" referent="RBX6"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="ModuleScript" referent="RBX4"><Properties><string name="Name">PoseConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > PoseConfig
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Workspace" referent="RBX3"><Properties><string name="Name">Workspace</string></Properties><Item class="Part" referent="RBX1"><Properties><string name="Name">Baseplate</string><bool name="Anchored">true</bool><CoordinateFrame name="CFrame"><X>0</X><Y>-4</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Vector3 name="size"><X>512</X><Y>8</Y><Z>512</Z></Vector3><Color3uint8 name="Color3uint8">4284702562</Color3uint8><bool name="Locked">true</bool></Properties></Item><Item class="SpawnLocation" referent="RBX2"><Properties><string name="Name">SpawnLocation</string><bool name="Anchored">true</bool><CoordinateFrame name="CFrame"><X>0</X><Y>0.5</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Vector3 name="size"><X>12</X><Y>1</Y><Z>12</Z></Vector3><Color3uint8 name="Color3uint8">4293322470</Color3uint8></Properties></Item></Item><Item class="ReplicatedStorage" referent="RBX8"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="ModuleScript" referent="RBX4"><Properties><string name="Name">PoseConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > PoseConfig
 -- Общие настройки системы поз (сидеть / лежать / на коленях).
 -- Используется и сервером, и клиентом.
 
@@ -207,10 +207,257 @@ InvisibilityConfig.HideSounds = true -- шаги и прочие звуки пе
 
 -- Интерфейс
 InvisibilityConfig.ButtonText = "Невидимость"
+InvisibilityConfig.ButtonSlot = 1 -- место в ряду кнопок (1 = крайняя справа)
 InvisibilityConfig.ActiveColor = Color3.fromRGB(120, 200, 255)
 
 return InvisibilityConfig
-]]></ProtectedString></Properties></Item></Item><Item class="ServerScriptService" referent="RBX9"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX7"><Properties><string name="Name">PoseServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > PoseServer
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX6"><Properties><string name="Name">LaserConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > LaserConfig
+-- Настройки способности «Лазеры из глаз».
+
+local LaserConfig = {}
+
+LaserConfig.RemoteName = "LaserRequest" -- включить/выключить
+LaserConfig.AimRemoteName = "LaserAim" -- куда целится игрок (часто, без гарантии доставки)
+
+-- Атрибуты (выставляет сервер, читают все клиенты)
+LaserConfig.ActiveAttribute = "LaserActive" -- на персонаже: true/false
+LaserConfig.UntilAttribute = "LaserUntil" -- на персонаже: время окончания (серверное)
+LaserConfig.AimAttribute = "LaserAimPoint" -- на персонаже: точка прицела (Vector3)
+LaserConfig.CooldownAttribute = "LaserCooldownUntil" -- на игроке: конец кулдауна
+
+-- Время
+LaserConfig.Duration = 3 -- сколько секунд бьют лазеры
+LaserConfig.Cooldown = 12 -- кулдаун после окончания
+LaserConfig.CanCancelEarly = true -- повторное нажатие = выключить раньше
+
+-- Урон
+LaserConfig.DamagePerSecond = 35
+LaserConfig.DamageInterval = 0.1 -- как часто сервер наносит урон, сек
+LaserConfig.Range = 200 -- дальность, стады
+LaserConfig.FriendlyFire = false -- бить игроков своей команды (если есть Teams)
+
+-- Управление: целишься мышкой (на телефоне — центром экрана)
+LaserConfig.Keys = { Enum.KeyCode.R, Enum.KeyCode.ButtonX }
+LaserConfig.AimSendRate = 20 -- сколько раз в секунду клиент шлёт прицел
+LaserConfig.TurnToAim = true -- персонаж разворачивается туда, куда стреляет
+
+-- Внешний вид
+LaserConfig.Color = Color3.fromRGB(255, 30, 30) -- внешнее свечение луча
+LaserConfig.CoreColor = Color3.fromRGB(255, 220, 220) -- яркая середина луча
+LaserConfig.OuterWidth = 0.35
+LaserConfig.CoreWidth = 0.1
+LaserConfig.ChargeTime = 0.15 -- лучи «разгораются» и гаснут за это время
+LaserConfig.EyeLightRange = 5 -- красное свечение у глаз
+LaserConfig.ImpactLightRange = 10 -- свечение в точке попадания
+LaserConfig.SparkColor = Color3.fromRGB(255, 120, 40)
+
+-- Звук (необязательно): вставь rbxassetid://ID любого звука лазера из Toolbox
+LaserConfig.SoundId = ""
+LaserConfig.SoundVolume = 0.5
+
+-- Интерфейс
+LaserConfig.ButtonText = "Лазеры"
+LaserConfig.ButtonIcon = "🔴"
+LaserConfig.ButtonSlot = 2 -- левее кнопки невидимости
+LaserConfig.ActiveColor = Color3.fromRGB(255, 70, 70)
+
+return LaserConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX7"><Properties><string name="Name">AbilityButton</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > AbilityButton
+-- Общая кнопка способности: иконка, клавиша, затемнение и секунды кулдауна,
+-- полоска оставшегося действия. Кнопки выстраиваются в ряд справа внизу по Slot.
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local AbilityButton = {}
+AbilityButton.__index = AbilityButton
+
+local SIZE = 78
+local GAP = 14
+local BAR_HEIGHT = 6
+local WHITE = Color3.new(1, 1, 1)
+local IDLE_STROKE = Color3.fromRGB(150, 165, 190)
+local COOLDOWN_STROKE = Color3.fromRGB(90, 100, 120)
+
+local function getGui(): ScreenGui
+	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+	local gui = playerGui:FindFirstChild("AbilitiesGui")
+	if not gui then
+		gui = Instance.new("ScreenGui")
+		gui.Name = "AbilitiesGui"
+		gui.ResetOnSpawn = false
+		gui.Parent = playerGui
+	end
+	return gui
+end
+
+--[[
+	opts = {
+		Name = "Невидимость",
+		Icon = "👻",
+		KeyName = "Q",
+		Slot = 1,            -- 1 = крайняя справа, 2 = левее и т.д.
+		Duration = 8,        -- для полоски действия
+		Cooldown = 20,       -- для затемнения
+		ActiveColor = Color3,
+		OnActivate = function() end,
+	}
+]]
+function AbilityButton.new(opts)
+	local self = setmetatable({}, AbilityButton)
+	self.duration = opts.Duration
+	self.cooldown = opts.Cooldown
+	self.activeColor = opts.ActiveColor
+
+	local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local slotOffset = (opts.Slot - 1) * (SIZE + GAP)
+
+	-- Контейнер: кнопка сверху, полоска под ней
+	local holder = Instance.new("Frame")
+	holder.Name = opts.Name
+	holder.BackgroundTransparency = 1
+	holder.AnchorPoint = Vector2.new(1, 1)
+	holder.Size = UDim2.fromOffset(SIZE, SIZE + BAR_HEIGHT + 6)
+	holder.Position = isTouch and UDim2.new(1, -20 - slotOffset, 1, -165)
+		or UDim2.new(1, -24 - slotOffset, 1, -24)
+	holder.Parent = getGui()
+
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.fromOffset(SIZE, SIZE)
+	button.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
+	button.BackgroundTransparency = 0.2
+	button.Text = ""
+	button.ClipsDescendants = true
+	button.Parent = holder
+	Instance.new("UICorner", button).CornerRadius = UDim.new(0, 14)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 2
+	stroke.Color = IDLE_STROKE
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = button
+
+	local icon = Instance.new("TextLabel")
+	icon.BackgroundTransparency = 1
+	icon.Size = UDim2.new(1, 0, 1, -18)
+	icon.Text = opts.Icon
+	icon.TextScaled = true
+	icon.Font = Enum.Font.GothamBold
+	icon.TextColor3 = WHITE
+	icon.ZIndex = 2
+	icon.Parent = button
+	local iconPad = Instance.new("UIPadding")
+	iconPad.PaddingTop = UDim.new(0, 8)
+	iconPad.PaddingLeft = UDim.new(0, 14)
+	iconPad.PaddingRight = UDim.new(0, 14)
+	iconPad.Parent = icon
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.AnchorPoint = Vector2.new(0, 1)
+	nameLabel.Position = UDim2.new(0, 0, 1, -4)
+	nameLabel.Size = UDim2.new(1, 0, 0, 14)
+	nameLabel.Text = opts.Name
+	nameLabel.TextColor3 = Color3.fromRGB(210, 220, 235)
+	nameLabel.Font = Enum.Font.GothamMedium
+	nameLabel.TextSize = 11
+	nameLabel.ZIndex = 2
+	nameLabel.Parent = button
+
+	if not isTouch and opts.KeyName then
+		local keyLabel = Instance.new("TextLabel")
+		keyLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+		keyLabel.BackgroundTransparency = 0.4
+		keyLabel.Position = UDim2.fromOffset(5, 5)
+		keyLabel.Size = UDim2.fromOffset(18, 18)
+		keyLabel.Text = opts.KeyName
+		keyLabel.TextColor3 = WHITE
+		keyLabel.Font = Enum.Font.GothamBold
+		keyLabel.TextSize = 12
+		keyLabel.ZIndex = 4
+		keyLabel.Parent = button
+		Instance.new("UICorner", keyLabel).CornerRadius = UDim.new(0, 4)
+	end
+
+	-- Затемнение кулдауна: уменьшается снизу вверх по мере отката
+	local shade = Instance.new("Frame")
+	shade.AnchorPoint = Vector2.new(0, 1)
+	shade.Position = UDim2.fromScale(0, 1)
+	shade.Size = UDim2.fromScale(1, 0)
+	shade.BackgroundColor3 = Color3.new(0, 0, 0)
+	shade.BackgroundTransparency = 0.35
+	shade.BorderSizePixel = 0
+	shade.ZIndex = 3
+	shade.Parent = button
+
+	local cooldownText = Instance.new("TextLabel")
+	cooldownText.BackgroundTransparency = 1
+	cooldownText.Size = UDim2.fromScale(1, 1)
+	cooldownText.Text = ""
+	cooldownText.TextColor3 = WHITE
+	cooldownText.Font = Enum.Font.GothamBlack
+	cooldownText.TextSize = 28
+	cooldownText.TextStrokeTransparency = 0.5
+	cooldownText.ZIndex = 4
+	cooldownText.Parent = button
+
+	-- Полоска оставшегося действия
+	local barBack = Instance.new("Frame")
+	barBack.AnchorPoint = Vector2.new(0, 1)
+	barBack.Position = UDim2.fromScale(0, 1)
+	barBack.Size = UDim2.new(1, 0, 0, BAR_HEIGHT)
+	barBack.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
+	barBack.BackgroundTransparency = 0.2
+	barBack.BorderSizePixel = 0
+	barBack.Visible = false
+	barBack.Parent = holder
+	Instance.new("UICorner", barBack).CornerRadius = UDim.new(1, 0)
+
+	local barFill = Instance.new("Frame")
+	barFill.Size = UDim2.fromScale(1, 1)
+	barFill.BackgroundColor3 = opts.ActiveColor
+	barFill.BorderSizePixel = 0
+	barFill.Parent = barBack
+	Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
+
+	button.Activated:Connect(opts.OnActivate)
+
+	self.stroke = stroke
+	self.icon = icon
+	self.shade = shade
+	self.cooldownText = cooldownText
+	self.barBack = barBack
+	self.barFill = barFill
+	return self
+end
+
+-- activeLeft: сколько секунд ещё действует способность (nil — не активна)
+-- cooldownLeft: сколько секунд осталось до готовности
+function AbilityButton:Update(activeLeft: number?, cooldownLeft: number)
+	if activeLeft then
+		self.barBack.Visible = true
+		self.barFill.Size = UDim2.fromScale(math.clamp(activeLeft / self.duration, 0, 1), 1)
+		self.stroke.Color = self.activeColor
+		self.shade.Size = UDim2.fromScale(1, 0)
+		self.cooldownText.Text = ""
+		self.icon.TextTransparency = 0.4
+	elseif cooldownLeft > 0 then
+		self.barBack.Visible = false
+		self.shade.Size = UDim2.fromScale(1, math.clamp(cooldownLeft / self.cooldown, 0, 1))
+		self.cooldownText.Text = tostring(math.ceil(cooldownLeft))
+		self.stroke.Color = COOLDOWN_STROKE
+		self.icon.TextTransparency = 0.5
+	else
+		self.barBack.Visible = false
+		self.shade.Size = UDim2.fromScale(1, 0)
+		self.cooldownText.Text = ""
+		self.stroke.Color = IDLE_STROKE
+		self.icon.TextTransparency = 0
+	end
+end
+
+return AbilityButton
+]]></ProtectedString></Properties></Item></Item><Item class="ServerScriptService" referent="RBX12"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX9"><Properties><string name="Name">PoseServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > PoseServer
 -- Сервер: принимает запросы «вниз/вверх/встать», проверяет их,
 -- выставляет атрибут позы персонажу (его видят все игроки) и блокирует ходьбу.
 
@@ -340,7 +587,7 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	lastRequest[player] = nil
 end)
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX8"><Properties><string name="Name">InvisibilityServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > InvisibilityServer
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX10"><Properties><string name="Name">InvisibilityServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > InvisibilityServer
 -- Сервер ведёт таймеры невидимости и кулдауна. Сами эффекты рисует
 -- каждый клиент по атрибутам: себе — «стекло», другим — полная невидимость.
 
@@ -442,7 +689,187 @@ Players.PlayerRemoving:Connect(function(player)
 	lastRequest[player] = nil
 	tokens[player] = nil
 end)
-]]></ProtectedString></Properties></Item></Item><Item class="StarterPlayer" referent="RBX13"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX12"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX10"><Properties><string name="Name">PoseClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > PoseClient
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX11"><Properties><string name="Name">LaserServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > LaserServer
+-- Сервер ведёт таймеры лазеров, принимает прицел от игрока и наносит урон.
+-- Лучи и искры рисует каждый клиент по атрибутам персонажа.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("LaserConfig"))
+
+local function getRemote(name: string, className: string)
+	local remote = ReplicatedStorage:FindFirstChild(name)
+	if not remote then
+		remote = Instance.new(className)
+		remote.Name = name
+		remote.Parent = ReplicatedStorage
+	end
+	return remote
+end
+
+local remote = getRemote(Config.RemoteName, "RemoteEvent")
+local aimRemote = getRemote(Config.AimRemoteName, "UnreliableRemoteEvent")
+
+local lastRequest: { [Player]: number } = {}
+local tokens: { [Player]: number } = {}
+local firing: { [Player]: Model } = {} -- кто сейчас стреляет
+
+local function now(): number
+	return workspace:GetServerTimeNow()
+end
+
+local function stopLaser(player: Player, character: Model)
+	firing[player] = nil
+	if character:GetAttribute(Config.ActiveAttribute) ~= true then
+		return
+	end
+	character:SetAttribute(Config.ActiveAttribute, false)
+	character:SetAttribute(Config.UntilAttribute, 0)
+	player:SetAttribute(Config.CooldownAttribute, now() + Config.Cooldown)
+end
+
+local function startLaser(player: Player, character: Model)
+	local head = character:FindFirstChild("Head")
+	if not head then
+		return
+	end
+	local token = (tokens[player] or 0) + 1
+	tokens[player] = token
+
+	character:SetAttribute(Config.AimAttribute, head.Position + head.CFrame.LookVector * Config.Range)
+	character:SetAttribute(Config.UntilAttribute, now() + Config.Duration)
+	character:SetAttribute(Config.ActiveAttribute, true)
+	firing[player] = character
+
+	task.delay(Config.Duration, function()
+		if tokens[player] == token and character.Parent then
+			stopLaser(player, character)
+		end
+	end)
+end
+
+remote.OnServerEvent:Connect(function(player: Player)
+	local t = os.clock()
+	if lastRequest[player] and t - lastRequest[player] < 0.25 then
+		return
+	end
+	lastRequest[player] = t
+
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	if character:GetAttribute(Config.ActiveAttribute) == true then
+		if Config.CanCancelEarly then
+			stopLaser(player, character)
+		end
+		return
+	end
+
+	if now() < (player:GetAttribute(Config.CooldownAttribute) or 0) then
+		return
+	end
+
+	startLaser(player, character)
+end)
+
+aimRemote.OnServerEvent:Connect(function(player: Player, point: any)
+	local character = firing[player]
+	if not character or typeof(point) ~= "Vector3" or point ~= point then
+		return -- не стреляет, мусор или NaN
+	end
+	local head = character:FindFirstChild("Head")
+	if not head then
+		return
+	end
+	-- Ограничиваем дальность, чтобы нельзя было «бить» через всю карту
+	local offset = point - head.Position
+	if offset.Magnitude > Config.Range then
+		point = head.Position + offset.Unit * Config.Range
+	end
+	character:SetAttribute(Config.AimAttribute, point)
+end)
+
+local function isFriendly(attacker: Player, victimModel: Model): boolean
+	if Config.FriendlyFire then
+		return false
+	end
+	local victim = Players:GetPlayerFromCharacter(victimModel)
+	return victim ~= nil
+		and not attacker.Neutral
+		and not victim.Neutral
+		and attacker.Team ~= nil
+		and attacker.Team == victim.Team
+end
+
+local accumulator = 0
+RunService.Heartbeat:Connect(function(dt)
+	accumulator += dt
+	if accumulator < Config.DamageInterval then
+		return
+	end
+	local interval = accumulator
+	accumulator = 0
+
+	for player, character in pairs(firing) do
+		local head = character:FindFirstChild("Head")
+		local aim = character:GetAttribute(Config.AimAttribute)
+		if head and typeof(aim) == "Vector3" then
+			local direction = aim - head.Position
+			if direction.Magnitude > 0.01 then
+				local params = RaycastParams.new()
+				params.FilterType = Enum.RaycastFilterType.Exclude
+				params.FilterDescendantsInstances = { character }
+				local result = workspace:Raycast(head.Position, direction.Unit * Config.Range, params)
+				if result then
+					local model = result.Instance:FindFirstAncestorWhichIsA("Model")
+					local humanoid = model and model:FindFirstChildOfClass("Humanoid")
+					if humanoid and humanoid.Health > 0 and not isFriendly(player, model) then
+						humanoid:TakeDamage(Config.DamagePerSecond * interval)
+					end
+				end
+			end
+		end
+	end
+end)
+
+local function onCharacterAdded(player: Player, character: Model)
+	character:SetAttribute(Config.ActiveAttribute, false)
+	character:SetAttribute(Config.UntilAttribute, 0)
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if humanoid then
+		humanoid.Died:Connect(function()
+			stopLaser(player, character)
+		end)
+	end
+end
+
+local function onPlayerAdded(player: Player)
+	player:SetAttribute(Config.CooldownAttribute, 0)
+	player.CharacterAdded:Connect(function(character)
+		firing[player] = nil
+		onCharacterAdded(player, character)
+	end)
+	if player.Character then
+		task.spawn(onCharacterAdded, player, player.Character)
+	end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in Players:GetPlayers() do
+	onPlayerAdded(player)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	lastRequest[player] = nil
+	tokens[player] = nil
+	firing[player] = nil
+end)
+]]></ProtectedString></Properties></Item></Item><Item class="StarterPlayer" referent="RBX17"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX16"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX13"><Properties><string name="Name">PoseClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > PoseClient
 -- Клиент:
 --   1) ловит кнопки (клавиатура, геймпад, кнопки на телефоне) и шлёт запрос серверу;
 --   2) проигрывает процедурные анимации поз для ВСЕХ персонажей на сервере
@@ -966,7 +1393,7 @@ if PoseConfig.ShowHint and UserInputService.KeyboardEnabled then
 	hintLabel = label
 	updateLabels()
 end
-]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX11"><Properties><string name="Name">InvisibilityClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > InvisibilityClient
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX14"><Properties><string name="Name">InvisibilityClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > InvisibilityClient
 -- Клиент способности «Невидимость»:
 --   * себя видишь полупрозрачным «стеклом» с голубым оттенком и лёгкой синевой на экране;
 --   * другие невидимые игроки скрыты полностью (тело, ник, полоска здоровья, звуки);
@@ -976,7 +1403,6 @@ end
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 local ContextActionService = game:GetService("ContextActionService")
 local Lighting = game:GetService("Lighting")
 local Debris = game:GetService("Debris")
@@ -1209,121 +1635,7 @@ end
 -- Кнопка и таймеры
 ---------------------------------------------------------------------
 
-local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-
-local gui = Instance.new("ScreenGui")
-gui.Name = "InvisibilityGui"
-gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
-
-local button = Instance.new("TextButton")
-button.Name = "InvisibilityButton"
-button.AnchorPoint = Vector2.new(1, 1)
-button.Position = isTouch and UDim2.new(1, -20, 1, -175) or UDim2.new(1, -24, 1, -34)
-button.Size = UDim2.fromOffset(78, 78)
-button.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
-button.BackgroundTransparency = 0.2
-button.AutoButtonColor = true
-button.Text = ""
-button.ClipsDescendants = true
-button.Parent = gui
-Instance.new("UICorner", button).CornerRadius = UDim.new(0, 14)
-
-local stroke = Instance.new("UIStroke")
-stroke.Thickness = 2
-stroke.Color = Color3.fromRGB(90, 100, 120)
-stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-stroke.Parent = button
-
-local icon = Instance.new("TextLabel")
-icon.BackgroundTransparency = 1
-icon.Size = UDim2.new(1, 0, 1, -18)
-icon.Text = "👻"
-icon.TextScaled = true
-icon.Font = Enum.Font.GothamBold
-icon.TextColor3 = WHITE
-icon.ZIndex = 2
-icon.Parent = button
-local iconPad = Instance.new("UIPadding")
-iconPad.PaddingTop = UDim.new(0, 8)
-iconPad.PaddingLeft = UDim.new(0, 14)
-iconPad.PaddingRight = UDim.new(0, 14)
-iconPad.Parent = icon
-
-local nameLabel = Instance.new("TextLabel")
-nameLabel.BackgroundTransparency = 1
-nameLabel.AnchorPoint = Vector2.new(0, 1)
-nameLabel.Position = UDim2.new(0, 0, 1, -4)
-nameLabel.Size = UDim2.new(1, 0, 0, 14)
-nameLabel.Text = Config.ButtonText
-nameLabel.TextColor3 = Color3.fromRGB(210, 220, 235)
-nameLabel.Font = Enum.Font.GothamMedium
-nameLabel.TextSize = 11
-nameLabel.ZIndex = 2
-nameLabel.Parent = button
-
-if not isTouch then
-	local keyLabel = Instance.new("TextLabel")
-	keyLabel.BackgroundColor3 = Color3.new(0, 0, 0)
-	keyLabel.BackgroundTransparency = 0.4
-	keyLabel.Position = UDim2.fromOffset(5, 5)
-	keyLabel.Size = UDim2.fromOffset(18, 18)
-	keyLabel.Text = Config.Keys[1].Name
-	keyLabel.TextColor3 = WHITE
-	keyLabel.Font = Enum.Font.GothamBold
-	keyLabel.TextSize = 12
-	keyLabel.ZIndex = 4
-	keyLabel.Parent = button
-	Instance.new("UICorner", keyLabel).CornerRadius = UDim.new(0, 4)
-end
-
--- Затемнение кулдауна (опускается сверху вниз по мере отката)
-local cooldownShade = Instance.new("Frame")
-cooldownShade.AnchorPoint = Vector2.new(0, 1)
-cooldownShade.Position = UDim2.fromScale(0, 1)
-cooldownShade.Size = UDim2.fromScale(1, 0)
-cooldownShade.BackgroundColor3 = Color3.new(0, 0, 0)
-cooldownShade.BackgroundTransparency = 0.35
-cooldownShade.BorderSizePixel = 0
-cooldownShade.ZIndex = 3
-cooldownShade.Parent = button
-
-local cooldownText = Instance.new("TextLabel")
-cooldownText.BackgroundTransparency = 1
-cooldownText.Size = UDim2.fromScale(1, 1)
-cooldownText.Text = ""
-cooldownText.TextColor3 = WHITE
-cooldownText.Font = Enum.Font.GothamBlack
-cooldownText.TextSize = 28
-cooldownText.TextStrokeTransparency = 0.5
-cooldownText.ZIndex = 4
-cooldownText.Parent = button
-
--- Полоска оставшейся невидимости под кнопкой
-local barBack = Instance.new("Frame")
-barBack.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
-barBack.BackgroundTransparency = 0.2
-barBack.BorderSizePixel = 0
-barBack.Visible = false
-barBack.Parent = gui
-Instance.new("UICorner", barBack).CornerRadius = UDim.new(1, 0)
-
-local barFill = Instance.new("Frame")
-barFill.Size = UDim2.fromScale(1, 1)
-barFill.BackgroundColor3 = Config.ActiveColor
-barFill.BorderSizePixel = 0
-barFill.Parent = barBack
-Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
-
-local function placeBar()
-	-- Полоска живёт в ScreenGui (у кнопки обрезка), ставим её прямо под кнопкой
-	local pos, size = button.AbsolutePosition, button.AbsoluteSize
-	barBack.Position = UDim2.fromOffset(pos.X, pos.Y + size.Y + 6)
-	barBack.Size = UDim2.fromOffset(size.X, 6)
-end
-button:GetPropertyChangedSignal("AbsolutePosition"):Connect(placeBar)
-button:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeBar)
-placeBar()
+local AbilityButton = require(ReplicatedStorage:WaitForChild("AbilityButton"))
 
 local lastRequest = 0
 
@@ -1336,7 +1648,16 @@ local function request()
 	remote:FireServer()
 end
 
-button.Activated:Connect(request)
+local button = AbilityButton.new({
+	Name = Config.ButtonText,
+	Icon = "👻",
+	KeyName = Config.Keys[1].Name,
+	Slot = Config.ButtonSlot,
+	Duration = Config.Duration,
+	Cooldown = Config.Cooldown,
+	ActiveColor = Config.ActiveColor,
+	OnActivate = request,
+})
 
 ContextActionService:BindAction("Invisibility", function(_, inputState)
 	if inputState == Enum.UserInputState.Begin then
@@ -1369,29 +1690,349 @@ RunService.Heartbeat:Connect(function(dt)
 	local now = serverNow()
 	local character = player.Character
 	local active = character ~= nil and character:GetAttribute(Config.ActiveAttribute) == true
+	local activeLeft = active and math.max(0, (character:GetAttribute(Config.UntilAttribute) or 0) - now) or nil
+	local cooldownLeft = math.max(0, (player:GetAttribute(Config.CooldownAttribute) or 0) - now)
+	button:Update(activeLeft, cooldownLeft)
+end)
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX15"><Properties><string name="Name">LaserClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > LaserClient
+-- Клиент способности «Лазеры из глаз»:
+--   * рисует лучи из глаз у ВСЕХ стреляющих игроков (их видят все);
+--   * светящиеся глаза, искры и свет в точке попадания, «мерцание» луча;
+--   * свой прицел — мышка (на телефоне — центр экрана), персонаж разворачивается к цели;
+--   * кнопка с таймером кулдауна и полоской оставшегося времени.
 
-	if active then
-		local left = math.max(0, (character:GetAttribute(Config.UntilAttribute) or 0) - now)
-		barBack.Visible = true
-		barFill.Size = UDim2.fromScale(math.clamp(left / Config.Duration, 0, 1), 1)
-		stroke.Color = Config.ActiveColor
-		cooldownShade.Size = UDim2.fromScale(1, 0)
-		cooldownText.Text = ""
-		icon.TextTransparency = 0.4
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("LaserConfig"))
+local AbilityButton = require(ReplicatedStorage:WaitForChild("AbilityButton"))
+local remote = ReplicatedStorage:WaitForChild(Config.RemoteName)
+local aimRemote = ReplicatedStorage:WaitForChild(Config.AimRemoteName)
+
+local player = Players.LocalPlayer
+local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+local function serverNow(): number
+	return workspace:GetServerTimeNow()
+end
+
+---------------------------------------------------------------------
+-- Эффекты лучей
+---------------------------------------------------------------------
+
+local effects = {} -- [character] = эффект
+
+local function makeBeam(a0: Attachment, a1: Attachment, color: Color3, parent: Instance): Beam
+	local beam = Instance.new("Beam")
+	beam.Attachment0 = a0
+	beam.Attachment1 = a1
+	beam.Color = ColorSequence.new(color)
+	beam.LightEmission = 1
+	beam.LightInfluence = 0
+	beam.FaceCamera = true
+	beam.Segments = 1
+	beam.Width0 = 0
+	beam.Width1 = 0
+	beam.Transparency = NumberSequence.new(0)
+	beam.Parent = parent
+	return beam
+end
+
+local function createEffect(character: Model)
+	local head = character:FindFirstChild("Head")
+	if not head or not head:IsA("BasePart") then
+		return nil
+	end
+
+	local instances = {}
+	local function track(inst)
+		table.insert(instances, inst)
+		return inst
+	end
+
+	-- Глаза: чуть выше центра головы, на передней поверхности
+	local size = head.Size
+	local eyeX, eyeY, eyeZ = size.Y * 0.2, size.Y * 0.1, -size.Z * 0.5
+	local eyes = {}
+	for i, side in { -1, 1 } do
+		local eye = track(Instance.new("Attachment"))
+		eye.Name = "LaserEye" .. i
+		eye.Position = Vector3.new(eyeX * side, eyeY, eyeZ)
+		eye.Parent = head
+		local light = Instance.new("PointLight")
+		light.Color = Config.Color
+		light.Range = Config.EyeLightRange
+		light.Brightness = 0
+		light.Parent = eye
+		eyes[i] = { attachment = eye, light = light }
+	end
+
+	-- Точка попадания: невидимая локальная деталь со светом и искрами
+	local target = track(Instance.new("Part"))
+	target.Name = "LaserImpact"
+	target.Anchored = true
+	target.CanCollide = false
+	target.CanQuery = false
+	target.CanTouch = false
+	target.Transparency = 1
+	target.Size = Vector3.new(0.2, 0.2, 0.2)
+	target.CFrame = head.CFrame
+	target.Parent = workspace
+
+	local hit = Instance.new("Attachment")
+	hit.Parent = target
+
+	local impactLight = Instance.new("PointLight")
+	impactLight.Color = Config.Color
+	impactLight.Range = Config.ImpactLightRange
+	impactLight.Brightness = 0
+	impactLight.Parent = hit
+
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.Color = ColorSequence.new(Config.SparkColor, Config.Color)
+	sparks.LightEmission = 1
+	sparks.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.35),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	sparks.Lifetime = NumberRange.new(0.15, 0.4)
+	sparks.Speed = NumberRange.new(8, 16)
+	sparks.SpreadAngle = Vector2.new(180, 180)
+	sparks.Acceleration = Vector3.new(0, -30, 0)
+	sparks.Rate = 80
+	sparks.Drag = 2
+	sparks.Enabled = false
+	sparks.Parent = hit
+
+	local beams = {}
+	for _, eye in eyes do
+		table.insert(beams, { beam = track(makeBeam(eye.attachment, hit, Config.Color, head)), width = Config.OuterWidth })
+		table.insert(beams, { beam = track(makeBeam(eye.attachment, hit, Config.CoreColor, head)), width = Config.CoreWidth })
+	end
+
+	local sound
+	if Config.SoundId ~= "" then
+		sound = track(Instance.new("Sound"))
+		sound.SoundId = Config.SoundId
+		sound.Volume = Config.SoundVolume
+		sound.Looped = true
+		sound.Parent = head
+		sound:Play()
+	end
+
+	return {
+		character = character,
+		head = head,
+		eyes = eyes,
+		beams = beams,
+		target = target,
+		impactLight = impactLight,
+		sparks = sparks,
+		sound = sound,
+		instances = instances,
+		power = 0,
+		aim = character:GetAttribute(Config.AimAttribute),
+		seed = math.random() * 100,
+	}
+end
+
+local function destroyEffect(character: Model)
+	local fx = effects[character]
+	if not fx then
+		return
+	end
+	effects[character] = nil
+	for _, inst in fx.instances do
+		inst:Destroy()
+	end
+end
+
+---------------------------------------------------------------------
+-- Прицел своего персонажа
+---------------------------------------------------------------------
+
+local aimParams = RaycastParams.new()
+aimParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function getLocalAim(character: Model): Vector3
+	local camera = workspace.CurrentCamera
+	local screenPoint
+	if isTouch then
+		screenPoint = camera.ViewportSize / 2
 	else
-		barBack.Visible = false
-		local cdLeft = math.max(0, (player:GetAttribute(Config.CooldownAttribute) or 0) - now)
-		if cdLeft > 0 then
-			cooldownShade.Size = UDim2.fromScale(1, math.clamp(cdLeft / Config.Cooldown, 0, 1))
-			cooldownText.Text = tostring(math.ceil(cdLeft))
-			stroke.Color = Color3.fromRGB(90, 100, 120)
-			icon.TextTransparency = 0.5
-		else
-			cooldownShade.Size = UDim2.fromScale(1, 0)
-			cooldownText.Text = ""
-			stroke.Color = Color3.fromRGB(150, 165, 190)
-			icon.TextTransparency = 0
+		screenPoint = UserInputService:GetMouseLocation()
+	end
+	local ray = camera:ViewportPointToRay(screenPoint.X, screenPoint.Y)
+	aimParams.FilterDescendantsInstances = { character }
+	local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, aimParams)
+	return result and result.Position or ray.Origin + ray.Direction * 1000
+end
+
+local savedAutoRotate: boolean? = nil
+local sendTimer = 0
+
+local function turnToward(character: Model, aim: Vector3, dt: number)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not hrp or humanoid.Sit then
+		return
+	end
+	if savedAutoRotate == nil then
+		savedAutoRotate = humanoid.AutoRotate
+		humanoid.AutoRotate = false
+	end
+	local pos = hrp.Position
+	local flat = Vector3.new(aim.X - pos.X, 0, aim.Z - pos.Z)
+	if flat.Magnitude < 0.5 then
+		return
+	end
+	local goal = CFrame.lookAt(pos, pos + flat)
+	local t = math.min(1, dt * 14)
+	hrp.CFrame = CFrame.new(pos) * hrp.CFrame.Rotation:Lerp(goal.Rotation, t)
+end
+
+local function releaseTurn(character: Model?)
+	if savedAutoRotate == nil then
+		return
+	end
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.AutoRotate = savedAutoRotate
+	end
+	savedAutoRotate = nil
+end
+
+---------------------------------------------------------------------
+-- Кнопка и управление
+---------------------------------------------------------------------
+
+local lastRequest = 0
+
+local function request()
+	local t = os.clock()
+	if t - lastRequest < 0.25 then
+		return
+	end
+	lastRequest = t
+	remote:FireServer()
+end
+
+local button = AbilityButton.new({
+	Name = Config.ButtonText,
+	Icon = Config.ButtonIcon,
+	KeyName = Config.Keys[1].Name,
+	Slot = Config.ButtonSlot,
+	Duration = Config.Duration,
+	Cooldown = Config.Cooldown,
+	ActiveColor = Config.ActiveColor,
+	OnActivate = request,
+})
+
+ContextActionService:BindAction("LaserEyes", function(_, inputState)
+	if inputState == Enum.UserInputState.Begin then
+		request()
+		return Enum.ContextActionResult.Sink
+	end
+	return Enum.ContextActionResult.Pass
+end, false, table.unpack(Config.Keys))
+
+---------------------------------------------------------------------
+-- Кадровый цикл
+---------------------------------------------------------------------
+
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+RunService.RenderStepped:Connect(function(dt)
+	local t = os.clock()
+	local myCharacter = player.Character
+	local myActive = myCharacter ~= nil and myCharacter:GetAttribute(Config.ActiveAttribute) == true
+	local myAim = myActive and getLocalAim(myCharacter) or nil
+
+	-- Свой персонаж: шлём прицел и разворачиваемся к цели
+	if myActive and myAim then
+		sendTimer -= dt
+		if sendTimer <= 0 then
+			sendTimer = 1 / Config.AimSendRate
+			aimRemote:FireServer(myAim)
+		end
+		if Config.TurnToAim then
+			turnToward(myCharacter, myAim, dt)
+		end
+	else
+		sendTimer = 0
+		releaseTurn(myCharacter)
+	end
+
+	-- Появились новые стреляющие — создаём им эффект
+	for _, p in Players:GetPlayers() do
+		local character = p.Character
+		if character and not effects[character] and character:GetAttribute(Config.ActiveAttribute) == true then
+			effects[character] = createEffect(character)
 		end
 	end
+
+	for character, fx in pairs(effects) do
+		if not character.Parent or not fx.head.Parent then
+			destroyEffect(character)
+			continue
+		end
+
+		local active = character:GetAttribute(Config.ActiveAttribute) == true
+		local step = dt / Config.ChargeTime
+		fx.power = active and math.min(1, fx.power + step) or math.max(0, fx.power - step)
+		if fx.power <= 0 and not active then
+			destroyEffect(character)
+			continue
+		end
+
+		-- Цель: своя — сразу из мышки, чужая — плавно догоняет данные сервера
+		local aim
+		if character == myCharacter and myAim then
+			aim = myAim
+		else
+			local serverAim = character:GetAttribute(Config.AimAttribute)
+			if typeof(serverAim) == "Vector3" then
+				fx.aim = fx.aim and fx.aim:Lerp(serverAim, 1 - math.exp(-15 * dt)) or serverAim
+			end
+			aim = fx.aim
+		end
+		if not aim then
+			continue
+		end
+
+		local origin = (fx.eyes[1].attachment.WorldPosition + fx.eyes[2].attachment.WorldPosition) / 2
+		local direction = aim - origin
+		if direction.Magnitude < 0.01 then
+			continue
+		end
+		rayParams.FilterDescendantsInstances = { character, fx.target }
+		local result = workspace:Raycast(origin, direction.Unit * Config.Range, rayParams)
+		local endPoint = result and result.Position or origin + direction.Unit * Config.Range
+
+		fx.target.CFrame = CFrame.new(endPoint)
+		fx.sparks.Enabled = result ~= nil and fx.power > 0.5
+		fx.impactLight.Brightness = result and 4 * fx.power or 0
+
+		-- Мерцание толщины луча
+		local flicker = 1 + 0.25 * math.noise(t * 25, fx.seed)
+		for _, b in fx.beams do
+			local w = b.width * fx.power * flicker
+			b.beam.Width0 = w
+			b.beam.Width1 = w
+		end
+		for _, eye in fx.eyes do
+			eye.light.Brightness = 3 * fx.power
+		end
+	end
+
+	-- Таймеры на кнопке
+	local now = serverNow()
+	local activeLeft = myActive and math.max(0, (myCharacter:GetAttribute(Config.UntilAttribute) or 0) - now) or nil
+	local cooldownLeft = math.max(0, (player:GetAttribute(Config.CooldownAttribute) or 0) - now)
+	button:Update(activeLeft, cooldownLeft)
 end)
 ]]></ProtectedString></Properties></Item></Item></Item></roblox>

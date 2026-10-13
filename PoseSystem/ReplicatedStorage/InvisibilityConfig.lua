@@ -40,6 +40,7 @@ InvisibilityConfig.HideSounds = true -- шаги и прочие звуки пе
 
 -- Интерфейс
 InvisibilityConfig.ButtonText = "Невидимость"
+InvisibilityConfig.ButtonSlot = 1 -- место в ряду кнопок (1 = крайняя справа)
 InvisibilityConfig.ActiveColor = Color3.fromRGB(120, 200, 255)
 
 return InvisibilityConfig
