@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PoseConfig = require(ReplicatedStorage:WaitForChild("PoseConfig"))
+local AbilityRegistry = require(script.Parent:WaitForChild("AbilityRegistry"))
 local ATTR = PoseConfig.AttributeName
 
 local remote = ReplicatedStorage:FindFirstChild(PoseConfig.RemoteName)
@@ -61,6 +62,13 @@ local function setPose(character: Model, state: string)
 	applyMovement(humanoid, state)
 end
 
+-- Полёт и куб поднимают персонажа из позы
+AbilityRegistry.SetPoseStandHandler(function(character: Model)
+	if character:GetAttribute(ATTR) ~= "Stand" then
+		setPose(character, "Stand")
+	end
+end)
+
 remote.OnServerEvent:Connect(function(player: Player, direction: any)
 	if direction ~= "Down" and direction ~= "Up" and direction ~= "Stand" then
 		return
@@ -91,8 +99,8 @@ remote.OnServerEvent:Connect(function(player: Player, direction: any)
 		return
 	end
 
-	-- Нельзя садиться, если персонаж уже сидит на сиденье (Seat)
-	if current == "Stand" and humanoid.Sit then
+	-- Нельзя садиться, если персонаж уже сидит на сиденье (Seat), летит или стал кубом
+	if current == "Stand" and (humanoid.Sit or AbilityRegistry.BlocksPose(character)) then
 		return
 	end
 

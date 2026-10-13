@@ -435,6 +435,10 @@ local function request(direction: string, force: boolean?)
 	if current == "Stand" and not canStartPose(ctrl.humanoid) then
 		return
 	end
+	-- Во время полёта и в форме куба позы недоступны
+	if ctrl.character:GetAttribute("Flying") == true or ctrl.character:GetAttribute("CubeForm") == true then
+		return
+	end
 
 	lastRequest = now
 	ctrl.predicted = nextState

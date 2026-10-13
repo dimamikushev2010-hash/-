@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("InvisibilityConfig"))
+local AbilityRegistry = require(script.Parent:WaitForChild("AbilityRegistry"))
 
 local remote = ReplicatedStorage:FindFirstChild(Config.RemoteName)
 if not remote then
@@ -31,6 +32,7 @@ local function endInvisibility(player: Player, character: Model)
 end
 
 local function startInvisibility(player: Player, character: Model)
+	AbilityRegistry.Stop("Cube", player, character) -- куб и невидимость вместе не работают
 	local token = (tokens[player] or 0) + 1
 	tokens[player] = token
 	character:SetAttribute(Config.ActiveAttribute, true)
@@ -42,6 +44,8 @@ local function startInvisibility(player: Player, character: Model)
 		end
 	end)
 end
+
+AbilityRegistry.RegisterStopper("Invisibility", endInvisibility)
 
 remote.OnServerEvent:Connect(function(player: Player)
 	local t = os.clock()

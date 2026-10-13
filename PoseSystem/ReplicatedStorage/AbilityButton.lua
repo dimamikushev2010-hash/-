@@ -4,6 +4,9 @@
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local ContextActionService = game:GetService("ContextActionService")
 
 local AbilityButton = {}
 AbilityButton.__index = AbilityButton
@@ -156,8 +159,17 @@ function AbilityButton.new(opts)
 	barFill.Parent = barBack
 	Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
 
-	button.Activated:Connect(opts.OnActivate)
+	local uiScale = Instance.new("UIScale")
+	uiScale.Parent = holder
 
+	-- Нажатие: кнопка «проседает» и пружинит обратно
+	button.Activated:Connect(function()
+		self:Pulse(0.86)
+		opts.OnActivate()
+	end)
+
+	self.uiScale = uiScale
+	self.wasCooling = false
 	self.stroke = stroke
 	self.icon = icon
 	self.shade = shade
@@ -167,10 +179,36 @@ function AbilityButton.new(opts)
 	return self
 end
 
+function AbilityButton:Pulse(from: number)
+	self.uiScale.Scale = from
+	TweenService:Create(self.uiScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1,
+	}):Play()
+end
+
+-- Вспышка «способность готова»
+function AbilityButton:ReadyFlash()
+	self:Pulse(1.18)
+	self.stroke.Thickness = 5
+	TweenService:Create(self.stroke, TweenInfo.new(0.5), { Thickness = 2 }):Play()
+end
+
 -- activeLeft: сколько секунд ещё действует способность (nil — не активна)
 -- cooldownLeft: сколько секунд осталось до готовности
 function AbilityButton:Update(activeLeft: number?, cooldownLeft: number)
+	local cooling = activeLeft == nil and cooldownLeft > 0
+	if self.wasCooling and not cooling and activeLeft == nil then
+		self:ReadyFlash()
+	end
+	self.wasCooling = cooling
+	if self.wasActive and not activeLeft then
+		self.stroke.Thickness = 2
+	end
+	self.wasActive = activeLeft ~= nil
+
 	if activeLeft then
+		-- Пока способность действует, обводка «дышит»
+		self.stroke.Thickness = 2.5 + math.sin(os.clock() * 8) * 1.2
 		self.barBack.Visible = true
 		self.barFill.Size = UDim2.fromScale(math.clamp(activeLeft / self.duration, 0, 1), 1)
 		self.stroke.Color = self.activeColor
@@ -190,6 +228,48 @@ function AbilityButton:Update(activeLeft: number?, cooldownLeft: number)
 		self.stroke.Color = IDLE_STROKE
 		self.icon.TextTransparency = 0
 	end
+end
+
+-- Всё сразу: кнопка, клавиши, запрос на сервер и таймеры по атрибутам.
+-- opts — как у new(), плюс Remote, Keys, ActionName,
+-- ActiveAttribute, UntilAttribute, CooldownAttribute.
+function AbilityButton.Create(opts)
+	local player = Players.LocalPlayer
+	local lastRequest = 0
+	local button
+
+	local function request()
+		local t = os.clock()
+		if t - lastRequest < 0.25 then
+			return
+		end
+		lastRequest = t
+		opts.Remote:FireServer()
+	end
+
+	opts.OnActivate = request
+	opts.KeyName = opts.KeyName or opts.Keys[1].Name
+	button = AbilityButton.new(opts)
+
+	ContextActionService:BindAction(opts.ActionName, function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			button:Pulse(0.86)
+			request()
+			return Enum.ContextActionResult.Sink
+		end
+		return Enum.ContextActionResult.Pass
+	end, false, table.unpack(opts.Keys))
+
+	RunService.Heartbeat:Connect(function()
+		local now = workspace:GetServerTimeNow()
+		local character = player.Character
+		local active = character ~= nil and character:GetAttribute(opts.ActiveAttribute) == true
+		local activeLeft = active and math.max(0, (character:GetAttribute(opts.UntilAttribute) or 0) - now) or nil
+		local cooldownLeft = math.max(0, (player:GetAttribute(opts.CooldownAttribute) or 0) - now)
+		button:Update(activeLeft, cooldownLeft)
+	end)
+
+	return button
 end
 
 return AbilityButton

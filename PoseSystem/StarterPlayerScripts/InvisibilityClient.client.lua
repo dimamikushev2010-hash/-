@@ -3,7 +3,10 @@
 --   * себя видишь полупрозрачным «стеклом» с голубым оттенком и лёгкой синевой на экране;
 --   * другие невидимые игроки скрыты полностью (тело, ник, полоска здоровья, звуки);
 --   * при выходе из невидимости персонажа на 1,5 сек обводит красный контур;
+--   * анимации: исчезновение (руки крест-накрест и резкий взмах) и появление (силовая стойка),
+--     вспышки частиц;
 --   * кнопка с таймером кулдауна и полоской оставшейся невидимости.
+-- Этот же скрипт прячет тело персонажа, когда он превращается в куб (CubeConfig).
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -14,7 +17,12 @@ local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("InvisibilityConfig"))
+local CubeConfig = require(ReplicatedStorage:WaitForChild("CubeConfig"))
+local RigAnimator = require(ReplicatedStorage:WaitForChild("RigAnimator"))
+local AbilityFx = require(ReplicatedStorage:WaitForChild("AbilityFx"))
 local remote = ReplicatedStorage:WaitForChild(Config.RemoteName)
+
+local CUBE_FADE_TIME = 0.15
 
 local player = Players.LocalPlayer
 local WHITE = Color3.new(1, 1, 1)
@@ -35,6 +43,10 @@ screenTint.Enabled = false
 screenTint.Parent = Lighting
 
 local function isFadeable(inst: Instance): boolean
+	-- Сам куб и его лицо не трогаем
+	if inst.Name == CubeConfig.PartName or (inst.Parent and inst.Parent.Name == CubeConfig.PartName) then
+		return false
+	end
 	if inst:IsA("BasePart") then
 		return inst.Name ~= "HumanoidRootPart"
 	end
@@ -42,7 +54,7 @@ local function isFadeable(inst: Instance): boolean
 end
 
 local function capture(v, inst: Instance)
-	if v.saved[inst] then
+	if v.saved[inst] or v.sounds[inst] then
 		return
 	end
 	if isFadeable(inst) then
@@ -50,9 +62,6 @@ local function capture(v, inst: Instance)
 		if inst:IsA("BasePart") then
 			orig.Material = inst.Material
 			orig.Color = inst.Color
-			if v.isLocal then
-				inst.Material = Config.SelfMaterial
-			end
 		end
 		v.saved[inst] = orig
 	elseif inst:IsA("Sound") and not v.isLocal and Config.HideSounds then
@@ -79,22 +88,42 @@ local function restoreOne(v, inst: Instance)
 	end
 end
 
+-- a: 0 = обычный вид, 1 = полностью применён эффект.
+-- Куб: тело скрыто у всех. Невидимость: себе — стекло, другим — пусто.
 local function applyAlpha(v, a: number)
+	local glass = v.isLocal and v.invisible and not v.cube
 	for inst, orig in pairs(v.saved) do
 		local any = inst :: any
-		local goal = v.isLocal and math.max(orig.Transparency, Config.SelfTransparency) or 1
+		local goal = glass and math.max(orig.Transparency, Config.SelfTransparency) or 1
 		any.Transparency = orig.Transparency + (goal - orig.Transparency) * a
-		if orig.Color and v.isLocal then
-			any.Color = orig.Color:Lerp(Config.SelfTint, Config.SelfTintStrength * a)
+		if orig.Material then
+			if glass and a > 0 then
+				any.Material = Config.SelfMaterial
+				any.Color = orig.Color:Lerp(Config.SelfTint, Config.SelfTintStrength * a)
+			else
+				any.Material = orig.Material
+				any.Color = orig.Color
+			end
 		end
 	end
+	local muted = v.invisible and not v.isLocal
 	for sound, volume in pairs(v.sounds) do
-		sound.Volume = volume * (1 - a)
+		sound.Volume = muted and volume * (1 - a) or volume
+	end
+	if not v.isLocal and Config.HideName then
+		if v.invisible and a > 0 and v.savedDisplay == nil then
+			v.savedDisplay = v.humanoid.DisplayDistanceType
+			v.humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		elseif not v.invisible and v.savedDisplay ~= nil then
+			v.humanoid.DisplayDistanceType = v.savedDisplay
+			v.savedDisplay = nil
+		end
 	end
 	if v.isLocal then
-		screenTint.Enabled = a > 0
-		screenTint.TintColor = WHITE:Lerp(Config.ScreenTint, a)
-		screenTint.Saturation = Config.ScreenSaturation * a
+		local tint = glass and a or 0
+		screenTint.Enabled = tint > 0
+		screenTint.TintColor = WHITE:Lerp(Config.ScreenTint, tint)
+		screenTint.Saturation = Config.ScreenSaturation * tint
 	end
 end
 
@@ -105,10 +134,6 @@ local function begin(v)
 	v.begun = true
 	for _, d in v.character:GetDescendants() do
 		capture(v, d)
-	end
-	if not v.isLocal and Config.HideName then
-		v.savedDisplay = v.humanoid.DisplayDistanceType
-		v.humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	end
 end
 
@@ -127,6 +152,96 @@ local function restoreAll(v)
 		screenTint.Enabled = false
 	end
 	v.begun = false
+end
+
+---------------------------------------------------------------------
+-- Анимации исчезновения и появления
+---------------------------------------------------------------------
+
+-- Исчезновение, фаза 1: руки крест-накрест, лёгкое приседание
+local VANISH_CROSS = {
+	Waist = Vector3.new(-12, 0, 0),
+	Neck = Vector3.new(-12, 0, 0),
+	LeftShoulder = Vector3.new(75, 0, 38),
+	RightShoulder = Vector3.new(75, 0, -38),
+	LeftElbow = Vector3.new(95, 0, 0),
+	RightElbow = Vector3.new(95, 0, 0),
+	LeftHip = Vector3.new(15, 0, -4),
+	RightHip = Vector3.new(15, 0, 4),
+	LeftKnee = Vector3.new(-25, 0, 0),
+	RightKnee = Vector3.new(-25, 0, 0),
+}
+-- Фаза 2: резкий взмах руками в стороны
+local VANISH_FLING = {
+	Waist = Vector3.new(10, 0, 0),
+	Neck = Vector3.new(12, 0, 0),
+	LeftShoulder = Vector3.new(25, 0, -75),
+	RightShoulder = Vector3.new(25, 0, 75),
+	LeftElbow = Vector3.new(10, 0, 0),
+	RightElbow = Vector3.new(10, 0, 0),
+}
+-- Появление: силовая стойка, грудь вперёд, кулаки сжаты
+local APPEAR = {
+	Waist = Vector3.new(12, 0, 0),
+	Neck = Vector3.new(10, 0, 0),
+	LeftShoulder = Vector3.new(-10, 0, -30),
+	RightShoulder = Vector3.new(-10, 0, 30),
+	LeftElbow = Vector3.new(35, 0, 0),
+	RightElbow = Vector3.new(35, 0, 0),
+	LeftHip = Vector3.new(0, 0, -7),
+	RightHip = Vector3.new(0, 0, 7),
+}
+
+local VANISH_TIME = 0.65
+local APPEAR_TIME = 0.75
+
+local function vanishLayer()
+	local start = os.clock()
+	return {
+		Priority = 30,
+		Update = function(rig, _, now)
+			local elapsed = now - start
+			if elapsed >= VANISH_TIME then
+				return nil, 0, true
+			end
+			local p = elapsed / VANISH_TIME
+			local pose = RigAnimator.Blend(VANISH_CROSS, VANISH_FLING, RigAnimator.Smooth((p - 0.35) / 0.2))
+			local frames = RigAnimator.Frames(rig, pose)
+			local crouch = 1 - 0.08 * (1 - RigAnimator.Smooth((p - 0.35) / 0.2))
+			frames.Root = RigAnimator.RootFrame(rig, crouch)
+			return frames, RigAnimator.Envelope(elapsed, VANISH_TIME, 0.1, 0.2)
+		end,
+	}
+end
+
+local function appearLayer()
+	local start = os.clock()
+	return {
+		Priority = 30,
+		Update = function(rig, _, now)
+			local elapsed = now - start
+			if elapsed >= APPEAR_TIME then
+				return nil, 0, true
+			end
+			return RigAnimator.Frames(rig, APPEAR), RigAnimator.Envelope(elapsed, APPEAR_TIME, 0.12, 0.3)
+		end,
+	}
+end
+
+local function burstAt(character: Model, color: Color3)
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if hrp then
+		AbilityFx.Burst(hrp.Position, {
+			Color = ColorSequence.new(color, Color3.new(1, 1, 1)),
+			Count = 35,
+			Speed = NumberRange.new(6, 14),
+			Size = 0.6,
+			Lifetime = NumberRange.new(0.4, 0.9),
+			Drag = 4,
+			Acceleration = Vector3.new(0, 6, 0),
+			Light = 12,
+		})
+	end
 end
 
 local function flash(character: Model)
@@ -154,13 +269,33 @@ local function flash(character: Model)
 end
 
 local function onAttributeChanged(v)
-	local active = v.character:GetAttribute(Config.ActiveAttribute) == true
-	if active and v.target == 0 then
-		begin(v)
-		v.target = 1
-	elseif not active and v.target == 1 then
-		v.target = 0
+	local invisible = v.character:GetAttribute(Config.ActiveAttribute) == true
+	local cube = v.character:GetAttribute(CubeConfig.ActiveAttribute) == true
+	local wasInvisible = v.invisible
+
+	v.invisible = invisible
+	v.cube = cube
+	v.fadeTime = cube and CUBE_FADE_TIME or Config.FadeTime
+
+	if invisible and not wasInvisible then
+		RigAnimator.SetLayer(v.character, "InvisibilityVanish", vanishLayer())
+		burstAt(v.character, Config.SelfTint)
+		if v.isLocal then
+			AbilityFx.Shake(0.015, 0.3)
+		end
+	elseif not invisible and wasInvisible and not cube then
 		flash(v.character)
+		RigAnimator.SetLayer(v.character, "InvisibilityAppear", appearLayer())
+		burstAt(v.character, Config.FlashColor)
+	end
+
+	local wanted = (invisible or cube) and 1 or 0
+	if wanted == 1 then
+		begin(v)
+	end
+	v.target = wanted
+	if v.begun then
+		applyAlpha(v, v.alpha)
 	end
 end
 
@@ -191,6 +326,9 @@ local function addVisual(character: Model)
 		isLocal = Players:GetPlayerFromCharacter(character) == player,
 		alpha = 0,
 		target = 0,
+		fadeTime = Config.FadeTime,
+		invisible = false,
+		cube = false,
 		begun = false,
 		saved = {},
 		sounds = {},
@@ -211,6 +349,9 @@ local function addVisual(character: Model)
 		restoreOne(v, d)
 	end))
 	table.insert(v.connections, character:GetAttributeChangedSignal(Config.ActiveAttribute):Connect(function()
+		onAttributeChanged(v)
+	end))
+	table.insert(v.connections, character:GetAttributeChangedSignal(CubeConfig.ActiveAttribute):Connect(function()
 		onAttributeChanged(v)
 	end))
 	table.insert(v.connections, character.AncestryChanged:Connect(function()
@@ -277,8 +418,8 @@ end, false, table.unpack(Config.Keys))
 ---------------------------------------------------------------------
 
 RunService.Heartbeat:Connect(function(dt)
-	local step = dt / Config.FadeTime
 	for _, v in pairs(visuals) do
+		local step = dt / v.fadeTime
 		if v.alpha ~= v.target then
 			if v.target > v.alpha then
 				v.alpha = math.min(v.target, v.alpha + step)
