@@ -54,6 +54,7 @@ PoseConfig.ClientCooldown = 0.25 -- защита от спама на клиен
 PoseConfig.ServerCooldown = 0.15 -- защита от спама на сервере
 PoseConfig.PredictionTimeout = 1 -- сколько клиент ждёт подтверждения сервера
 PoseConfig.ShowHint = true -- подсказка внизу экрана
+PoseConfig.Debug = true -- писать в Output, что происходит (потом можно выключить)
 
 --[[
 	ПОЗЫ (процедурные анимации)

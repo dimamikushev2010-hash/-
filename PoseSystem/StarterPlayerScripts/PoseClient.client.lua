@@ -61,6 +61,19 @@ local BLOCKING_STATES = {
 }
 
 local controllers = {} -- [character] = controller
+local warnedRig = {} -- [character] = true, чтобы не спамить в Output
+
+-- Сустав: старый Motor6D или новый AnimationConstraint (Avatar Joint Upgrade).
+-- У обоих есть C0 и Transform, поэтому математика одинаковая.
+local function isJoint(obj: Instance): boolean
+	return obj:IsA("Motor6D") or obj:IsA("AnimationConstraint")
+end
+
+local function debugPrint(...)
+	if PoseConfig.Debug then
+		print("[Pose]", ...)
+	end
+end
 local updateLabels -- объявлена ниже (подписи кнопок и подсказка)
 
 ---------------------------------------------------------------------
@@ -87,13 +100,28 @@ local function buildRig(character: Model)
 	for name, path in pairs(JOINTS[rigType]) do
 		local part = character:FindFirstChild(path[1])
 		local motor = part and part:FindFirstChild(path[2])
-		if motor and motor:IsA("Motor6D") then
+		if motor and isJoint(motor) then
 			motors[name] = motor
 		end
 	end
 	if not motors.Root then
+		if not warnedRig[character] then
+			warnedRig[character] = true
+			local found = {}
+			for _, d in character:GetDescendants() do
+				if d:IsA("JointInstance") or d:IsA("Constraint") then
+					table.insert(found, d.ClassName .. " " .. d:GetFullName())
+				end
+			end
+			warn("[Pose] Не найден корневой сустав у", character.Name, rigType, "\nНайдены суставы:\n" .. table.concat(found, "\n"))
+		end
 		return nil
 	end
+	local count = 0
+	for _ in pairs(motors) do
+		count += 1
+	end
+	debugPrint(character.Name, rigType, "суставов найдено:", count, "тип:", motors.Root.ClassName)
 
 	local legLength
 	if rigType == "R15" then
@@ -145,7 +173,7 @@ local function buildFrames(rig, state: string)
 	return frames
 end
 
-local function applyFrame(name: string, motor: Motor6D, frame: CFrame)
+local function applyFrame(name: string, motor: any, frame: CFrame)
 	-- Переводим желаемый поворот в систему координат сустава (учитывает C0 у R6)
 	if name == "Root" then
 		local c0 = motor.C0
@@ -209,6 +237,7 @@ local function setState(ctrl, state: string)
 	ctrl.active = true
 	local rig = ensureRig(ctrl)
 	ctrl.toFrames = rig and buildFrames(rig, state) or {}
+	debugPrint(ctrl.character.Name, ctrl.fromState, "->", state, rig and "" or "(суставы не найдены!)")
 end
 
 local function breathOf(state: string): number
@@ -310,7 +339,7 @@ local function addController(character: Model)
 		ctrl.rig = nil
 	end
 	table.insert(ctrl.connections, character.DescendantAdded:Connect(function(d)
-		if d:IsA("Motor6D") then
+		if isJoint(d) then
 			invalidateRig()
 		end
 	end))
