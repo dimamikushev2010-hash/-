@@ -113,6 +113,9 @@ NPCConfig.Phrases = {
 	KnownGreet = { "О, %s! Рад снова видеть!", "%s, привет-привет!", "А, это ты, %s!" },
 	FollowStart = { "Пошли!", "Веди!", "Ладно, иду за тобой." },
 	FollowEnd = { "Ладно, пока!", "Было весело!", "Я пойду по делам." },
+	Rain = { "Ну и ливень!", "Где мой зонт?", "Бегу домой!", "Промок до нитки!", "Опять дождь..." },
+	Thunder = { "Ой!", "Ничего себе гром!", "Страшно...", "Ух!" },
+	Fog = { "Ничего не видно...", "Ну и туман!" },
 	-- Работа
 	Work = { "Заходите!", "Свежие булочки!", "Чем могу помочь?", "Лучшие цены в городе!", "Хорошего дня!" },
 	Patrol = { "Всё спокойно.", "Порядок.", "Так, проверим...", "Никаких нарушений." },
@@ -193,12 +196,58 @@ NPCConfig.TalkDistance = 10
 
 -- Смена дня и ночи
 NPCConfig.DayNight = true
-NPCConfig.DayLengthMinutes = 12 -- сколько реальных минут длятся одни игровые сутки
+NPCConfig.DayLengthMinutes = 20 -- сколько реальных минут длятся одни игровые сутки (1 игровой час = 50 сек)
 NPCConfig.StartTime = 9 -- со скольки часов начинается сервер
 NPCConfig.NightStart = 21 -- с этого часа жители идут домой спать
 NPCConfig.NightEnd = 6.5 -- в это время просыпаются
 -- Детали с этим атрибутом (true) светятся только ночью: фонари, окна, вывески
 NPCConfig.NightLightAttribute = "NightLight"
+
+-- Неделя: каждые игровые сутки — следующий день, Сб и Вс — выходные
+NPCConfig.WeekDays = { "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс" }
+NPCConfig.WeekendDays = { [6] = true, [7] = true }
+NPCConfig.StartWeekDay = 1
+
+--[[
+	РАСПИСАНИЕ ДНЯ
+	Для каждого периода — куда жители ходят чаще:
+	  Home   — точки своего дома (зона точки появления)
+	  Street — улица (Zone = "Street" или без зоны)
+	  Other  — другие зоны: магазины, кафе, гости у соседей
+	Prefer — какие занятия в этот период любят больше (множитель)
+	Speed  — насколько быстрее/медленнее ходят (утром спешат)
+	Phrases — что иногда говорят, когда период начинается
+	Ночь (NightStart–NightEnd) — сон дома, как раньше.
+]]
+NPCConfig.Schedule = {
+	{ Name = "Утро", From = 6.5, To = 9, Home = 0.6, Street = 0.3, Other = 0.1, Prefer = { Look = 2, Sit = 1.5 }, Speed = 1.15,
+		Phrases = { "Пора на работу!", "Доброе утро, соседи!", "Опять проспал...", "Кофе бы..." } },
+	{ Name = "День", From = 9, To = 13, Home = 0.15, Street = 0.4, Other = 0.45, Prefer = { Idle = 1.2 }, Speed = 1,
+		Phrases = { "Какой хороший день!", "Столько дел сегодня..." } },
+	{ Name = "Обед", From = 13, To = 14, Home = 0.2, Street = 0.2, Other = 0.6, Prefer = { Sit = 3 }, Speed = 1,
+		Phrases = { "Время обеда!", "Пойду перекушу.", "Ням!" } },
+	{ Name = "После обеда", From = 14, To = 18, Home = 0.2, Street = 0.4, Other = 0.4, Prefer = {}, Speed = 1,
+		Phrases = { "Ещё немного — и домой.", "Скорее бы вечер." } },
+	{ Name = "Вечер", From = 18, To = 21, Home = 0.35, Street = 0.45, Other = 0.2, Prefer = { Talk = 2.5, Dance = 2 }, Speed = 0.95,
+		Phrases = { "Наконец-то вечер!", "Пойдём погуляем?", "Какой закат!" } },
+}
+-- В выходные: больше гуляют и отдыхают, меньше сидят дома
+NPCConfig.Weekend = { Home = 0.6, Street = 1.6, Other = 1.3, Prefer = { Dance = 2, Talk = 1.5, Lie = 1.5 },
+	Phrases = { "Ура, выходной!", "Отдыхаем!", "Никакой работы сегодня!" } }
+
+-- Рабочие часы продавцов (точки Work). Охранники обходят маршрут весь день.
+NPCConfig.WorkHours = { Start = 8.5, End = 17.5, LunchStart = 13, LunchEnd = 14 }
+NPCConfig.WorkersRestOnWeekend = true
+NPCConfig.WorkPhrases = { Start = { "На работу!", "Открываемся!" }, Lunch = { "Обед! Скоро вернусь." }, End = { "Смена окончена!", "Закрываемся, до завтра!" } }
+
+-- Погода и жители
+NPCConfig.RainStreetFactor = 0.25 -- в дождь на улицу ходят в 4 раза реже
+NPCConfig.RainSpeed = 1.2 -- в дождь ускоряют шаг
+NPCConfig.UmbrellaChance = 0.65 -- у скольких жителей есть зонт
+NPCConfig.UmbrellaColors = {
+	Color3.fromRGB(200, 40, 50), Color3.fromRGB(40, 80, 180), Color3.fromRGB(30, 30, 35),
+	Color3.fromRGB(240, 200, 40), Color3.fromRGB(120, 60, 160), Color3.fromRGB(40, 150, 90),
+}
 
 -- Реакции на суперспособности
 NPCConfig.ReactDistance = 30
@@ -221,6 +270,9 @@ NPCConfig.Moods = {
 	Quest = "❗",
 	Wait = "🚏",
 	Cuffed = "🔒",
+	Rain = "🌧",
+	Work = "💼",
+	Lunch = "🍔",
 	Police = "🚔",
 	Happy = "❤️",
 }

@@ -4,7 +4,7 @@
 -- Проще всего: открыть PoseSystem.rbxlx, там всё уже расставлено.
 -- Как расставить точки для жителей — NPC_SETUP.md, транспорт и звуки — VEHICLE_SETUP.md.
 
--- СПИСОК (32 скриптов):
+-- СПИСОК (35 скриптов):
 --    1. ReplicatedStorage > ModuleScript "PoseConfig"
 --    2. ReplicatedStorage > ModuleScript "InvisibilityConfig"
 --    3. ReplicatedStorage > ModuleScript "LaserConfig"
@@ -13,30 +13,33 @@
 --    6. ReplicatedStorage > ModuleScript "NPCConfig"
 --    7. ReplicatedStorage > ModuleScript "VehicleConfig"
 --    8. ReplicatedStorage > ModuleScript "SoundConfig"
---    9. ReplicatedStorage > ModuleScript "AbilityButton"
---   10. ReplicatedStorage > ModuleScript "RigAnimator"
---   11. ReplicatedStorage > ModuleScript "AbilityFx"
---   12. ServerScriptService > ModuleScript "AbilityRegistry"
---   13. ServerScriptService > ModuleScript "NPCRegistry"
---   14. ServerScriptService > ModuleScript "VehicleDefaults"
---   15. ServerScriptService > Script "PoseServer"
---   16. ServerScriptService > Script "InvisibilityServer"
---   17. ServerScriptService > Script "LaserServer"
---   18. ServerScriptService > Script "FlightServer"
---   19. ServerScriptService > Script "CubeServer"
---   20. ServerScriptService > Script "NPCDemo"
---   21. ServerScriptService > Script "NPCServer"
---   22. ServerScriptService > Script "NPCDoors"
---   23. ServerScriptService > Script "DayNightServer"
---   24. ServerScriptService > Script "TrafficServer"
---   25. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
---   26. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
---   27. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
---   28. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
---   29. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
---   30. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
---   31. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
---   32. StarterPlayer → StarterPlayerScripts > LocalScript "PoliceDeskClient"
+--    9. ReplicatedStorage > ModuleScript "WeatherConfig"
+--   10. ReplicatedStorage > ModuleScript "AbilityButton"
+--   11. ReplicatedStorage > ModuleScript "RigAnimator"
+--   12. ReplicatedStorage > ModuleScript "AbilityFx"
+--   13. ServerScriptService > ModuleScript "AbilityRegistry"
+--   14. ServerScriptService > ModuleScript "NPCRegistry"
+--   15. ServerScriptService > ModuleScript "VehicleDefaults"
+--   16. ServerScriptService > Script "PoseServer"
+--   17. ServerScriptService > Script "InvisibilityServer"
+--   18. ServerScriptService > Script "LaserServer"
+--   19. ServerScriptService > Script "FlightServer"
+--   20. ServerScriptService > Script "CubeServer"
+--   21. ServerScriptService > Script "NPCDemo"
+--   22. ServerScriptService > Script "NPCServer"
+--   23. ServerScriptService > Script "NPCDoors"
+--   24. ServerScriptService > Script "DayNightServer"
+--   25. ServerScriptService > Script "TrafficServer"
+--   26. ServerScriptService > Script "WeatherServer"
+--   27. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
+--   28. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
+--   29. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
+--   30. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
+--   31. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
+--   32. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
+--   33. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
+--   34. StarterPlayer → StarterPlayerScripts > LocalScript "PoliceDeskClient"
+--   35. StarterPlayer → StarterPlayerScripts > LocalScript "WeatherClient"
 
 
 ----------------------------------------------------------------------
@@ -566,6 +569,9 @@ NPCConfig.Phrases = {
 	KnownGreet = { "О, %s! Рад снова видеть!", "%s, привет-привет!", "А, это ты, %s!" },
 	FollowStart = { "Пошли!", "Веди!", "Ладно, иду за тобой." },
 	FollowEnd = { "Ладно, пока!", "Было весело!", "Я пойду по делам." },
+	Rain = { "Ну и ливень!", "Где мой зонт?", "Бегу домой!", "Промок до нитки!", "Опять дождь..." },
+	Thunder = { "Ой!", "Ничего себе гром!", "Страшно...", "Ух!" },
+	Fog = { "Ничего не видно...", "Ну и туман!" },
 	-- Работа
 	Work = { "Заходите!", "Свежие булочки!", "Чем могу помочь?", "Лучшие цены в городе!", "Хорошего дня!" },
 	Patrol = { "Всё спокойно.", "Порядок.", "Так, проверим...", "Никаких нарушений." },
@@ -646,12 +652,58 @@ NPCConfig.TalkDistance = 10
 
 -- Смена дня и ночи
 NPCConfig.DayNight = true
-NPCConfig.DayLengthMinutes = 12 -- сколько реальных минут длятся одни игровые сутки
+NPCConfig.DayLengthMinutes = 20 -- сколько реальных минут длятся одни игровые сутки (1 игровой час = 50 сек)
 NPCConfig.StartTime = 9 -- со скольки часов начинается сервер
 NPCConfig.NightStart = 21 -- с этого часа жители идут домой спать
 NPCConfig.NightEnd = 6.5 -- в это время просыпаются
 -- Детали с этим атрибутом (true) светятся только ночью: фонари, окна, вывески
 NPCConfig.NightLightAttribute = "NightLight"
+
+-- Неделя: каждые игровые сутки — следующий день, Сб и Вс — выходные
+NPCConfig.WeekDays = { "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс" }
+NPCConfig.WeekendDays = { [6] = true, [7] = true }
+NPCConfig.StartWeekDay = 1
+
+--[[
+	РАСПИСАНИЕ ДНЯ
+	Для каждого периода — куда жители ходят чаще:
+	  Home   — точки своего дома (зона точки появления)
+	  Street — улица (Zone = "Street" или без зоны)
+	  Other  — другие зоны: магазины, кафе, гости у соседей
+	Prefer — какие занятия в этот период любят больше (множитель)
+	Speed  — насколько быстрее/медленнее ходят (утром спешат)
+	Phrases — что иногда говорят, когда период начинается
+	Ночь (NightStart–NightEnd) — сон дома, как раньше.
+]]
+NPCConfig.Schedule = {
+	{ Name = "Утро", From = 6.5, To = 9, Home = 0.6, Street = 0.3, Other = 0.1, Prefer = { Look = 2, Sit = 1.5 }, Speed = 1.15,
+		Phrases = { "Пора на работу!", "Доброе утро, соседи!", "Опять проспал...", "Кофе бы..." } },
+	{ Name = "День", From = 9, To = 13, Home = 0.15, Street = 0.4, Other = 0.45, Prefer = { Idle = 1.2 }, Speed = 1,
+		Phrases = { "Какой хороший день!", "Столько дел сегодня..." } },
+	{ Name = "Обед", From = 13, To = 14, Home = 0.2, Street = 0.2, Other = 0.6, Prefer = { Sit = 3 }, Speed = 1,
+		Phrases = { "Время обеда!", "Пойду перекушу.", "Ням!" } },
+	{ Name = "После обеда", From = 14, To = 18, Home = 0.2, Street = 0.4, Other = 0.4, Prefer = {}, Speed = 1,
+		Phrases = { "Ещё немного — и домой.", "Скорее бы вечер." } },
+	{ Name = "Вечер", From = 18, To = 21, Home = 0.35, Street = 0.45, Other = 0.2, Prefer = { Talk = 2.5, Dance = 2 }, Speed = 0.95,
+		Phrases = { "Наконец-то вечер!", "Пойдём погуляем?", "Какой закат!" } },
+}
+-- В выходные: больше гуляют и отдыхают, меньше сидят дома
+NPCConfig.Weekend = { Home = 0.6, Street = 1.6, Other = 1.3, Prefer = { Dance = 2, Talk = 1.5, Lie = 1.5 },
+	Phrases = { "Ура, выходной!", "Отдыхаем!", "Никакой работы сегодня!" } }
+
+-- Рабочие часы продавцов (точки Work). Охранники обходят маршрут весь день.
+NPCConfig.WorkHours = { Start = 8.5, End = 17.5, LunchStart = 13, LunchEnd = 14 }
+NPCConfig.WorkersRestOnWeekend = true
+NPCConfig.WorkPhrases = { Start = { "На работу!", "Открываемся!" }, Lunch = { "Обед! Скоро вернусь." }, End = { "Смена окончена!", "Закрываемся, до завтра!" } }
+
+-- Погода и жители
+NPCConfig.RainStreetFactor = 0.25 -- в дождь на улицу ходят в 4 раза реже
+NPCConfig.RainSpeed = 1.2 -- в дождь ускоряют шаг
+NPCConfig.UmbrellaChance = 0.65 -- у скольких жителей есть зонт
+NPCConfig.UmbrellaColors = {
+	Color3.fromRGB(200, 40, 50), Color3.fromRGB(40, 80, 180), Color3.fromRGB(30, 30, 35),
+	Color3.fromRGB(240, 200, 40), Color3.fromRGB(120, 60, 160), Color3.fromRGB(40, 150, 90),
+}
 
 -- Реакции на суперспособности
 NPCConfig.ReactDistance = 30
@@ -674,6 +726,9 @@ NPCConfig.Moods = {
 	Quest = "❗",
 	Wait = "🚏",
 	Cuffed = "🔒",
+	Rain = "🌧",
+	Work = "💼",
+	Lunch = "🍔",
 	Police = "🚔",
 	Happy = "❤️",
 }
@@ -896,6 +951,13 @@ SoundConfig.NPC = {
 	HouseDoorClose = { Id = "", Volume = 0.6 },
 }
 
+-- Погода
+SoundConfig.Weather = {
+	Rain = { Id = "", Volume = 0.5 }, -- зацикленный шум дождя (rain loop)
+	Thunder = { Id = "", Volume = 0.8 }, -- раскат грома
+	Wind = { Id = "", Volume = 0.3 }, -- зацикленный ветер (в грозу и туман)
+}
+
 -- Голоса жителей: у каждого своя высота (случайная в этом диапазоне).
 -- Для живого голоса диапазон небольшой: 0.9–1.15 звучит естественно.
 SoundConfig.VoicePitch = NumberRange.new(0.9, 1.15)
@@ -904,7 +966,50 @@ SoundConfig.VoiceSpeed = 5 -- сколько «слогов» в секунду 
 return SoundConfig
 
 ----------------------------------------------------------------------
--- 9. ReplicatedStorage > ModuleScript "AbilityButton"
+-- 9. ReplicatedStorage > ModuleScript "WeatherConfig"
+----------------------------------------------------------------------
+
+-- ModuleScript: ReplicatedStorage > WeatherConfig
+-- Погода: сама меняется со временем, плавно переходит из одной в другую.
+-- Звуки дождя и грома — в SoundConfig.Weather.
+
+local WeatherConfig = {}
+
+WeatherConfig.Enabled = true
+WeatherConfig.Start = "Clear" -- с какой погоды начинается сервер
+WeatherConfig.ChangeEvery = NumberRange.new(180, 360) -- как часто меняется, сек
+WeatherConfig.FadeTime = 25 -- за сколько секунд одна погода плавно переходит в другую
+
+--[[
+	Weight     — как часто выпадает (больше = чаще)
+	Rain       — сила дождя 0..1
+	Clouds     — облачность 0..1
+	Fog        — туман 0..1
+	Brightness — яркость солнца (1 = как обычно)
+	Thunder    — молнии и гром
+	Next       — куда может смениться (чтобы после ясно не начиналась сразу гроза)
+]]
+WeatherConfig.Types = {
+	Clear = { Name = "Ясно", Icon = "☀️", Weight = 4, Rain = 0, Clouds = 0.3, Fog = 0, Brightness = 1, Thunder = false,
+		Next = { "Clear", "Cloudy", "Fog" } },
+	Cloudy = { Name = "Облачно", Icon = "☁️", Weight = 3, Rain = 0, Clouds = 0.75, Fog = 0.15, Brightness = 0.8, Thunder = false,
+		Next = { "Clear", "Cloudy", "Rain" } },
+	Rain = { Name = "Дождь", Icon = "🌧️", Weight = 2, Rain = 0.65, Clouds = 0.9, Fog = 0.3, Brightness = 0.6, Thunder = false,
+		Next = { "Cloudy", "Rain", "Storm" } },
+	Storm = { Name = "Гроза", Icon = "⛈️", Weight = 1, Rain = 1, Clouds = 1, Fog = 0.4, Brightness = 0.4, Thunder = true,
+		Next = { "Rain", "Cloudy" } },
+	Fog = { Name = "Туман", Icon = "🌫️", Weight = 1, Rain = 0, Clouds = 0.6, Fog = 0.85, Brightness = 0.7, Thunder = false,
+		Next = { "Clear", "Cloudy" } },
+}
+
+WeatherConfig.ThunderEvery = NumberRange.new(8, 22) -- молнии в грозу, сек
+WeatherConfig.CarSpeedInRain = 0.8 -- машины в дождь едут медленнее
+WeatherConfig.RainDrops = 900 -- капель в секунду при сильном дожде (меньше — легче для слабых устройств)
+
+return WeatherConfig
+
+----------------------------------------------------------------------
+-- 10. ReplicatedStorage > ModuleScript "AbilityButton"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > AbilityButton
@@ -1184,7 +1289,7 @@ end
 return AbilityButton
 
 ----------------------------------------------------------------------
--- 10. ReplicatedStorage > ModuleScript "RigAnimator"
+-- 11. ReplicatedStorage > ModuleScript "RigAnimator"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > RigAnimator
@@ -1467,7 +1572,7 @@ end)
 return RigAnimator
 
 ----------------------------------------------------------------------
--- 11. ReplicatedStorage > ModuleScript "AbilityFx"
+-- 12. ReplicatedStorage > ModuleScript "AbilityFx"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > AbilityFx
@@ -1645,7 +1750,7 @@ end
 return AbilityFx
 
 ----------------------------------------------------------------------
--- 12. ServerScriptService > ModuleScript "AbilityRegistry"
+-- 13. ServerScriptService > ModuleScript "AbilityRegistry"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ServerScriptService > AbilityRegistry
@@ -1694,7 +1799,7 @@ end
 return AbilityRegistry
 
 ----------------------------------------------------------------------
--- 13. ServerScriptService > ModuleScript "NPCRegistry"
+-- 14. ServerScriptService > ModuleScript "NPCRegistry"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ServerScriptService > NPCRegistry
@@ -1722,7 +1827,7 @@ NPCRegistry.tryTrip = nil
 return NPCRegistry
 
 ----------------------------------------------------------------------
--- 14. ServerScriptService > ModuleScript "VehicleDefaults"
+-- 15. ServerScriptService > ModuleScript "VehicleDefaults"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ServerScriptService > VehicleDefaults
@@ -1900,7 +2005,7 @@ end
 return VehicleDefaults
 
 ----------------------------------------------------------------------
--- 15. ServerScriptService > Script "PoseServer"
+-- 16. ServerScriptService > Script "PoseServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > PoseServer
@@ -2043,7 +2148,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 16. ServerScriptService > Script "InvisibilityServer"
+-- 17. ServerScriptService > Script "InvisibilityServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > InvisibilityServer
@@ -2154,7 +2259,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 17. ServerScriptService > Script "LaserServer"
+-- 18. ServerScriptService > Script "LaserServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > LaserServer
@@ -2339,7 +2444,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 18. ServerScriptService > Script "FlightServer"
+-- 19. ServerScriptService > Script "FlightServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > FlightServer
@@ -2452,7 +2557,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 19. ServerScriptService > Script "CubeServer"
+-- 20. ServerScriptService > Script "CubeServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > CubeServer
@@ -2695,7 +2800,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 20. ServerScriptService > Script "NPCDemo"
+-- 21. ServerScriptService > Script "NPCDemo"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > NPCDemo
@@ -3133,7 +3238,7 @@ place("Северная улица", Vector3.new(5, 0.1, 22))
 traffic.Parent = workspace
 
 ----------------------------------------------------------------------
--- 21. ServerScriptService > Script "NPCServer"
+-- 22. ServerScriptService > Script "NPCServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > NPCServer
@@ -3149,6 +3254,9 @@ traffic.Parent = workspace
 --     оглядываются на невидимку, разбегаются от лазеров;
 --   * помнят игроков по имени и могут пойти следом («Пойдём со мной!»);
 --   * над головой значок настроения;
+--   * живут по расписанию: утро, день, обед, вечер, ночь; в выходные отдыхают
+--     (NPCConfig.Schedule), продавцы работают по часам с обедом;
+--   * погода: в дождь раскрывают зонты, прячутся по домам и ускоряют шаг, пугаются грома;
 --   * дают задания (❗): найти потерянную вещь за монеты;
 --   * дружат с игроками (Знакомый → Приятель → Друг ❤️), друзьям дарят подарок;
 --   * работают: продавцы стоят за прилавком (Activity = "Work"), охранники обходят маршрут ("Patrol");
@@ -3499,6 +3607,50 @@ end
 
 local function isNight(): boolean
 	return workspace:GetAttribute("IsNight") == true
+end
+
+---------------------------------------------------------------------
+-- Расписание и погода
+---------------------------------------------------------------------
+
+local Lighting = game:GetService("Lighting")
+
+local function hourNow(): number
+	return workspace:GetAttribute("Hour") or Lighting.ClockTime
+end
+
+local function isWeekend(): boolean
+	return workspace:GetAttribute("Weekend") == true
+end
+
+local function rainNow(): number
+	return workspace:GetAttribute("Rain") or 0
+end
+
+local function currentPeriod()
+	local hour = hourNow()
+	for _, p in Config.Schedule or {} do
+		if hour >= p.From and hour < p.To then
+			return p
+		end
+	end
+	return nil
+end
+
+-- Продавцы работают в рабочие часы, кроме обеда (и выходных, если так настроено)
+local function isWorkTime(): boolean
+	local h, w = hourNow(), Config.WorkHours
+	if not w then
+		return true
+	end
+	if Config.WorkersRestOnWeekend and isWeekend() then
+		return false
+	end
+	return h >= w.Start and h < w.End and not (h >= w.LunchStart and h < w.LunchEnd)
+end
+
+local function walkSpeedOf(npc): number
+	return npc.speed * (npc.speedMul or 1)
 end
 
 ---------------------------------------------------------------------
@@ -3904,7 +4056,7 @@ local function standUp(npc)
 		setPose(npc, "Stand")
 		task.wait(0.45)
 	end
-	npc.humanoid.WalkSpeed = npc.speed
+	npc.humanoid.WalkSpeed = walkSpeedOf(npc)
 end
 
 local function pause(npc, seconds: number): boolean
@@ -4194,55 +4346,100 @@ local function travelTo(npc, target: Vector3): boolean
 	return walkTo(npc, target)
 end
 
-local function choosePoint(npc)
-	local r = rng:NextNumber()
-	local mode = (r < Config.SameZoneChance and "same")
-		or (r < Config.SameZoneChance + Config.OutdoorChance and "outdoor")
-		or "any"
+local function pointCategory(npc, point): string
+	if point.zone == nil or point.zone == Config.OutdoorZone then
+		return "Street"
+	elseif npc.homeZone and point.zone == npc.homeZone then
+		return "Home"
+	end
+	return "Other"
+end
 
-	local candidates, totalWeight = {}, 0
-	local function collect(filter)
-		table.clear(candidates)
-		totalWeight = 0
-		for _, point in pairs(points) do
-			if point ~= npc.point and point.occupants < point.capacity and point.part.Parent
-				and point.activity ~= "Work" and point.activity ~= "Patrol"
-				and not spotTaken(point) and filter(point) then
-				-- Ближние точки чуть вероятнее
-				local dist = (point.part.Position - npc.hrp.Position).Magnitude
-				local weight = 1 / (1 + dist / 80)
-				table.insert(candidates, { point = point, weight = weight })
-				totalWeight += weight
-			end
+-- Куда пойти: по расписанию (дом / улица / другие места), выходным и погоде
+local function choosePoint(npc)
+	local period = currentPeriod()
+	local weights = {
+		Home = period and period.Home or 0.4,
+		Street = period and period.Street or 0.35,
+		Other = period and period.Other or 0.25,
+	}
+	local prefer = {}
+	for k, v in pairs(period and period.Prefer or {}) do
+		prefer[k] = v
+	end
+	if isWeekend() and Config.Weekend then
+		local w = Config.Weekend
+		weights.Home *= w.Home or 1
+		weights.Street *= w.Street or 1
+		weights.Other *= w.Other or 1
+		for k, v in pairs(w.Prefer or {}) do
+			prefer[k] = (prefer[k] or 1) * v
+		end
+	end
+	if rainNow() > 0.3 then
+		weights.Street *= Config.RainStreetFactor or 0.25
+		weights.Home *= 1.5
+	end
+	if not npc.homeZone then
+		weights.Street += weights.Home
+		weights.Home = 0
+	end
+
+	local buckets = { Home = {}, Street = {}, Other = {} }
+	local sums = { Home = 0, Street = 0, Other = 0 }
+	for _, point in pairs(points) do
+		if point ~= npc.point and point.occupants < point.capacity and point.part.Parent
+			and point.activity ~= "Work" and point.activity ~= "Patrol"
+			and not spotTaken(point) then
+			local cat = pointCategory(npc, point)
+			-- Ближние точки чуть вероятнее, любимые занятия периода — тоже
+			local dist = (point.part.Position - npc.hrp.Position).Magnitude
+			local weight = (1 / (1 + dist / 80)) * (prefer[point.activity] or 1)
+			table.insert(buckets[cat], { point = point, weight = weight })
+			sums[cat] += weight
 		end
 	end
 
-	if mode == "same" then
-		collect(function(p)
-			return p.zone == npc.zone
-		end)
-	elseif mode == "outdoor" then
-		collect(function(p)
-			return p.zone == nil or p.zone == Config.OutdoorZone
-		end)
+	local total = 0
+	for cat, w in pairs(weights) do
+		if #buckets[cat] > 0 then
+			total += w
+		end
 	end
-	if #candidates == 0 then
-		collect(function()
-			return true
-		end)
+	local chosen
+	if total > 0 then
+		local roll = rng:NextNumber() * total
+		for cat, w in pairs(weights) do
+			if #buckets[cat] > 0 then
+				roll -= w
+				if roll <= 0 then
+					chosen = cat
+					break
+				end
+			end
+		end
 	end
-	if #candidates == 0 then
+	if not chosen then
+		for cat, list in pairs(buckets) do
+			if #list > 0 then
+				chosen = cat
+				break
+			end
+		end
+	end
+	if not chosen then
 		return nil
 	end
 
-	local roll = rng:NextNumber() * totalWeight
-	for _, c in candidates do
+	local list = buckets[chosen]
+	local roll = rng:NextNumber() * sums[chosen]
+	for _, c in list do
 		roll -= c.weight
 		if roll <= 0 then
 			return c.point
 		end
 	end
-	return candidates[#candidates].point
+	return list[#list].point
 end
 
 -- Встать точно на точку (например, на кровать) и повернуться, как она смотрит
@@ -4427,8 +4624,13 @@ local function doWork(npc)
 		return
 	end
 	face(npc, point.part.CFrame.LookVector)
+	if not npc.atWork then
+		npc.atWork = true
+		say(npc, pick(Config.WorkPhrases.Start))
+		setMood(npc, "Work", 4)
+	end
 	local shiftEnd = os.clock() + randomIn(Config.WorkShift)
-	while os.clock() < shiftEnd and not shouldStop(npc) and not (isNight() and npc.homeZone) do
+	while os.clock() < shiftEnd and not shouldStop(npc) and not (isNight() and npc.homeZone) and isWorkTime() do
 		if someoneNear(npc.hrp.Position, 16) and rng:NextNumber() < 0.5 then
 			say(npc, pick(Config.Phrases.Work))
 			npc.anim.emote(rng:NextNumber() < 0.5 and "Wave" or "Point")
@@ -4439,7 +4641,16 @@ local function doWork(npc)
 		end
 		pause(npc, rng:NextNumber(4, 8))
 	end
-	if not shouldStop(npc) then
+	if not isWorkTime() and npc.atWork then
+		-- Обед или конец смены
+		npc.atWork = false
+		local h = hourNow()
+		local lunch = Config.WorkHours and h >= Config.WorkHours.LunchStart and h < Config.WorkHours.LunchEnd
+		say(npc, pick(lunch and Config.WorkPhrases.Lunch or Config.WorkPhrases.End))
+		if lunch then
+			setMood(npc, "Lunch", 10)
+		end
+	elseif not shouldStop(npc) then
 		npc.onBreak = true -- перерыв: одно обычное дело, потом снова за работу
 	end
 end
@@ -4527,7 +4738,7 @@ local function brain(npc)
 			else
 				task.wait(1)
 			end
-			npc.humanoid.WalkSpeed = npc.speed
+			npc.humanoid.WalkSpeed = walkSpeedOf(npc)
 			continue
 		end
 
@@ -4538,7 +4749,7 @@ local function brain(npc)
 
 		-- Работа или обход маршрута (между ними — перерывы)
 		if not npc.onBreak then
-			if npc.job then
+			if npc.job and isWorkTime() then
 				doWork(npc)
 				continue
 			elseif npc.route then
@@ -5036,6 +5247,7 @@ local function createNPC(spawnPart: BasePart?, opts)
 		following = nil,
 		reacted = {},
 		friendCooldown = {},
+		hasUmbrellaItem = rng:NextNumber() < (Config.UmbrellaChance or 0.6),
 		title = name,
 		job = nil,
 		route = nil,
@@ -5130,6 +5342,154 @@ function spawnNPC(spawnPart: BasePart)
 	createNPC(spawnPart, nil)
 end
 
+---------------------------------------------------------------------
+-- Зонты, скорость по расписанию, реакции на погоду
+---------------------------------------------------------------------
+
+local roofParams = RaycastParams.new()
+roofParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function outdoors(npc): boolean
+	local ignore = { liveFolder }
+	for _, p in Players:GetPlayers() do
+		if p.Character then
+			table.insert(ignore, p.Character)
+		end
+	end
+	roofParams.FilterDescendantsInstances = ignore
+	return workspace:Raycast(npc.hrp.Position + Vector3.new(0, 2, 0), Vector3.new(0, 50, 0), roofParams) == nil
+end
+
+local function addUmbrella(npc)
+	local torso = npc.model:FindFirstChild("UpperTorso")
+	if not torso or npc.umbrella then
+		return
+	end
+	local m = Instance.new("Model")
+	m.Name = "Umbrella"
+	local color = pick(Config.UmbrellaColors)
+	local function piece(size: Vector3, offset: CFrame, c: Color3, shape: Enum.PartType?)
+		local p = Instance.new("Part")
+		p.Size = size
+		p.Color = c
+		p.Material = Enum.Material.SmoothPlastic
+		if shape then
+			p.Shape = shape
+		end
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Massless = true
+		p.CollisionGroup = COLLISION_GROUP
+		p.CFrame = torso.CFrame * offset
+		local w = Instance.new("WeldConstraint")
+		w.Part0 = torso
+		w.Part1 = p
+		w.Parent = p
+		p.Parent = m
+		return p
+	end
+	local upright = CFrame.Angles(0, 0, math.rad(90))
+	piece(Vector3.new(3.2, 0.12, 0.12), CFrame.new(0.75, 1.3, -0.9) * upright, Color3.fromRGB(40, 40, 45), Enum.PartType.Cylinder) -- ручка
+	piece(Vector3.new(0.25, 4.4, 4.4), CFrame.new(0.4, 3, -0.4) * upright, color, Enum.PartType.Cylinder) -- купол
+	piece(Vector3.new(0.6, 0.6, 0.6), CFrame.new(0.4, 3.2, -0.4), color:Lerp(Color3.new(1, 1, 1), 0.3), Enum.PartType.Ball)
+	m.Parent = npc.model
+	npc.umbrella = m
+	npc.model:SetAttribute("Umbrella", true) -- клиент поднимает руку
+end
+
+local function removeUmbrella(npc)
+	if npc.umbrella then
+		npc.umbrella:Destroy()
+		npc.umbrella = nil
+		npc.model:SetAttribute("Umbrella", nil)
+	end
+end
+
+task.spawn(function()
+	local wasRaining = false
+	while true do
+		task.wait(1.5)
+		local raining = rainNow() > 0.25
+		local period = currentPeriod()
+		local now = os.clock()
+		for _, npc in pairs(npcs) do
+			if npc.alive and not npc.officer then
+				local out = not npc.inVehicle and outdoors(npc)
+				-- Зонт
+				local standing = (npc.model:GetAttribute("Pose") or "Stand") == "Stand" and not npc.chair and not npc.inVehicle
+				if raining and out and standing and npc.hasUmbrellaItem and not npc.model:GetAttribute("Cuffed") then
+					addUmbrella(npc)
+				else
+					removeUmbrella(npc)
+				end
+				-- Скорость: утром спешат, в дождь бегут
+				npc.speedMul = (period and period.Speed or 1) * ((raining and out) and (Config.RainSpeed or 1) or 1)
+				if npc.humanoid.WalkSpeed > 0 and now >= npc.fleeUntil and not npc.following then
+					npc.humanoid.WalkSpeed = walkSpeedOf(npc)
+				end
+				-- Начался дождь — жалуются (особенно без зонта)
+				if raining and not wasRaining and out and not npc.controlled and rng:NextNumber() < (npc.hasUmbrellaItem and 0.2 or 0.6) then
+					say(npc, pick(Config.Phrases.Rain))
+					setMood(npc, "Rain", 4)
+				end
+			end
+		end
+		if raining and not wasRaining then
+			-- Под дождём бросают дела на улице и идут под крышу
+			for _, npc in pairs(npcs) do
+				local outsidePoint = npc.point and (npc.point.zone == nil or npc.point.zone == Config.OutdoorZone)
+				if npc.alive and not npc.officer and outsidePoint then
+					if not npc.hasUmbrellaItem and npc.lock == nil and not npc.controlled then
+						npc.abort = true
+					end
+				end
+			end
+		end
+		wasRaining = raining
+	end
+end)
+
+-- Новый период дня — жители это замечают
+workspace:GetAttributeChangedSignal("Period"):Connect(function()
+	local period = currentPeriod()
+	local phrases = period and period.Phrases
+	if isWeekend() and period and period.Name == "Утро" and Config.Weekend then
+		phrases = Config.Weekend.Phrases
+	end
+	if not phrases then
+		return
+	end
+	for _, npc in pairs(npcs) do
+		if npc.alive and not npc.officer and not npc.sleeping and not npc.controlled and not npc.inVehicle and rng:NextNumber() < 0.3 then
+			task.delay(rng:NextNumber(0, 6), function()
+				say(npc, pick(phrases))
+			end)
+		end
+	end
+end)
+
+-- Гром: пугаются те, кто на улице
+workspace:GetAttributeChangedSignal("ThunderId"):Connect(function()
+	task.wait(0.8)
+	for _, npc in pairs(npcs) do
+		if npc.alive and not npc.officer and not npc.sleeping and not npc.inVehicle and rng:NextNumber() < 0.3 and outdoors(npc) then
+			say(npc, pick(Config.Phrases.Thunder), 1.8)
+			setMood(npc, "Scared", 2)
+		end
+	end
+end)
+
+workspace:GetAttributeChangedSignal("Weather"):Connect(function()
+	if workspace:GetAttribute("Weather") == "Fog" then
+		for _, npc in pairs(npcs) do
+			if npc.alive and not npc.officer and not npc.sleeping and rng:NextNumber() < 0.2 then
+				say(npc, pick(Config.Phrases.Fog))
+			end
+		end
+	end
+end)
+
 -- API для транспорта
 Registry.walkTo = function(npc, position: Vector3): boolean
 	npc.externalWalking = true
@@ -5217,7 +5577,7 @@ for _, spawnPart in spawnList do
 end
 
 ----------------------------------------------------------------------
--- 22. ServerScriptService > Script "NPCDoors"
+-- 23. ServerScriptService > Script "NPCDoors"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > NPCDoors
@@ -5433,13 +5793,15 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 23. ServerScriptService > Script "DayNightServer"
+-- 24. ServerScriptService > Script "DayNightServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > DayNightServer
 -- Смена дня и ночи: время идёт само (NPCConfig.DayLengthMinutes),
 -- ночью включаются детали с атрибутом NightLight = true (фонари, окна, вывески).
 -- Атрибут Workspace.IsNight подсказывает жителям, что пора спать.
+-- Ещё атрибуты Workspace для расписания жителей и часов на экране:
+--   Hour (час, дробный), Day (номер дня), WeekDay (1–7), Weekend (true/false), Period (имя периода)
 
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
@@ -5509,14 +5871,46 @@ end)
 local hoursPerSecond = 24 / (Config.DayLengthMinutes * 60)
 local wasNight = nil
 local pending = 0
+local day = 1
+
+local function periodAt(hour: number): string
+	if isNightAt(hour) then
+		return "Ночь"
+	end
+	for _, p in Config.Schedule or {} do
+		if hour >= p.From and hour < p.To then
+			return p.Name
+		end
+	end
+	return "День"
+end
+
+local function publishTime()
+	local hour = Lighting.ClockTime
+	local weekDay = ((Config.StartWeekDay or 1) - 1 + day - 1) % 7 + 1
+	workspace:SetAttribute("Hour", math.floor(hour * 100) / 100)
+	workspace:SetAttribute("Day", day)
+	workspace:SetAttribute("WeekDay", weekDay)
+	workspace:SetAttribute("Weekend", (Config.WeekendDays or {})[weekDay] == true)
+	local period = periodAt(hour)
+	if workspace:GetAttribute("Period") ~= period then
+		workspace:SetAttribute("Period", period)
+	end
+end
+publishTime()
 RunService.Heartbeat:Connect(function(dt)
 	-- Обновляем время 4 раза в секунду: этого хватает для плавности и не нагружает сеть
 	pending += dt
 	if pending < 0.25 then
 		return
 	end
+	local before = Lighting.ClockTime
 	Lighting.ClockTime = (Lighting.ClockTime + pending * hoursPerSecond) % 24
 	pending = 0
+	if Lighting.ClockTime < before then
+		day += 1 -- полночь: новый день недели
+	end
+	publishTime()
 	local night = isNightAt(Lighting.ClockTime)
 	if night ~= wasNight then
 		wasNight = night
@@ -5526,7 +5920,7 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 24. ServerScriptService > Script "TrafficServer"
+-- 25. ServerScriptService > Script "TrafficServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > TrafficServer
@@ -6589,6 +6983,11 @@ local function drive(car, spec): boolean
 	car.onRoad = true
 	car.driveDone = false
 	car.maxSpeed = (car.kind == "Police" and car.model:GetAttribute("Siren")) and Config.PoliceSpeed or Config.CitySpeed
+	-- В дождь и туман — медленнее
+	local weather = ReplicatedStorage:FindFirstChild("WeatherConfig")
+	if weather and ((workspace:GetAttribute("Rain") or 0) > 0.3 or (workspace:GetAttribute("Fog") or 0) > 0.5) then
+		car.maxSpeed *= require(weather).CarSpeedInRain or 0.8
+	end
 	car.model:SetAttribute("Brake", false)
 	while not car.driveDone do
 		task.wait(0.1)
@@ -6777,7 +7176,8 @@ RunService.Heartbeat:Connect(function(dt)
 			local model = car.model
 			local siren = model:GetAttribute("Siren") == true
 			local engine = car.occupants[car.driverSeat] ~= nil
-			local lights = engine and (night or siren) or false
+			local badWeather = (workspace:GetAttribute("Rain") or 0) > 0.3 or (workspace:GetAttribute("Fog") or 0) > 0.4
+			local lights = engine and (night or siren or badWeather) or false
 			if model:GetAttribute("Headlights") ~= lights then
 				model:SetAttribute("Headlights", lights)
 			end
@@ -7944,7 +8344,148 @@ for _, npc in pairs(Registry.npcs) do
 end
 
 ----------------------------------------------------------------------
--- 25. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
+-- 26. ServerScriptService > Script "WeatherServer"
+----------------------------------------------------------------------
+
+-- Script: ServerScriptService > WeatherServer
+-- Погода: ясно, облачно, дождь, гроза, туман. Меняется сама и плавно:
+-- облака, туман и яркость солнца перетекают за WeatherConfig.FadeTime секунд.
+-- Атрибуты Workspace для всех скриптов:
+--   Weather (ключ: Clear/Rain/...), WeatherName, WeatherIcon,
+--   Rain, Fog, Clouds (текущая сила 0..1), ThunderId (+1 при каждом громе)
+
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("WeatherConfig"))
+if not Config.Enabled then
+	return
+end
+
+local rng = Random.new()
+
+-- Атмосфера и облака: если в игре их нет — создаём, исходные значения запоминаем
+local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+if not atmosphere then
+	atmosphere = Instance.new("Atmosphere")
+	atmosphere.Density = 0.25
+	atmosphere.Offset = 0.2
+	atmosphere.Haze = 0
+	atmosphere.Glare = 0
+	atmosphere.Parent = Lighting
+end
+local clouds = workspace.Terrain:FindFirstChildOfClass("Clouds")
+if not clouds then
+	clouds = Instance.new("Clouds")
+	clouds.Cover = 0.4
+	clouds.Density = 0.6
+	clouds.Parent = workspace.Terrain
+end
+
+local base = {
+	brightness = Lighting.Brightness,
+	density = atmosphere.Density,
+	haze = atmosphere.Haze,
+	color = atmosphere.Color,
+	decay = atmosphere.Decay,
+	cloudColor = clouds.Color,
+}
+local FOG_COLOR = Color3.fromRGB(190, 195, 205)
+local STORM_CLOUDS = Color3.fromRGB(90, 95, 105)
+
+local function pickWeighted(keys: { string }): string
+	local total = 0
+	for _, k in keys do
+		total += Config.Types[k] and Config.Types[k].Weight or 0
+	end
+	local roll = rng:NextNumber() * total
+	for _, k in keys do
+		local t = Config.Types[k]
+		if t then
+			roll -= t.Weight
+			if roll <= 0 then
+				return k
+			end
+		end
+	end
+	return keys[1]
+end
+
+local currentKey = Config.Types[Config.Start] and Config.Start or "Clear"
+local state = {} -- текущие значения, плавно догоняют цель
+do
+	local t = Config.Types[currentKey]
+	state = { rain = t.Rain, clouds = t.Clouds, fog = t.Fog, brightness = t.Brightness }
+end
+
+local function setWeather(key: string)
+	currentKey = key
+	local t = Config.Types[key]
+	workspace:SetAttribute("Weather", key)
+	workspace:SetAttribute("WeatherName", t.Name)
+	workspace:SetAttribute("WeatherIcon", t.Icon)
+end
+setWeather(currentKey)
+
+-- Смена погоды по расписанию
+task.spawn(function()
+	while true do
+		task.wait(rng:NextNumber(Config.ChangeEvery.Min, Config.ChangeEvery.Max))
+		local options = Config.Types[currentKey].Next or { "Clear", "Cloudy", "Rain" }
+		setWeather(pickWeighted(options))
+	end
+end)
+
+-- Гром в грозу
+task.spawn(function()
+	while true do
+		task.wait(rng:NextNumber(Config.ThunderEvery.Min, Config.ThunderEvery.Max))
+		local t = Config.Types[currentKey]
+		if t.Thunder and state.rain > 0.5 then
+			workspace:SetAttribute("ThunderId", (workspace:GetAttribute("ThunderId") or 0) + 1)
+		end
+	end
+end)
+
+local accumulator = 0
+RunService.Heartbeat:Connect(function(dt)
+	accumulator += dt
+	if accumulator < 0.5 then
+		return
+	end
+	local step = accumulator / Config.FadeTime
+	accumulator = 0
+
+	local target = Config.Types[currentKey]
+	local function approach(cur: number, goal: number): number
+		if cur < goal then
+			return math.min(goal, cur + step)
+		end
+		return math.max(goal, cur - step)
+	end
+	state.rain = approach(state.rain, target.Rain)
+	state.clouds = approach(state.clouds, target.Clouds)
+	state.fog = approach(state.fog, target.Fog)
+	state.brightness = approach(state.brightness, target.Brightness)
+
+	-- Небо и свет
+	Lighting.Brightness = base.brightness * state.brightness
+	atmosphere.Density = math.clamp(base.density + state.fog * 0.45, 0, 1)
+	atmosphere.Haze = base.haze + state.fog * 3
+	atmosphere.Color = base.color:Lerp(FOG_COLOR, state.fog)
+	atmosphere.Decay = base.decay:Lerp(FOG_COLOR, state.fog * 0.8)
+	clouds.Cover = math.clamp(state.clouds, 0, 1)
+	clouds.Density = math.clamp(0.4 + state.clouds * 0.5, 0, 1)
+	clouds.Color = base.cloudColor:Lerp(STORM_CLOUDS, math.clamp((state.clouds - 0.6) / 0.4, 0, 1) * state.rain)
+
+	workspace:SetAttribute("Rain", math.floor(state.rain * 100) / 100)
+	workspace:SetAttribute("Fog", math.floor(state.fog * 100) / 100)
+	workspace:SetAttribute("Clouds", math.floor(state.clouds * 100) / 100)
+end)
+
+----------------------------------------------------------------------
+-- 27. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > PoseClient
@@ -8487,7 +9028,7 @@ if PoseConfig.ShowHint and UserInputService.KeyboardEnabled then
 end
 
 ----------------------------------------------------------------------
--- 26. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
+-- 28. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > InvisibilityClient
@@ -8934,7 +9475,7 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 27. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
+-- 29. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > LaserClient
@@ -9415,7 +9956,7 @@ RunService.RenderStepped:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 28. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
+-- 30. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > FlightClient
@@ -9904,7 +10445,7 @@ AbilityButton.Create({
 })
 
 ----------------------------------------------------------------------
--- 29. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
+-- 31. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > CubeClient
@@ -10103,7 +10644,7 @@ AbilityButton.Create({
 })
 
 ----------------------------------------------------------------------
--- 30. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
+-- 32. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > NPCClient
@@ -10135,6 +10676,27 @@ local CUFFED_POSE = {
 	LeftElbow = Vector3.new(38, 0, 0),
 	RightElbow = Vector3.new(38, 0, 0),
 }
+
+-- Рука держит зонт над головой
+local UMBRELLA_POSE = {
+	RightShoulder = Vector3.new(62, 0, 14),
+	RightElbow = Vector3.new(62, 0, 0),
+}
+
+local function armLayer(model: Model, attribute: string, pose, priority: number)
+	local weight = 0
+	return {
+		Priority = priority,
+		Update = function(rig, dt)
+			local on = model:GetAttribute(attribute) == true
+			weight = math.clamp(weight + (on and dt or -dt) * 4, 0, 1)
+			if not on and weight <= 0 then
+				return nil, 0, true
+			end
+			return RigAnimator.Frames(rig, pose), weight
+		end,
+	}
+end
 
 local function cuffedLayer(model: Model)
 	local weight = 0
@@ -10365,6 +10927,15 @@ local function watchNpc(model: Instance)
 	end
 	model:GetAttributeChangedSignal("Cuffed"):Connect(onCuffed)
 	onCuffed()
+
+	-- Зонт
+	local function onUmbrella()
+		if model:GetAttribute("Umbrella") == true and not RigAnimator.HasLayer(model, "Umbrella") then
+			RigAnimator.SetLayer(model, "Umbrella", armLayer(model, "Umbrella", UMBRELLA_POSE, 35))
+		end
+	end
+	model:GetAttributeChangedSignal("Umbrella"):Connect(onUmbrella)
+	onUmbrella()
 
 	-- Звуковые события с сервера: смех, крик, храп...
 	model:GetAttributeChangedSignal("SoundEventId"):Connect(function()
@@ -10982,7 +11553,7 @@ task.spawn(function()
 end)
 
 ----------------------------------------------------------------------
--- 31. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
+-- 33. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > VehicleClient
@@ -11392,7 +11963,7 @@ remote.OnClientEvent:Connect(function(action, model, names, price)
 end)
 
 ----------------------------------------------------------------------
--- 32. StarterPlayer → StarterPlayerScripts > LocalScript "PoliceDeskClient"
+-- 34. StarterPlayer → StarterPlayerScripts > LocalScript "PoliceDeskClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > PoliceDeskClient
@@ -11902,5 +12473,258 @@ RunService.RenderStepped:Connect(function()
 		local focus = head.Position - Vector3.new(0, 0.6, 0)
 		local offset = Vector3.new(math.sin(t * 0.6) * 0.25, 0.3 + math.sin(t * 0.9) * 0.08, 0)
 		camera.CFrame = CFrame.lookAt(focus + head.CFrame.LookVector * 7 + offset, focus)
+	end
+end)
+
+----------------------------------------------------------------------
+-- 35. StarterPlayer → StarterPlayerScripts > LocalScript "WeatherClient"
+----------------------------------------------------------------------
+
+-- LocalScript: StarterPlayer > StarterPlayerScripts > WeatherClient
+-- Погода на экране игрока:
+--   * дождь струями вокруг камеры и брызги на земле (под крышей дождя нет);
+--   * шум дождя и ветра, вспышки молний и раскаты грома с задержкой;
+--   * часы сверху экрана: время, день недели, период дня и погода.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("WeatherConfig"))
+local NPCConfig = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local Sounds = require(ReplicatedStorage:WaitForChild("SoundConfig"))
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+---------------------------------------------------------------------
+-- Дождь
+---------------------------------------------------------------------
+
+local function emitterPart(name: string, size: Vector3)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Transparency = 1
+	p.Size = size
+	p.Parent = camera
+	return p
+end
+
+local rainPart = emitterPart("RainEmitter", Vector3.new(140, 1, 140))
+local rain = Instance.new("ParticleEmitter")
+rain.Color = ColorSequence.new(Color3.fromRGB(190, 205, 225))
+rain.LightEmission = 0.1
+rain.LightInfluence = 0.6
+rain.Transparency = NumberSequence.new(0.45)
+rain.Size = NumberSequence.new(0.08)
+rain.Squash = NumberSequence.new(2.5) -- вытянутые капли
+rain.Orientation = Enum.ParticleOrientation.VelocityParallel
+rain.EmissionDirection = Enum.NormalId.Bottom
+rain.Speed = NumberRange.new(90, 110)
+rain.Lifetime = NumberRange.new(0.8, 1)
+rain.SpreadAngle = Vector2.new(4, 4)
+rain.Rate = 0
+rain.Parent = rainPart
+
+local splashPart = emitterPart("RainSplash", Vector3.new(60, 0.2, 60))
+local splash = Instance.new("ParticleEmitter")
+splash.Color = ColorSequence.new(Color3.fromRGB(220, 230, 245))
+splash.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) })
+splash.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 0.35) })
+splash.Speed = NumberRange.new(2, 4)
+splash.SpreadAngle = Vector2.new(60, 60)
+splash.EmissionDirection = Enum.NormalId.Top
+splash.Lifetime = NumberRange.new(0.15, 0.3)
+splash.Acceleration = Vector3.new(0, -20, 0)
+splash.Rate = 0
+splash.Parent = splashPart
+
+local function loopSound(def)
+	if not def or def.Id == "" then
+		return nil
+	end
+	local s = Instance.new("Sound")
+	s.SoundId = def.Id
+	s.Looped = true
+	s.Volume = 0
+	s.Parent = workspace
+	s:Play()
+	return { sound = s, volume = def.Volume or 0.5 }
+end
+local rainSound = loopSound(Sounds.Weather and Sounds.Weather.Rain)
+local windSound = loopSound(Sounds.Weather and Sounds.Weather.Wind)
+
+local skyParams = RaycastParams.new()
+skyParams.FilterType = Enum.RaycastFilterType.Exclude
+
+-- Под крышей? (дождевые капли проходят сквозь крыши, поэтому внутри их выключаем)
+local function underRoof(position: Vector3): boolean
+	local ignore = { camera }
+	if player.Character then
+		table.insert(ignore, player.Character)
+	end
+	skyParams.FilterDescendantsInstances = ignore
+	return workspace:Raycast(position, Vector3.new(0, 60, 0), skyParams) ~= nil
+end
+
+---------------------------------------------------------------------
+-- Молнии и гром
+---------------------------------------------------------------------
+
+local flash = Instance.new("ColorCorrectionEffect")
+flash.Name = "LightningFlash"
+flash.Parent = Lighting
+
+workspace:GetAttributeChangedSignal("ThunderId"):Connect(function()
+	-- Вспышка: двойное мигание
+	for _, power in { 0.55, 0.3 } do
+		flash.Brightness = power
+		flash.Contrast = power * 0.4
+		TweenService:Create(flash, TweenInfo.new(0.25), { Brightness = 0, Contrast = 0 }):Play()
+		task.wait(0.12)
+	end
+	-- Гром приходит позже (как будто молния далеко)
+	task.wait(0.4 + math.random() * 1.4)
+	local def = Sounds.Weather and Sounds.Weather.Thunder
+	if def and def.Id ~= "" then
+		local s = Instance.new("Sound")
+		s.SoundId = def.Id
+		s.Volume = def.Volume or 0.8
+		s.PlaybackSpeed = 0.9 + math.random() * 0.2
+		s.Parent = workspace
+		s:Play()
+		s.Ended:Once(function()
+			s:Destroy()
+		end)
+	end
+end)
+
+---------------------------------------------------------------------
+-- Часы и погода сверху экрана
+---------------------------------------------------------------------
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "ClockHud"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local hud = Instance.new("Frame")
+hud.AnchorPoint = Vector2.new(1, 0)
+hud.Position = UDim2.new(1, -14, 0, 10)
+hud.Size = UDim2.fromOffset(0, 46)
+hud.AutomaticSize = Enum.AutomaticSize.X
+hud.BackgroundColor3 = Color3.fromRGB(18, 22, 34)
+hud.BackgroundTransparency = 0.2
+hud.Parent = gui
+Instance.new("UICorner", hud).CornerRadius = UDim.new(0, 14)
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(90, 110, 160)
+stroke.Transparency = 0.4
+stroke.Parent = hud
+local padding = Instance.new("UIPadding")
+padding.PaddingLeft = UDim.new(0, 12)
+padding.PaddingRight = UDim.new(0, 12)
+padding.Parent = hud
+local layout = Instance.new("UIListLayout")
+layout.FillDirection = Enum.FillDirection.Horizontal
+layout.VerticalAlignment = Enum.VerticalAlignment.Center
+layout.Padding = UDim.new(0, 10)
+layout.Parent = hud
+
+local function hudLabel(order: number, size: number, bold: boolean, color: Color3)
+	local l = Instance.new("TextLabel")
+	l.LayoutOrder = order
+	l.BackgroundTransparency = 1
+	l.AutomaticSize = Enum.AutomaticSize.X
+	l.Size = UDim2.fromOffset(0, 40)
+	l.Font = bold and Enum.Font.GothamBold or Enum.Font.GothamMedium
+	l.TextSize = size
+	l.TextColor3 = color
+	l.Parent = hud
+	return l
+end
+local timeLabel = hudLabel(1, 22, true, Color3.fromRGB(245, 245, 250))
+local dayLabel = hudLabel(2, 15, false, Color3.fromRGB(170, 185, 215))
+local weatherLabel = hudLabel(3, 15, false, Color3.fromRGB(200, 215, 240))
+local hudScale = Instance.new("UIScale")
+hudScale.Parent = hud
+
+local lastWeather = nil
+local function updateHud()
+	local hour = workspace:GetAttribute("Hour") or Lighting.ClockTime
+	local h = math.floor(hour)
+	local m = math.floor((hour - h) * 60 / 10) * 10 -- шаг 10 минут, чтобы не мельтешило
+	timeLabel.Text = string.format("%02d:%02d", h, m)
+	local weekDay = workspace:GetAttribute("WeekDay") or 1
+	local names = NPCConfig.WeekDays or {}
+	local period = workspace:GetAttribute("Period") or ""
+	local weekend = workspace:GetAttribute("Weekend") == true
+	dayLabel.Text = string.format("%s%s · %s", names[weekDay] or "", weekend and " 🎉" or "", period)
+	local key = workspace:GetAttribute("Weather")
+	local icon = workspace:GetAttribute("WeatherIcon") or ""
+	local name = workspace:GetAttribute("WeatherName") or ""
+	weatherLabel.Text = icon .. " " .. name
+	if key ~= lastWeather then
+		-- Погода сменилась — часы «подпрыгивают»
+		if lastWeather ~= nil then
+			hudScale.Scale = 1.15
+			TweenService:Create(hudScale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		end
+		lastWeather = key
+	end
+end
+
+---------------------------------------------------------------------
+-- Каждый кадр
+---------------------------------------------------------------------
+
+local hudTimer, roofTimer, indoors = 0, 0, false
+RunService.RenderStepped:Connect(function(dt)
+	local camPos = camera.CFrame.Position
+	local intensity = workspace:GetAttribute("Rain") or 0
+
+	roofTimer -= dt
+	if roofTimer <= 0 then
+		roofTimer = 0.3
+		indoors = underRoof(camPos)
+	end
+
+	-- Облако капель над камерой, чуть впереди по ходу взгляда
+	local ahead = camera.CFrame.LookVector * Vector3.new(1, 0, 1) * 20
+	rainPart.CFrame = CFrame.new(camPos + ahead + Vector3.new(0, 45, 0))
+	rain.Rate = indoors and 0 or Config.RainDrops * intensity
+
+	local ignore = { camera }
+	if player.Character then
+		table.insert(ignore, player.Character)
+	end
+	skyParams.FilterDescendantsInstances = ignore
+	local ground = workspace:Raycast(camPos, Vector3.new(0, -60, 0), skyParams)
+	if ground then
+		splashPart.CFrame = CFrame.new(ground.Position + Vector3.new(0, 0.1, 0))
+	end
+	splash.Rate = (indoors or not ground) and 0 or 160 * intensity
+
+	-- Звук: внутри тише
+	if rainSound then
+		local target = rainSound.volume * intensity * (indoors and 0.35 or 1)
+		rainSound.sound.Volume += (target - rainSound.sound.Volume) * math.min(1, dt * 2)
+	end
+	if windSound then
+		local fog = workspace:GetAttribute("Fog") or 0
+		local target = windSound.volume * math.max(fog, intensity * 0.8) * (indoors and 0.3 or 1)
+		windSound.sound.Volume += (target - windSound.sound.Volume) * math.min(1, dt * 1.5)
+	end
+
+	hudTimer -= dt
+	if hudTimer <= 0 then
+		hudTimer = 0.5
+		updateHud()
 	end
 end)

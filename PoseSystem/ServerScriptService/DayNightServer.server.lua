@@ -2,6 +2,8 @@
 -- Смена дня и ночи: время идёт само (NPCConfig.DayLengthMinutes),
 -- ночью включаются детали с атрибутом NightLight = true (фонари, окна, вывески).
 -- Атрибут Workspace.IsNight подсказывает жителям, что пора спать.
+-- Ещё атрибуты Workspace для расписания жителей и часов на экране:
+--   Hour (час, дробный), Day (номер дня), WeekDay (1–7), Weekend (true/false), Period (имя периода)
 
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
@@ -71,14 +73,46 @@ end)
 local hoursPerSecond = 24 / (Config.DayLengthMinutes * 60)
 local wasNight = nil
 local pending = 0
+local day = 1
+
+local function periodAt(hour: number): string
+	if isNightAt(hour) then
+		return "Ночь"
+	end
+	for _, p in Config.Schedule or {} do
+		if hour >= p.From and hour < p.To then
+			return p.Name
+		end
+	end
+	return "День"
+end
+
+local function publishTime()
+	local hour = Lighting.ClockTime
+	local weekDay = ((Config.StartWeekDay or 1) - 1 + day - 1) % 7 + 1
+	workspace:SetAttribute("Hour", math.floor(hour * 100) / 100)
+	workspace:SetAttribute("Day", day)
+	workspace:SetAttribute("WeekDay", weekDay)
+	workspace:SetAttribute("Weekend", (Config.WeekendDays or {})[weekDay] == true)
+	local period = periodAt(hour)
+	if workspace:GetAttribute("Period") ~= period then
+		workspace:SetAttribute("Period", period)
+	end
+end
+publishTime()
 RunService.Heartbeat:Connect(function(dt)
 	-- Обновляем время 4 раза в секунду: этого хватает для плавности и не нагружает сеть
 	pending += dt
 	if pending < 0.25 then
 		return
 	end
+	local before = Lighting.ClockTime
 	Lighting.ClockTime = (Lighting.ClockTime + pending * hoursPerSecond) % 24
 	pending = 0
+	if Lighting.ClockTime < before then
+		day += 1 -- полночь: новый день недели
+	end
+	publishTime()
 	local night = isNightAt(Lighting.ClockTime)
 	if night ~= wasNight then
 		wasNight = night

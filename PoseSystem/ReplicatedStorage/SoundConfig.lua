@@ -50,6 +50,13 @@ SoundConfig.NPC = {
 	HouseDoorClose = { Id = "", Volume = 0.6 },
 }
 
+-- Погода
+SoundConfig.Weather = {
+	Rain = { Id = "", Volume = 0.5 }, -- зацикленный шум дождя (rain loop)
+	Thunder = { Id = "", Volume = 0.8 }, -- раскат грома
+	Wind = { Id = "", Volume = 0.3 }, -- зацикленный ветер (в грозу и туман)
+}
+
 -- Голоса жителей: у каждого своя высота (случайная в этом диапазоне).
 -- Для живого голоса диапазон небольшой: 0.9–1.15 звучит естественно.
 SoundConfig.VoicePitch = NumberRange.new(0.9, 1.15)

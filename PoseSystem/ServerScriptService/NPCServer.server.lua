@@ -11,6 +11,9 @@
 --     оглядываются на невидимку, разбегаются от лазеров;
 --   * помнят игроков по имени и могут пойти следом («Пойдём со мной!»);
 --   * над головой значок настроения;
+--   * живут по расписанию: утро, день, обед, вечер, ночь; в выходные отдыхают
+--     (NPCConfig.Schedule), продавцы работают по часам с обедом;
+--   * погода: в дождь раскрывают зонты, прячутся по домам и ускоряют шаг, пугаются грома;
 --   * дают задания (❗): найти потерянную вещь за монеты;
 --   * дружат с игроками (Знакомый → Приятель → Друг ❤️), друзьям дарят подарок;
 --   * работают: продавцы стоят за прилавком (Activity = "Work"), охранники обходят маршрут ("Patrol");
@@ -361,6 +364,50 @@ end
 
 local function isNight(): boolean
 	return workspace:GetAttribute("IsNight") == true
+end
+
+---------------------------------------------------------------------
+-- Расписание и погода
+---------------------------------------------------------------------
+
+local Lighting = game:GetService("Lighting")
+
+local function hourNow(): number
+	return workspace:GetAttribute("Hour") or Lighting.ClockTime
+end
+
+local function isWeekend(): boolean
+	return workspace:GetAttribute("Weekend") == true
+end
+
+local function rainNow(): number
+	return workspace:GetAttribute("Rain") or 0
+end
+
+local function currentPeriod()
+	local hour = hourNow()
+	for _, p in Config.Schedule or {} do
+		if hour >= p.From and hour < p.To then
+			return p
+		end
+	end
+	return nil
+end
+
+-- Продавцы работают в рабочие часы, кроме обеда (и выходных, если так настроено)
+local function isWorkTime(): boolean
+	local h, w = hourNow(), Config.WorkHours
+	if not w then
+		return true
+	end
+	if Config.WorkersRestOnWeekend and isWeekend() then
+		return false
+	end
+	return h >= w.Start and h < w.End and not (h >= w.LunchStart and h < w.LunchEnd)
+end
+
+local function walkSpeedOf(npc): number
+	return npc.speed * (npc.speedMul or 1)
 end
 
 ---------------------------------------------------------------------
@@ -766,7 +813,7 @@ local function standUp(npc)
 		setPose(npc, "Stand")
 		task.wait(0.45)
 	end
-	npc.humanoid.WalkSpeed = npc.speed
+	npc.humanoid.WalkSpeed = walkSpeedOf(npc)
 end
 
 local function pause(npc, seconds: number): boolean
@@ -1056,55 +1103,100 @@ local function travelTo(npc, target: Vector3): boolean
 	return walkTo(npc, target)
 end
 
-local function choosePoint(npc)
-	local r = rng:NextNumber()
-	local mode = (r < Config.SameZoneChance and "same")
-		or (r < Config.SameZoneChance + Config.OutdoorChance and "outdoor")
-		or "any"
+local function pointCategory(npc, point): string
+	if point.zone == nil or point.zone == Config.OutdoorZone then
+		return "Street"
+	elseif npc.homeZone and point.zone == npc.homeZone then
+		return "Home"
+	end
+	return "Other"
+end
 
-	local candidates, totalWeight = {}, 0
-	local function collect(filter)
-		table.clear(candidates)
-		totalWeight = 0
-		for _, point in pairs(points) do
-			if point ~= npc.point and point.occupants < point.capacity and point.part.Parent
-				and point.activity ~= "Work" and point.activity ~= "Patrol"
-				and not spotTaken(point) and filter(point) then
-				-- Ближние точки чуть вероятнее
-				local dist = (point.part.Position - npc.hrp.Position).Magnitude
-				local weight = 1 / (1 + dist / 80)
-				table.insert(candidates, { point = point, weight = weight })
-				totalWeight += weight
-			end
+-- Куда пойти: по расписанию (дом / улица / другие места), выходным и погоде
+local function choosePoint(npc)
+	local period = currentPeriod()
+	local weights = {
+		Home = period and period.Home or 0.4,
+		Street = period and period.Street or 0.35,
+		Other = period and period.Other or 0.25,
+	}
+	local prefer = {}
+	for k, v in pairs(period and period.Prefer or {}) do
+		prefer[k] = v
+	end
+	if isWeekend() and Config.Weekend then
+		local w = Config.Weekend
+		weights.Home *= w.Home or 1
+		weights.Street *= w.Street or 1
+		weights.Other *= w.Other or 1
+		for k, v in pairs(w.Prefer or {}) do
+			prefer[k] = (prefer[k] or 1) * v
+		end
+	end
+	if rainNow() > 0.3 then
+		weights.Street *= Config.RainStreetFactor or 0.25
+		weights.Home *= 1.5
+	end
+	if not npc.homeZone then
+		weights.Street += weights.Home
+		weights.Home = 0
+	end
+
+	local buckets = { Home = {}, Street = {}, Other = {} }
+	local sums = { Home = 0, Street = 0, Other = 0 }
+	for _, point in pairs(points) do
+		if point ~= npc.point and point.occupants < point.capacity and point.part.Parent
+			and point.activity ~= "Work" and point.activity ~= "Patrol"
+			and not spotTaken(point) then
+			local cat = pointCategory(npc, point)
+			-- Ближние точки чуть вероятнее, любимые занятия периода — тоже
+			local dist = (point.part.Position - npc.hrp.Position).Magnitude
+			local weight = (1 / (1 + dist / 80)) * (prefer[point.activity] or 1)
+			table.insert(buckets[cat], { point = point, weight = weight })
+			sums[cat] += weight
 		end
 	end
 
-	if mode == "same" then
-		collect(function(p)
-			return p.zone == npc.zone
-		end)
-	elseif mode == "outdoor" then
-		collect(function(p)
-			return p.zone == nil or p.zone == Config.OutdoorZone
-		end)
+	local total = 0
+	for cat, w in pairs(weights) do
+		if #buckets[cat] > 0 then
+			total += w
+		end
 	end
-	if #candidates == 0 then
-		collect(function()
-			return true
-		end)
+	local chosen
+	if total > 0 then
+		local roll = rng:NextNumber() * total
+		for cat, w in pairs(weights) do
+			if #buckets[cat] > 0 then
+				roll -= w
+				if roll <= 0 then
+					chosen = cat
+					break
+				end
+			end
+		end
 	end
-	if #candidates == 0 then
+	if not chosen then
+		for cat, list in pairs(buckets) do
+			if #list > 0 then
+				chosen = cat
+				break
+			end
+		end
+	end
+	if not chosen then
 		return nil
 	end
 
-	local roll = rng:NextNumber() * totalWeight
-	for _, c in candidates do
+	local list = buckets[chosen]
+	local roll = rng:NextNumber() * sums[chosen]
+	for _, c in list do
 		roll -= c.weight
 		if roll <= 0 then
 			return c.point
 		end
 	end
-	return candidates[#candidates].point
+	return list[#list].point
 end
 
 -- Встать точно на точку (например, на кровать) и повернуться, как она смотрит
@@ -1289,8 +1381,13 @@ local function doWork(npc)
 		return
 	end
 	face(npc, point.part.CFrame.LookVector)
+	if not npc.atWork then
+		npc.atWork = true
+		say(npc, pick(Config.WorkPhrases.Start))
+		setMood(npc, "Work", 4)
+	end
 	local shiftEnd = os.clock() + randomIn(Config.WorkShift)
-	while os.clock() < shiftEnd and not shouldStop(npc) and not (isNight() and npc.homeZone) do
+	while os.clock() < shiftEnd and not shouldStop(npc) and not (isNight() and npc.homeZone) and isWorkTime() do
 		if someoneNear(npc.hrp.Position, 16) and rng:NextNumber() < 0.5 then
 			say(npc, pick(Config.Phrases.Work))
 			npc.anim.emote(rng:NextNumber() < 0.5 and "Wave" or "Point")
@@ -1301,7 +1398,16 @@ local function doWork(npc)
 		end
 		pause(npc, rng:NextNumber(4, 8))
 	end
-	if not shouldStop(npc) then
+	if not isWorkTime() and npc.atWork then
+		-- Обед или конец смены
+		npc.atWork = false
+		local h = hourNow()
+		local lunch = Config.WorkHours and h >= Config.WorkHours.LunchStart and h < Config.WorkHours.LunchEnd
+		say(npc, pick(lunch and Config.WorkPhrases.Lunch or Config.WorkPhrases.End))
+		if lunch then
+			setMood(npc, "Lunch", 10)
+		end
+	elseif not shouldStop(npc) then
 		npc.onBreak = true -- перерыв: одно обычное дело, потом снова за работу
 	end
 end
@@ -1389,7 +1495,7 @@ local function brain(npc)
 			else
 				task.wait(1)
 			end
-			npc.humanoid.WalkSpeed = npc.speed
+			npc.humanoid.WalkSpeed = walkSpeedOf(npc)
 			continue
 		end
 
@@ -1400,7 +1506,7 @@ local function brain(npc)
 
 		-- Работа или обход маршрута (между ними — перерывы)
 		if not npc.onBreak then
-			if npc.job then
+			if npc.job and isWorkTime() then
 				doWork(npc)
 				continue
 			elseif npc.route then
@@ -1898,6 +2004,7 @@ local function createNPC(spawnPart: BasePart?, opts)
 		following = nil,
 		reacted = {},
 		friendCooldown = {},
+		hasUmbrellaItem = rng:NextNumber() < (Config.UmbrellaChance or 0.6),
 		title = name,
 		job = nil,
 		route = nil,
@@ -1991,6 +2098,154 @@ end
 function spawnNPC(spawnPart: BasePart)
 	createNPC(spawnPart, nil)
 end
+
+---------------------------------------------------------------------
+-- Зонты, скорость по расписанию, реакции на погоду
+---------------------------------------------------------------------
+
+local roofParams = RaycastParams.new()
+roofParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function outdoors(npc): boolean
+	local ignore = { liveFolder }
+	for _, p in Players:GetPlayers() do
+		if p.Character then
+			table.insert(ignore, p.Character)
+		end
+	end
+	roofParams.FilterDescendantsInstances = ignore
+	return workspace:Raycast(npc.hrp.Position + Vector3.new(0, 2, 0), Vector3.new(0, 50, 0), roofParams) == nil
+end
+
+local function addUmbrella(npc)
+	local torso = npc.model:FindFirstChild("UpperTorso")
+	if not torso or npc.umbrella then
+		return
+	end
+	local m = Instance.new("Model")
+	m.Name = "Umbrella"
+	local color = pick(Config.UmbrellaColors)
+	local function piece(size: Vector3, offset: CFrame, c: Color3, shape: Enum.PartType?)
+		local p = Instance.new("Part")
+		p.Size = size
+		p.Color = c
+		p.Material = Enum.Material.SmoothPlastic
+		if shape then
+			p.Shape = shape
+		end
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Massless = true
+		p.CollisionGroup = COLLISION_GROUP
+		p.CFrame = torso.CFrame * offset
+		local w = Instance.new("WeldConstraint")
+		w.Part0 = torso
+		w.Part1 = p
+		w.Parent = p
+		p.Parent = m
+		return p
+	end
+	local upright = CFrame.Angles(0, 0, math.rad(90))
+	piece(Vector3.new(3.2, 0.12, 0.12), CFrame.new(0.75, 1.3, -0.9) * upright, Color3.fromRGB(40, 40, 45), Enum.PartType.Cylinder) -- ручка
+	piece(Vector3.new(0.25, 4.4, 4.4), CFrame.new(0.4, 3, -0.4) * upright, color, Enum.PartType.Cylinder) -- купол
+	piece(Vector3.new(0.6, 0.6, 0.6), CFrame.new(0.4, 3.2, -0.4), color:Lerp(Color3.new(1, 1, 1), 0.3), Enum.PartType.Ball)
+	m.Parent = npc.model
+	npc.umbrella = m
+	npc.model:SetAttribute("Umbrella", true) -- клиент поднимает руку
+end
+
+local function removeUmbrella(npc)
+	if npc.umbrella then
+		npc.umbrella:Destroy()
+		npc.umbrella = nil
+		npc.model:SetAttribute("Umbrella", nil)
+	end
+end
+
+task.spawn(function()
+	local wasRaining = false
+	while true do
+		task.wait(1.5)
+		local raining = rainNow() > 0.25
+		local period = currentPeriod()
+		local now = os.clock()
+		for _, npc in pairs(npcs) do
+			if npc.alive and not npc.officer then
+				local out = not npc.inVehicle and outdoors(npc)
+				-- Зонт
+				local standing = (npc.model:GetAttribute("Pose") or "Stand") == "Stand" and not npc.chair and not npc.inVehicle
+				if raining and out and standing and npc.hasUmbrellaItem and not npc.model:GetAttribute("Cuffed") then
+					addUmbrella(npc)
+				else
+					removeUmbrella(npc)
+				end
+				-- Скорость: утром спешат, в дождь бегут
+				npc.speedMul = (period and period.Speed or 1) * ((raining and out) and (Config.RainSpeed or 1) or 1)
+				if npc.humanoid.WalkSpeed > 0 and now >= npc.fleeUntil and not npc.following then
+					npc.humanoid.WalkSpeed = walkSpeedOf(npc)
+				end
+				-- Начался дождь — жалуются (особенно без зонта)
+				if raining and not wasRaining and out and not npc.controlled and rng:NextNumber() < (npc.hasUmbrellaItem and 0.2 or 0.6) then
+					say(npc, pick(Config.Phrases.Rain))
+					setMood(npc, "Rain", 4)
+				end
+			end
+		end
+		if raining and not wasRaining then
+			-- Под дождём бросают дела на улице и идут под крышу
+			for _, npc in pairs(npcs) do
+				local outsidePoint = npc.point and (npc.point.zone == nil or npc.point.zone == Config.OutdoorZone)
+				if npc.alive and not npc.officer and outsidePoint then
+					if not npc.hasUmbrellaItem and npc.lock == nil and not npc.controlled then
+						npc.abort = true
+					end
+				end
+			end
+		end
+		wasRaining = raining
+	end
+end)
+
+-- Новый период дня — жители это замечают
+workspace:GetAttributeChangedSignal("Period"):Connect(function()
+	local period = currentPeriod()
+	local phrases = period and period.Phrases
+	if isWeekend() and period and period.Name == "Утро" and Config.Weekend then
+		phrases = Config.Weekend.Phrases
+	end
+	if not phrases then
+		return
+	end
+	for _, npc in pairs(npcs) do
+		if npc.alive and not npc.officer and not npc.sleeping and not npc.controlled and not npc.inVehicle and rng:NextNumber() < 0.3 then
+			task.delay(rng:NextNumber(0, 6), function()
+				say(npc, pick(phrases))
+			end)
+		end
+	end
+end)
+
+-- Гром: пугаются те, кто на улице
+workspace:GetAttributeChangedSignal("ThunderId"):Connect(function()
+	task.wait(0.8)
+	for _, npc in pairs(npcs) do
+		if npc.alive and not npc.officer and not npc.sleeping and not npc.inVehicle and rng:NextNumber() < 0.3 and outdoors(npc) then
+			say(npc, pick(Config.Phrases.Thunder), 1.8)
+			setMood(npc, "Scared", 2)
+		end
+	end
+end)
+
+workspace:GetAttributeChangedSignal("Weather"):Connect(function()
+	if workspace:GetAttribute("Weather") == "Fog" then
+		for _, npc in pairs(npcs) do
+			if npc.alive and not npc.officer and not npc.sleeping and rng:NextNumber() < 0.2 then
+				say(npc, pick(Config.Phrases.Fog))
+			end
+		end
+	end
+end)
 
 -- API для транспорта
 Registry.walkTo = function(npc, position: Vector3): boolean

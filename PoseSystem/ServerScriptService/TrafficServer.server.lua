@@ -1058,6 +1058,11 @@ local function drive(car, spec): boolean
 	car.onRoad = true
 	car.driveDone = false
 	car.maxSpeed = (car.kind == "Police" and car.model:GetAttribute("Siren")) and Config.PoliceSpeed or Config.CitySpeed
+	-- В дождь и туман — медленнее
+	local weather = ReplicatedStorage:FindFirstChild("WeatherConfig")
+	if weather and ((workspace:GetAttribute("Rain") or 0) > 0.3 or (workspace:GetAttribute("Fog") or 0) > 0.5) then
+		car.maxSpeed *= require(weather).CarSpeedInRain or 0.8
+	end
 	car.model:SetAttribute("Brake", false)
 	while not car.driveDone do
 		task.wait(0.1)
@@ -1246,7 +1251,8 @@ RunService.Heartbeat:Connect(function(dt)
 			local model = car.model
 			local siren = model:GetAttribute("Siren") == true
 			local engine = car.occupants[car.driverSeat] ~= nil
-			local lights = engine and (night or siren) or false
+			local badWeather = (workspace:GetAttribute("Rain") or 0) > 0.3 or (workspace:GetAttribute("Fog") or 0) > 0.4
+			local lights = engine and (night or siren or badWeather) or false
 			if model:GetAttribute("Headlights") ~= lights then
 				model:SetAttribute("Headlights", lights)
 			end

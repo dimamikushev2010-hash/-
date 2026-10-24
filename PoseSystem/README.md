@@ -166,7 +166,35 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 
 **Как сделать шаблоны машин, дороги и звуки** — в `VEHICLE_SETUP.md`. Там же готовый текст для Claude в Studio.
 
-Файлы: `VehicleConfig`, `SoundConfig` (ModuleScript, ReplicatedStorage), `NPCRegistry`, `VehicleDefaults` (ModuleScript, ServerScriptService), `TrafficServer` (Script, ServerScriptService), `VehicleClient`, `PoliceDeskClient` (LocalScript, StarterPlayerScripts).
+Файлы: `VehicleConfig`, `SoundConfig`, `WeatherConfig` (ModuleScript, ReplicatedStorage), `NPCRegistry`, `VehicleDefaults` (ModuleScript, ServerScriptService), `TrafficServer`, `WeatherServer` (Script, ServerScriptService), `VehicleClient`, `PoliceDeskClient`, `WeatherClient` (LocalScript, StarterPlayerScripts).
+
+## Расписание и погода
+
+**Как устроено время.** Одни игровые сутки длятся 20 минут: 1 игровой час — 50 секунд. Дни идут по неделе (Пн–Вс), суббота и воскресенье — выходные. Сверху экрана — часы, день недели, период и погода.
+
+**Куда ходят жители в разное время** (настраивается в `NPCConfig.Schedule`):
+
+| Период | Время | Чаще всего |
+|---|---|---|
+| Утро | 6:30–9:00 | Дома (окно, завтрак), спешат на работу |
+| День | 9:00–13:00 | Магазины, кафе, гости, улица |
+| Обед | 13:00–14:00 | Кафе и столы, любят сесть |
+| После обеда | 14:00–18:00 | Улица и другие места |
+| Вечер | 18:00–21:00 | Улица: болтают, танцуют |
+| Ночь | 21:00–6:30 | Спят дома |
+
+- **«Дом»** — точки зоны дома жителя. **«Улица»** — `Street`. **«Другие места»** — все остальные зоны: `Кафе`, `Магазин`, `Парк`...
+- Чтобы днём было куда ходить, **сделай зоны кафе и магазинов** с точками внутри: `Sit` на стульях, `Idle` у витрин, `Look` на прилавок.
+- **Продавцы** (`Work`) работают с 8:30 до 17:30, с обедом с 13:00 до 14:00. В выходные отдыхают. Охранники обходят маршрут каждый день.
+- **В выходные** меньше сидят дома, больше гуляют, болтают и танцуют.
+
+**Погода** (настраивается в `WeatherConfig`): ясно, облачно, дождь, гроза, туман. Меняется сама каждые 3–6 минут, плавно.
+- **Дождь:** струи и брызги вокруг игрока (под крышей не идёт), шум, тучи темнеют, солнце тускнеет.
+- **Гроза:** вспышки молний и гром.
+- **Туман:** дымка, ничего не видно вдали.
+- **Жители в дождь:** у кого есть зонт, раскрывает его (рука поднята). Остальные уходят с улицы под крышу, ускоряют шаг, жалуются. От грома пугаются.
+- **Машины** в дождь и туман едут медленнее и включают фары.
+- **Звуки:** `SoundConfig.Weather` — `Rain` (зацикленный дождь), `Thunder` (гром), `Wind` (зацикленный ветер).
 
 ## Все клавиши
 
@@ -183,10 +211,10 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 
 | Где | Тип | Имена |
 |---|---|---|
-| ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `NPCConfig`, `VehicleConfig`, `SoundConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
+| ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `NPCConfig`, `VehicleConfig`, `SoundConfig`, `WeatherConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
 | ServerScriptService | ModuleScript | `AbilityRegistry`, `NPCRegistry`, `VehicleDefaults` |
-| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCServer`, `NPCDoors`, `NPCDemo`, `DayNightServer`, `TrafficServer` |
-| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient`, `VehicleClient`, `PoliceDeskClient` |
+| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCServer`, `NPCDoors`, `NPCDemo`, `DayNightServer`, `TrafficServer`, `WeatherServer` |
+| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient`, `VehicleClient`, `PoliceDeskClient`, `WeatherClient` |
 
 - `RigAnimator` — общий движок анимаций способностей. Он смешивает анимации разных способностей и не мешает системе поз.
 - `AbilityFx` — частицы, пыль и тряска камеры.

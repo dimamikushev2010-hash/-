@@ -28,6 +28,27 @@ local CUFFED_POSE = {
 	RightElbow = Vector3.new(38, 0, 0),
 }
 
+-- Рука держит зонт над головой
+local UMBRELLA_POSE = {
+	RightShoulder = Vector3.new(62, 0, 14),
+	RightElbow = Vector3.new(62, 0, 0),
+}
+
+local function armLayer(model: Model, attribute: string, pose, priority: number)
+	local weight = 0
+	return {
+		Priority = priority,
+		Update = function(rig, dt)
+			local on = model:GetAttribute(attribute) == true
+			weight = math.clamp(weight + (on and dt or -dt) * 4, 0, 1)
+			if not on and weight <= 0 then
+				return nil, 0, true
+			end
+			return RigAnimator.Frames(rig, pose), weight
+		end,
+	}
+end
+
 local function cuffedLayer(model: Model)
 	local weight = 0
 	return {
@@ -257,6 +278,15 @@ local function watchNpc(model: Instance)
 	end
 	model:GetAttributeChangedSignal("Cuffed"):Connect(onCuffed)
 	onCuffed()
+
+	-- Зонт
+	local function onUmbrella()
+		if model:GetAttribute("Umbrella") == true and not RigAnimator.HasLayer(model, "Umbrella") then
+			RigAnimator.SetLayer(model, "Umbrella", armLayer(model, "Umbrella", UMBRELLA_POSE, 35))
+		end
+	end
+	model:GetAttributeChangedSignal("Umbrella"):Connect(onUmbrella)
+	onUmbrella()
 
 	-- Звуковые события с сервера: смех, крик, храп...
 	model:GetAttributeChangedSignal("SoundEventId"):Connect(function()
