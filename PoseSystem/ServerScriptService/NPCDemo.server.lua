@@ -174,7 +174,7 @@ street.Name = "Street"
 street.Parent = town
 local Z = "Street"
 
-block(street, "Road", Vector3.new(110, 0.1, 12), CFrame.new(0, 0.05, -32), Color3.fromRGB(60, 60, 65), Enum.Material.Asphalt).CanCollide = false
+block(street, "Road", Vector3.new(117, 0.1, 12), CFrame.new(-7.5, 0.05, -32), Color3.fromRGB(60, 60, 65), Enum.Material.Asphalt).CanCollide = false
 block(street, "Grass", Vector3.new(20, 0.1, 16), CFrame.new(25, 0.05, 12), Color3.fromRGB(90, 160, 70), Enum.Material.Grass).CanCollide = false
 
 -- Фонтан
@@ -233,3 +233,149 @@ spawnPoint("StreetSpawnL", Vector3.new(-8, 0.1, 3), 4, Z)
 spawnPoint("StreetSpawnR", Vector3.new(8, 0.1, 3), 4, Z)
 
 system.Parent = workspace
+
+---------------------------------------------------------------------
+-- Транспорт: дороги, светофор, парковки, остановки, вызовы полиции
+---------------------------------------------------------------------
+
+if workspace:FindFirstChild("TrafficSystem") then
+	return
+end
+
+local traffic = Instance.new("Folder")
+traffic.Name = "TrafficSystem"
+local function sub(name: string)
+	local f = Instance.new("Folder")
+	f.Name = name
+	f.Parent = traffic
+	return f
+end
+local roads, parking, stops, calls, lights, places = sub("Roads"), sub("Parking"), sub("BusStops"), sub("PoliceCalls"), sub("TrafficLights"), sub("Places")
+
+local ASPHALT = Color3.fromRGB(60, 60, 65)
+local function road(size: Vector3, pos: Vector3)
+	block(street, "Road", size, CFrame.new(pos), ASPHALT, Enum.Material.Asphalt).CanCollide = false
+end
+road(Vector3.new(117, 0.1, 12), Vector3.new(-7.5, 0.05, 30)) -- север
+road(Vector3.new(12, 0.1, 74), Vector3.new(-60, 0.05, -1)) -- запад
+road(Vector3.new(12, 0.1, 74), Vector3.new(45, 0.05, -1)) -- восток
+road(Vector3.new(12, 0.1, 50), Vector3.new(-45, 0.05, -1)) -- поперечная
+-- Разметка
+for x = -60, 40, 8 do
+	block(street, "Marking", Vector3.new(4, 0.12, 0.4), CFrame.new(x, 0.06, -32), Color3.fromRGB(240, 240, 240)).CanCollide = false
+	block(street, "Marking", Vector3.new(4, 0.12, 0.4), CFrame.new(x, 0.06, 30), Color3.fromRGB(240, 240, 240)).CanCollide = false
+end
+
+-- Точки дороги: по центру, Links — соседние точки (в обе стороны)
+local NODE = Color3.fromRGB(255, 255, 255)
+local function node(name: string, x: number, z: number, links: string, signal: { any }?)
+	local p = block(roads, name, Vector3.new(1.5, 0.3, 1.5), CFrame.new(x, 0.15, z), NODE, Enum.Material.Neon)
+	p.Transparency = 0.3
+	p.CanCollide = false
+	p:SetAttribute("Links", links)
+	if signal then
+		p:SetAttribute("Signal", signal[1])
+		p:SetAttribute("Phase", signal[2])
+		p:SetAttribute("Toward", signal[3])
+	end
+end
+node("A", -60, -32, "P1,D")
+node("P1", -52, -32, "X1", { "X1", 1, "X1" })
+node("X1", -45, -32, "P2,P3")
+node("P2", -37, -32, "M1", { "X1", 1, "X1" })
+node("M1", 5, -32, "B")
+node("B", 45, -32, "C")
+node("C", 45, 30, "M2")
+node("M2", 5, 30, "X2")
+node("X2", -45, 30, "D,P3")
+node("P3", -45, -24, "", { "X1", 2, "X1" })
+node("D", -60, 30, "")
+
+-- Светофоры: фаза 1 — главная дорога, фаза 2 — поперечная
+local function trafficLight(name: string, pos: Vector3, phase: number, facing: Vector3)
+	local m = Instance.new("Model")
+	m.Name = name
+	m:SetAttribute("Group", "X1")
+	m:SetAttribute("Phase", phase)
+	block(m, "Pole", Vector3.new(0.5, 9, 0.5), CFrame.new(pos + Vector3.new(0, 4.5, 0)), Color3.fromRGB(40, 40, 45), Enum.Material.Metal)
+	local head = CFrame.lookAt(pos + Vector3.new(0, 8, 0), pos + Vector3.new(0, 8, 0) + facing)
+	block(m, "Housing", Vector3.new(1.4, 3.6, 1), head, Color3.fromRGB(25, 25, 25), Enum.Material.Metal)
+	for i, c in { { "Red", Color3.fromRGB(255, 40, 40) }, { "Yellow", Color3.fromRGB(255, 200, 40) }, { "Green", Color3.fromRGB(40, 255, 90) } } do
+		local lampPart = block(m, c[1], Vector3.new(0.9, 0.9, 0.3), head * CFrame.new(0, 1.15 - (i - 1) * 1.15, -0.55), c[2], Enum.Material.Neon)
+		lampPart.Shape = Enum.PartType.Cylinder
+		lampPart.CFrame = head * CFrame.new(0, 1.15 - (i - 1) * 1.15, -0.55) * CFrame.Angles(0, math.rad(90), 0)
+		lampPart.Size = Vector3.new(0.3, 0.9, 0.9)
+	end
+	m.Parent = lights
+end
+trafficLight("Light_West", Vector3.new(-53, 0, -39), 1, Vector3.new(-1, 0, 0))
+trafficLight("Light_East", Vector3.new(-37, 0, -25), 1, Vector3.new(1, 0, 0))
+trafficLight("Light_North", Vector3.new(-52, 0, -23), 2, Vector3.new(0, 0, 1))
+
+-- Парковки: передняя грань — куда смотрит машина
+local function spot(name: string, pos: Vector3, look: Vector3, kind: string, zone: string?)
+	local p = block(parking, name, Vector3.new(5, 0.2, 10), CFrame.lookAt(pos, pos + look), Color3.fromRGB(80, 160, 255), Enum.Material.Neon)
+	p.Transparency = 0.6
+	p.CanCollide = false
+	p:SetAttribute("Type", kind)
+	if zone then
+		p:SetAttribute("Zone", zone)
+	end
+end
+local EAST, NORTH = Vector3.new(1, 0, 0), Vector3.new(0, 0, -1)
+spot("Car_Home1", Vector3.new(-30, 0.1, -20.5), EAST, "Civilian", "Дом1")
+spot("Car_Home2", Vector3.new(30, 0.1, -20.5), EAST, "Civilian", "Дом2")
+spot("Car_North1", Vector3.new(-20, 0.1, 40), EAST, "Civilian", "Street")
+spot("Car_North2", Vector3.new(10, 0.1, 40), EAST, "Civilian", "Street")
+spot("Car_North3", Vector3.new(32, 0.1, 40), EAST, "Civilian", "Street")
+spot("Taxi_1", Vector3.new(58, 0.1, -2), NORTH, "Taxi")
+spot("Taxi_2", Vector3.new(58, 0.1, 10), NORTH, "Taxi")
+spot("Police_1", Vector3.new(-73, 0.1, 0), NORTH, "Police")
+spot("Police_2", Vector3.new(-73, 0.1, 12), NORTH, "Police")
+spot("Bus_Depot", Vector3.new(-74, 0.1, -18), NORTH, "Bus")
+
+-- Полицейский участок (декор)
+block(street, "PoliceStation", Vector3.new(10, 9, 26), CFrame.new(-84, 4.5, 2), Color3.fromRGB(60, 80, 140), Enum.Material.Concrete)
+local policeSign = block(street, "PoliceSign", Vector3.new(0.3, 1.5, 8), CFrame.new(-78.8, 7.5, 2), Color3.fromRGB(80, 140, 255), Enum.Material.SmoothPlastic)
+policeSign:SetAttribute(Config.NightLightAttribute, true)
+
+-- Остановки автобуса: на тротуаре, Node — точка дороги, где встаёт автобус
+local function busStop(name: string, pos: Vector3, nodeName: string, order: number, title: string)
+	local p = block(stops, name, Vector3.new(4, 0.2, 2), CFrame.new(pos), Color3.fromRGB(255, 220, 60), Enum.Material.Neon)
+	p.Transparency = 0.5
+	p.CanCollide = false
+	p:SetAttribute("Node", nodeName)
+	p:SetAttribute("Order", order)
+	p:SetAttribute("StopName", title)
+	-- Навес
+	block(street, "ShelterRoof", Vector3.new(6, 0.3, 3), CFrame.new(pos + Vector3.new(0, 4, 0)), Color3.fromRGB(70, 130, 200), Enum.Material.Glass).Transparency = 0.3
+	block(street, "ShelterPost", Vector3.new(0.3, 4, 0.3), CFrame.new(pos + Vector3.new(-2.8, 2, 0)), Color3.fromRGB(50, 50, 55), Enum.Material.Metal)
+	block(street, "ShelterPost", Vector3.new(0.3, 4, 0.3), CFrame.new(pos + Vector3.new(2.8, 2, 0)), Color3.fromRGB(50, 50, 55), Enum.Material.Metal)
+end
+busStop("Stop_Square", Vector3.new(5, 0.1, -23.5), "M1", 1, "Площадь")
+busStop("Stop_North", Vector3.new(5, 0.1, 21.5), "M2", 2, "Северная")
+
+-- Вызовы полиции: у входа в здание, Zone — куда заходят офицеры
+local function call(name: string, pos: Vector3, zone: string)
+	local p = block(calls, name, Vector3.new(2, 0.2, 2), CFrame.new(pos), Color3.fromRGB(30, 60, 255), Enum.Material.Neon)
+	p.Transparency = 0.5
+	p.CanCollide = false
+	p:SetAttribute("Zone", zone)
+end
+call("Call_House1", Vector3.new(-35, 0.1, -38.5), "Дом1")
+call("Call_House2", Vector3.new(35, 0.1, -38.5), "Дом2")
+call("Call_Stall", Vector3.new(-30, 0.1, 2), "Street")
+
+-- Места для такси
+local function place(name: string, pos: Vector3)
+	local p = block(places, name, Vector3.new(2, 0.2, 2), CFrame.new(pos), Color3.fromRGB(255, 200, 40), Enum.Material.Neon)
+	p.Transparency = 0.5
+	p.CanCollide = false
+end
+place("Дом 1", Vector3.new(-35, 0.1, -36))
+place("Дом 2", Vector3.new(35, 0.1, -36))
+place("Площадь", Vector3.new(0, 0.1, -5))
+place("Ларёк с мороженым", Vector3.new(-30, 0.1, 2))
+place("Северная улица", Vector3.new(5, 0.1, 22))
+
+traffic.Parent = workspace

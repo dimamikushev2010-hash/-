@@ -201,6 +201,11 @@ RunService.Heartbeat:Connect(function(dt)
 			if state.prompt then
 				state.prompt.ActionText = state.target ~= 0 and "Закрыть" or "Открыть"
 			end
+			-- Для звука скрипа (NPCClient)
+			local opening = state.target ~= 0
+			if door:GetAttribute("DoorOpen") ~= opening then
+				door:SetAttribute("DoorOpen", opening)
+			end
 		end
 	end
 end)

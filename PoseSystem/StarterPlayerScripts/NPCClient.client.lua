@@ -5,7 +5,9 @@
 --   * окно разговора с жителем: имя, уровень дружбы, ответ и кнопки тем;
 --   * задания: вещь видна только тебе, отмечена значком сквозь стены, трекер сверху экрана;
 --   * всплывающие уведомления (+монеты, новый друг);
---   * собаки на поводке у жителей: бегают рядом, виляют хвостом, садятся, гавкают.
+--   * собаки на поводке у жителей: бегают рядом, виляют хвостом, садятся, гавкают;
+--   * звуки жителей: шаги, «бормотание» голосом при репликах (у каждого своя высота),
+--     смех, крик, храп, лай, скрип дверей (ID звуков — в SoundConfig).
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -15,6 +17,7 @@ local TextService = game:GetService("TextService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local Sounds = require(ReplicatedStorage:WaitForChild("SoundConfig"))
 local dialogRemote = ReplicatedStorage:WaitForChild("NPCDialog")
 
 local player = Players.LocalPlayer
@@ -24,6 +27,29 @@ local BUBBLE_FONT = Enum.Font.GothamMedium
 local BUBBLE_TEXT_SIZE = 18
 local BUBBLE_MAX_WIDTH = 240
 local TYPE_SPEED = 45 -- букв в секунду
+
+-- Звук в детали (3D: громче рядом, тише вдали)
+local function playAt(parent: Instance?, def, pitch: number?)
+	if not parent or not def or def.Id == "" then
+		return
+	end
+	local sound = Instance.new("Sound")
+	sound.SoundId = def.Id
+	sound.Volume = def.Volume or 0.5
+	sound.PlaybackSpeed = pitch or 1
+	sound.RollOffMinDistance = 6
+	sound.RollOffMaxDistance = 70
+	sound.Parent = parent
+	sound:Play()
+	sound.Ended:Once(function()
+		sound:Destroy()
+	end)
+	task.delay(8, function()
+		if sound.Parent then
+			sound:Destroy()
+		end
+	end)
+end
 
 local bubbleGui = Instance.new("ScreenGui")
 bubbleGui.Name = "NPCBubbles"
@@ -107,9 +133,16 @@ local function showBubble(model: Instance, text: string, duration: number)
 		-- Печатаем по буквам
 		local length = utf8.len(text) or #text
 		local start = os.clock()
+		-- Голос: короткие «слоги» с высотой этого жителя
+		local pitch = (not model:IsA("BasePart")) and model:GetAttribute("VoicePitch") or nil
+		local nextBlip = 0
 		while billboard.Parent do
 			local shown = math.floor((os.clock() - start) * TYPE_SPEED)
 			label.MaxVisibleGraphemes = math.min(shown, length)
+			if pitch and os.clock() >= nextBlip and shown < length then
+				nextBlip = os.clock() + 1 / Sounds.VoiceSpeed
+				playAt(head, Sounds.NPC.Voice, pitch * (0.9 + math.random() * 0.25))
+			end
 			if shown >= length then
 				break
 			end
@@ -190,6 +223,13 @@ local function watchNpc(model: Instance)
 	if not model:IsA("Model") then
 		return
 	end
+	-- Звуковые события с сервера: смех, крик, храп...
+	model:GetAttributeChangedSignal("SoundEventId"):Connect(function()
+		local name = model:GetAttribute("SoundEvent")
+		local def = type(name) == "string" and Sounds.NPC[name] or nil
+		local pitch = model:GetAttribute("VoicePitch") or 1
+		playAt(model:FindFirstChild("Head"), def, name == "Hurt" and pitch * 0.9 + 0.1 or pitch)
+	end)
 	model:GetAttributeChangedSignal("Mood"):Connect(function()
 		showMood(model)
 	end)
@@ -697,6 +737,7 @@ local function updateDog(model: Model, dog, dt: number, now: number)
 	if now > dog.nextBark then
 		dog.nextBark = now + math.random(12, 35)
 		showBubble(dog.head, "Гав!", 1.2)
+		playAt(dog.head, Sounds.NPC.DogBark, 0.9 + math.random() * 0.3)
 	end
 end
 
@@ -744,4 +785,55 @@ dialogRemote.OnClientEvent:Connect(function(action, model, a, b, c)
 	elseif action == "Close" and model == currentNpc then
 		closeDialog()
 	end
+end)
+
+---------------------------------------------------------------------
+-- Шаги жителей
+---------------------------------------------------------------------
+
+local steps = {} -- [npc] = пройденное расстояние
+local STEP_LENGTH = 2.6
+
+RunService.Heartbeat:Connect(function(dt)
+	local camera = workspace.CurrentCamera
+	for _, model in CollectionService:GetTagged(Config.Tag) do
+		local hrp = model:FindFirstChild("HumanoidRootPart")
+		local humanoid = model:FindFirstChildOfClass("Humanoid")
+		if hrp and humanoid and humanoid.Health > 0 and (hrp.Position - camera.CFrame.Position).Magnitude < 60 then
+			local v = hrp.AssemblyLinearVelocity
+			local speed = Vector3.new(v.X, 0, v.Z).Magnitude
+			local grounded = math.abs(v.Y) < 2
+			if speed > 2 and grounded and not humanoid.PlatformStand then
+				steps[model] = (steps[model] or 0) + speed * dt
+				if steps[model] >= STEP_LENGTH then
+					steps[model] = 0
+					playAt(hrp, Sounds.NPC.Footstep, 0.9 + math.random() * 0.25 + (speed > 15 and 0.15 or 0))
+				end
+			end
+		else
+			steps[model] = nil
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- Скрип дверей домов
+---------------------------------------------------------------------
+
+task.spawn(function()
+	local system = workspace:WaitForChild(Config.FolderName, 60)
+	local doors = system and system:WaitForChild("Doors", 30)
+	if not doors then
+		return
+	end
+	local function watchDoor(door: Instance)
+		door:GetAttributeChangedSignal("DoorOpen"):Connect(function()
+			local part = door:IsA("BasePart") and door or door:FindFirstChildWhichIsA("BasePart", true)
+			playAt(part, door:GetAttribute("DoorOpen") and Sounds.NPC.HouseDoorOpen or Sounds.NPC.HouseDoorClose)
+		end)
+	end
+	for _, d in doors:GetChildren() do
+		watchDoor(d)
+	end
+	doors.ChildAdded:Connect(watchDoor)
 end)

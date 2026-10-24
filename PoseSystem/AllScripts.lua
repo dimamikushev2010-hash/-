@@ -1,35 +1,41 @@
--- ВСЕ СКРИПТЫ: позы, невидимость, лазеры, полёт, куб, жители города (NPC)
+-- ВСЕ СКРИПТЫ: позы, невидимость, лазеры, полёт, куб, жители города (NPC), транспорт
 -- Каждый блок ниже — отдельный скрипт. Создай объект нужного типа в нужном месте,
 -- назови его точно как написано и вставь код блока целиком.
 -- Проще всего: открыть PoseSystem.rbxlx, там всё уже расставлено.
--- Как расставить точки для жителей на своей карте — см. NPC_SETUP.md.
+-- Как расставить точки для жителей — NPC_SETUP.md, транспорт и звуки — VEHICLE_SETUP.md.
 
--- СПИСОК (25 скриптов):
+-- СПИСОК (31 скриптов):
 --    1. ReplicatedStorage > ModuleScript "PoseConfig"
 --    2. ReplicatedStorage > ModuleScript "InvisibilityConfig"
 --    3. ReplicatedStorage > ModuleScript "LaserConfig"
 --    4. ReplicatedStorage > ModuleScript "FlightConfig"
 --    5. ReplicatedStorage > ModuleScript "CubeConfig"
 --    6. ReplicatedStorage > ModuleScript "NPCConfig"
---    7. ReplicatedStorage > ModuleScript "AbilityButton"
---    8. ReplicatedStorage > ModuleScript "RigAnimator"
---    9. ReplicatedStorage > ModuleScript "AbilityFx"
---   10. ServerScriptService > ModuleScript "AbilityRegistry"
---   11. ServerScriptService > Script "PoseServer"
---   12. ServerScriptService > Script "InvisibilityServer"
---   13. ServerScriptService > Script "LaserServer"
---   14. ServerScriptService > Script "FlightServer"
---   15. ServerScriptService > Script "CubeServer"
---   16. ServerScriptService > Script "NPCDemo"
---   17. ServerScriptService > Script "NPCServer"
---   18. ServerScriptService > Script "NPCDoors"
---   19. ServerScriptService > Script "DayNightServer"
---   20. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
---   21. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
---   22. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
---   23. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
---   24. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
---   25. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
+--    7. ReplicatedStorage > ModuleScript "VehicleConfig"
+--    8. ReplicatedStorage > ModuleScript "SoundConfig"
+--    9. ReplicatedStorage > ModuleScript "AbilityButton"
+--   10. ReplicatedStorage > ModuleScript "RigAnimator"
+--   11. ReplicatedStorage > ModuleScript "AbilityFx"
+--   12. ServerScriptService > ModuleScript "AbilityRegistry"
+--   13. ServerScriptService > ModuleScript "NPCRegistry"
+--   14. ServerScriptService > ModuleScript "VehicleDefaults"
+--   15. ServerScriptService > Script "PoseServer"
+--   16. ServerScriptService > Script "InvisibilityServer"
+--   17. ServerScriptService > Script "LaserServer"
+--   18. ServerScriptService > Script "FlightServer"
+--   19. ServerScriptService > Script "CubeServer"
+--   20. ServerScriptService > Script "NPCDemo"
+--   21. ServerScriptService > Script "NPCServer"
+--   22. ServerScriptService > Script "NPCDoors"
+--   23. ServerScriptService > Script "DayNightServer"
+--   24. ServerScriptService > Script "TrafficServer"
+--   25. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
+--   26. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
+--   27. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
+--   28. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
+--   29. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
+--   30. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
+--   31. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
 
 
 ----------------------------------------------------------------------
@@ -665,6 +671,7 @@ NPCConfig.Moods = {
 	Wow = "😮",
 	Laugh = "😂",
 	Quest = "❗",
+	Wait = "🚏",
 	Happy = "❤️",
 }
 
@@ -677,7 +684,138 @@ NPCConfig.DoorSpeed = 4 -- скорость открывания (больше =
 return NPCConfig
 
 ----------------------------------------------------------------------
--- 7. ReplicatedStorage > ModuleScript "AbilityButton"
+-- 7. ReplicatedStorage > ModuleScript "VehicleConfig"
+----------------------------------------------------------------------
+
+-- ModuleScript: ReplicatedStorage > VehicleConfig
+-- Настройки транспорта: машины, такси, автобус, полиция, дороги и светофоры.
+-- Как собрать шаблоны машин и расставить дороги — см. VEHICLE_SETUP.md.
+
+local VehicleConfig = {}
+
+-- Где что лежит
+VehicleConfig.TemplatesFolder = "VehicleTemplates" -- ServerStorage > VehicleTemplates (шаблоны машин)
+VehicleConfig.MapFolder = "TrafficSystem" -- Workspace > TrafficSystem (дороги, парковки, остановки...)
+VehicleConfig.VehiclesFolder = "Vehicles" -- сюда появляются машины (Workspace > TrafficSystem > Vehicles)
+VehicleConfig.HideMarkersInGame = true
+
+-- Сколько машин
+VehicleConfig.Count = {
+	Civilian = 5, -- гражданские (у каждой есть хозяин-житель)
+	Taxi = 2,
+	Bus = 1,
+	Police = 2,
+}
+VehicleConfig.MaxVehicles = 12
+
+-- Движение
+VehicleConfig.LaneOffset = 3 -- насколько правее центра дороги едет машина (правостороннее движение)
+VehicleConfig.CitySpeed = 26 -- скорость в городе (стадов в секунду)
+VehicleConfig.PoliceSpeed = 40 -- полиция на вызове
+VehicleConfig.TurnSpeed = 12 -- скорость в повороте
+VehicleConfig.Acceleration = 12
+VehicleConfig.Braking = 28
+VehicleConfig.CornerRadius = 7 -- насколько плавно скругляются повороты
+VehicleConfig.SafeGap = 4 -- дистанция до машины впереди
+VehicleConfig.PedestrianStop = 14 -- за сколько стадов тормозить перед человеком
+VehicleConfig.HonkCooldown = 4
+VehicleConfig.StuckRespawnTime = 30 -- застряла дольше — плавно исчезает и появляется на своей парковке
+
+-- Светофоры: фазы по очереди (1 — зелёный для одних, 2 — для других)
+VehicleConfig.GreenTime = 12
+VehicleConfig.YellowTime = 3
+VehicleConfig.AllRedTime = 1.5
+
+-- Поездки жителей
+VehicleConfig.TripMinDistance = 55 -- дальше этого житель поедет, а не пойдёт пешком
+VehicleConfig.TaxiChance = 0.4 -- житель без машины возьмёт такси
+VehicleConfig.BusChance = 0.4 -- или поедет на автобусе
+VehicleConfig.TrunkChance = 0.3 -- перед поездкой что-то кладёт в багажник
+
+-- Такси для игроков
+VehicleConfig.TaxiPrice = 5
+
+-- Автобус
+VehicleConfig.BusStopTime = 10 -- стоит на остановке
+VehicleConfig.BusLoopPause = 60 -- отдых на конечной
+
+-- Полиция
+VehicleConfig.PoliceCallInterval = NumberRange.new(60, 180) -- как часто вызовы
+VehicleConfig.PoliceNightFactor = 0.6 -- ночью вызовы чаще
+VehicleConfig.PoliceInsideTime = NumberRange.new(20, 40) -- сколько полицейские в здании
+VehicleConfig.PoliceOfficersPerCar = 2
+VehicleConfig.PolicePhrases = { "Что тут у вас?", "Полиция! Всем оставаться на местах!", "Так, разберёмся.", "Поступил вызов." }
+VehicleConfig.PoliceDonePhrases = { "Всё в порядке.", "Ложная тревога.", "Разобрались!", "Едем на базу." }
+VehicleConfig.PoliceShirt = Color3.fromRGB(30, 45, 90)
+VehicleConfig.PolicePants = Color3.fromRGB(20, 25, 40)
+
+-- Цвета гражданских машин, если в шаблоне есть детали с атрибутом Paint = true
+VehicleConfig.PaintColors = {
+	Color3.fromRGB(200, 40, 40), Color3.fromRGB(40, 90, 200), Color3.fromRGB(240, 240, 240),
+	Color3.fromRGB(30, 30, 35), Color3.fromRGB(120, 120, 130), Color3.fromRGB(60, 140, 70),
+	Color3.fromRGB(230, 170, 40), Color3.fromRGB(110, 60, 150),
+}
+
+-- Анимации дверей и багажника
+VehicleConfig.DoorOpenAngle = 70
+VehicleConfig.TrunkOpenAngle = 75
+VehicleConfig.DoorSpeed = 5
+VehicleConfig.SlideDistance = 2.5 -- для сдвижных дверей (автобус)
+
+return VehicleConfig
+
+----------------------------------------------------------------------
+-- 8. ReplicatedStorage > ModuleScript "SoundConfig"
+----------------------------------------------------------------------
+
+-- ModuleScript: ReplicatedStorage > SoundConfig
+-- ВСЕ ЗВУКИ ИГРЫ В ОДНОМ МЕСТЕ.
+-- Вставь сюда ID звуков из Creator Store (Toolbox → Audio): "rbxassetid://123456789".
+-- Пустая строка "" — звука нет (всё остальное работает).
+-- Звуки "rbxasset://sounds/..." встроены в Roblox и работают сразу.
+
+local SoundConfig = {}
+
+-- Машины
+SoundConfig.Vehicle = {
+	Engine = { Id = "", Volume = 0.35 }, -- зацикленный гул двигателя (высота меняется со скоростью)
+	BusEngine = { Id = "", Volume = 0.5 }, -- двигатель автобуса (если пусто — берётся Engine)
+	Horn = { Id = "", Volume = 0.7 }, -- гудок «би-бип»
+	BusHorn = { Id = "", Volume = 0.8 },
+	Siren = { Id = "", Volume = 0.6 }, -- зацикленная сирена полиции
+	DoorOpen = { Id = "", Volume = 0.6 },
+	DoorClose = { Id = "", Volume = 0.7 }, -- хлопок двери
+	BusDoor = { Id = "", Volume = 0.6 }, -- «пшш» дверей автобуса
+	TrunkOpen = { Id = "", Volume = 0.6 },
+	TrunkClose = { Id = "", Volume = 0.7 },
+	Indicator = { Id = "rbxasset://sounds/clickfast.wav", Volume = 0.15 }, -- тиканье поворотника
+	LightSwitch = { Id = "rbxasset://sounds/clickfast.wav", Volume = 0.3 }, -- щелчок фар
+	Brake = { Id = "", Volume = 0.3 }, -- скрип тормозов при резкой остановке
+}
+
+-- Жители
+SoundConfig.NPC = {
+	Footstep = { Id = "rbxasset://sounds/action_footsteps_plastic.mp3", Volume = 0.25 },
+	Voice = { Id = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.25 }, -- «бормотание» при репликах
+	Laugh = { Id = "", Volume = 0.5 },
+	Hurt = { Id = "rbxasset://sounds/uuhhh.mp3", Volume = 0.6 },
+	Scream = { Id = "", Volume = 0.6 }, -- крик при бегстве
+	Snore = { Id = "", Volume = 0.3 }, -- храп ночью
+	Cheer = { Id = "", Volume = 0.5 }, -- радость (задание выполнено, утро)
+	Wave = { Id = "", Volume = 0.4 }, -- «приве-ет!»
+	DogBark = { Id = "", Volume = 0.5 },
+	HouseDoorOpen = { Id = "", Volume = 0.5 }, -- скрип двери дома
+	HouseDoorClose = { Id = "", Volume = 0.6 },
+}
+
+-- Голоса жителей: у каждого своя высота (случайная в этом диапазоне)
+SoundConfig.VoicePitch = NumberRange.new(0.8, 1.5)
+SoundConfig.VoiceSpeed = 14 -- «слогов» в секунду при печати реплики
+
+return SoundConfig
+
+----------------------------------------------------------------------
+-- 9. ReplicatedStorage > ModuleScript "AbilityButton"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > AbilityButton
@@ -957,7 +1095,7 @@ end
 return AbilityButton
 
 ----------------------------------------------------------------------
--- 8. ReplicatedStorage > ModuleScript "RigAnimator"
+-- 10. ReplicatedStorage > ModuleScript "RigAnimator"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > RigAnimator
@@ -1240,7 +1378,7 @@ end)
 return RigAnimator
 
 ----------------------------------------------------------------------
--- 9. ReplicatedStorage > ModuleScript "AbilityFx"
+-- 11. ReplicatedStorage > ModuleScript "AbilityFx"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > AbilityFx
@@ -1418,7 +1556,7 @@ end
 return AbilityFx
 
 ----------------------------------------------------------------------
--- 10. ServerScriptService > ModuleScript "AbilityRegistry"
+-- 12. ServerScriptService > ModuleScript "AbilityRegistry"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ServerScriptService > AbilityRegistry
@@ -1467,7 +1605,213 @@ end
 return AbilityRegistry
 
 ----------------------------------------------------------------------
--- 11. ServerScriptService > Script "PoseServer"
+-- 13. ServerScriptService > ModuleScript "NPCRegistry"
+----------------------------------------------------------------------
+
+-- ModuleScript: ServerScriptService > NPCRegistry
+-- Мост между жителями (NPCServer) и транспортом (TrafficServer).
+-- NPCServer кладёт сюда свои функции, TrafficServer — свои, и они вызывают друг друга.
+
+local NPCRegistry = {}
+
+-- Заполняет NPCServer:
+--   npcs                         — таблица [model] = npc
+--   walkTo(npc, position) → bool
+--   say(npc, text, duration?)
+--   setMood(npc, moodKey?, duration?)
+--   setPose(npc, pose)
+--   face(npc, direction, time?)
+--   spawnCustom(cframe, options) → npc   (жители без обычного «мозга», например полицейские)
+NPCRegistry.npcs = {}
+
+-- Заполняет TrafficServer:
+--   assignCar(npc)                         — дать жителю машину, если есть свободная
+--   tryTrip(npc, targetPosition) → bool    — доехать (своя машина, такси или автобус); false — идти пешком
+NPCRegistry.assignCar = nil
+NPCRegistry.tryTrip = nil
+
+return NPCRegistry
+
+----------------------------------------------------------------------
+-- 14. ServerScriptService > ModuleScript "VehicleDefaults"
+----------------------------------------------------------------------
+
+-- ModuleScript: ServerScriptService > VehicleDefaults
+-- Простые шаблоны машин из деталей — на случай, если в ServerStorage > VehicleTemplates
+-- ещё нет своих. Собраны строго по правилам из VEHICLE_SETUP.md, поэтому по ним же
+-- удобно проверять свои шаблоны.
+
+local VehicleDefaults = {}
+
+local function part(model: Model, name: string, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material?, shape: Enum.PartType?)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.CFrame = cframe
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	if shape then
+		p.Shape = shape
+	end
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Anchored = true
+	p.Parent = model
+	return p
+end
+
+local function seat(model: Model, name: string, position: Vector3)
+	local s = Instance.new("Seat")
+	s.Name = name
+	s.Size = Vector3.new(1.6, 0.4, 1.6)
+	s.CFrame = CFrame.new(position)
+	s.Transparency = 1
+	s.Anchored = true
+	s.Parent = model
+	return s
+end
+
+local function light(p: BasePart, className: string, face: Enum.NormalId?, range: number, color: Color3)
+	local l = Instance.new(className)
+	l.Range = range
+	l.Color = color
+	l.Brightness = 2
+	if face and (className == "SpotLight" or className == "SurfaceLight") then
+		(l :: any).Face = face
+	end
+	l.Parent = p
+end
+
+local WHEEL = Color3.fromRGB(25, 25, 28)
+local GLASS = Color3.fromRGB(150, 200, 230)
+local HEAD = Color3.fromRGB(255, 250, 225)
+local TAIL = Color3.fromRGB(200, 20, 20)
+local AMBER = Color3.fromRGB(255, 160, 20)
+
+-- Легковая машина: длина вдоль -Z (вперёд), ширина по X
+local function car(name: string, vehicleType: string, paint: Color3, extras: ((Model) -> ())?)
+	local m = Instance.new("Model")
+	m.Name = name
+	m:SetAttribute("VehicleType", vehicleType)
+
+	local body = part(m, "Body", Vector3.new(5, 1.6, 10), CFrame.new(0, 1.9, 0), paint)
+	body:SetAttribute("Paint", true)
+	m.PrimaryPart = body
+	local cabin = part(m, "Cabin", Vector3.new(4.6, 1.6, 5), CFrame.new(0, 3.5, 0.6), paint)
+	cabin:SetAttribute("Paint", true)
+	local wind = part(m, "Windshield", Vector3.new(4.3, 1.4, 0.2), CFrame.new(0, 3.5, -1.95), GLASS, Enum.Material.Glass)
+	wind.Transparency = 0.4
+	local rear = part(m, "RearWindow", Vector3.new(4.3, 1.4, 0.2), CFrame.new(0, 3.5, 3.15), GLASS, Enum.Material.Glass)
+	rear.Transparency = 0.4
+
+	-- Двери: петли спереди (Hinge = "Front")
+	for _, d in { { "Door_FL", -2.55, -0.9 }, { "Door_FR", 2.55, -0.9 }, { "Door_RL", -2.55, 1.9 }, { "Door_RR", 2.55, 1.9 } } do
+		local door = part(m, d[1], Vector3.new(0.2, 1.5, 2.6), CFrame.new(d[2], 2.1, d[3]), paint)
+		door:SetAttribute("Paint", true)
+		door:SetAttribute("Hinge", "Front")
+		local glass = part(m, d[1] .. "_Glass", Vector3.new(0.15, 1.2, 2.2), CFrame.new(d[2], 3.5, d[3]), GLASS, Enum.Material.Glass)
+		glass.Transparency = 0.4
+		glass:SetAttribute("PartOf", d[1]) -- стекло двигается вместе с дверью
+	end
+
+	local trunk = part(m, "Trunk", Vector3.new(4.6, 0.3, 2), CFrame.new(0, 2.85, 4), paint)
+	trunk:SetAttribute("Paint", true)
+
+	-- Колёса: цилиндры, ось по X
+	for _, w in { { "Wheel_FL", -2.4, -3.2 }, { "Wheel_FR", 2.4, -3.2 }, { "Wheel_RL", -2.4, 3.2 }, { "Wheel_RR", 2.4, 3.2 } } do
+		part(m, w[1], Vector3.new(0.8, 2, 2), CFrame.new(w[2], 1, w[3]), WHEEL, Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
+	end
+
+	for _, x in { -1.8, 1.8 } do
+		local h = part(m, "Headlight", Vector3.new(1, 0.5, 0.2), CFrame.new(x, 2.1, -5.05), HEAD)
+		light(h, "SpotLight", Enum.NormalId.Front, 40, HEAD)
+		part(m, "Taillight", Vector3.new(1, 0.5, 0.2), CFrame.new(x, 2.1, 5.05), TAIL)
+		part(m, x < 0 and "Indicator_L" or "Indicator_R", Vector3.new(0.4, 0.3, 0.2), CFrame.new(x * 1.3, 1.6, -5.05), AMBER)
+		part(m, x < 0 and "Indicator_L" or "Indicator_R", Vector3.new(0.4, 0.3, 0.2), CFrame.new(x * 1.3, 1.6, 5.05), AMBER)
+	end
+
+	-- Места: водитель слева спереди, пассажиры
+	seat(m, "Seat_Driver", Vector3.new(-1.1, 2.6, -0.4))
+	seat(m, "Seat_1", Vector3.new(1.1, 2.6, -0.4))
+	seat(m, "Seat_2", Vector3.new(-1.1, 2.6, 2))
+	seat(m, "Seat_3", Vector3.new(1.1, 2.6, 2))
+
+	if extras then
+		extras(m)
+	end
+	return m
+end
+
+local function bus()
+	local m = Instance.new("Model")
+	m.Name = "DefaultBus"
+	m:SetAttribute("VehicleType", "Bus")
+	local paint = Color3.fromRGB(240, 190, 40)
+	local body = part(m, "Body", Vector3.new(7, 6, 26), CFrame.new(0, 4.4, 0), paint)
+	m.PrimaryPart = body
+	local stripe = part(m, "Stripe", Vector3.new(7.1, 0.6, 26.1), CFrame.new(0, 3, 0), Color3.fromRGB(40, 90, 200))
+	stripe.CanCollide = false
+	for i = -4, 4 do
+		local win = part(m, "Window", Vector3.new(7.1, 1.8, 2), CFrame.new(0, 5.6, i * 2.6), GLASS, Enum.Material.Glass)
+		win.Transparency = 0.35
+	end
+	local front = part(m, "Windshield", Vector3.new(6.5, 2.5, 0.2), CFrame.new(0, 5.3, -13.05), GLASS, Enum.Material.Glass)
+	front.Transparency = 0.35
+	-- Сдвижные двери справа (правостороннее движение — к тротуару)
+	for _, d in { { "Door_Front", -10 }, { "Door_Rear", 4 } } do
+		local door = part(m, d[1], Vector3.new(0.2, 4.6, 2.6), CFrame.new(3.55, 3.9, d[2]), GLASS, Enum.Material.Glass)
+		door.Transparency = 0.25
+		door:SetAttribute("Hinge", "Slide")
+	end
+	for _, w in { { -3.3, -8.5 }, { 3.3, -8.5 }, { -3.3, 8 }, { 3.3, 8 } } do
+		part(m, "Wheel", Vector3.new(1, 2.8, 2.8), CFrame.new(w[1], 1.4, w[2]), WHEEL, Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
+	end
+	for _, x in { -2.6, 2.6 } do
+		local h = part(m, "Headlight", Vector3.new(1.2, 0.6, 0.2), CFrame.new(x, 2.6, -13.05), HEAD)
+		light(h, "SpotLight", Enum.NormalId.Front, 45, HEAD)
+		part(m, "Taillight", Vector3.new(1.2, 0.6, 0.2), CFrame.new(x, 2.6, 13.05), TAIL)
+		part(m, x < 0 and "Indicator_L" or "Indicator_R", Vector3.new(0.5, 0.4, 0.2), CFrame.new(x * 1.2, 2, -13.05), AMBER)
+		part(m, x < 0 and "Indicator_L" or "Indicator_R", Vector3.new(0.5, 0.4, 0.2), CFrame.new(x * 1.2, 2, 13.05), AMBER)
+	end
+	local sign = part(m, "RouteSign", Vector3.new(4, 0.8, 0.2), CFrame.new(0, 6.9, -13.05), Color3.fromRGB(255, 140, 30))
+	sign:SetAttribute("NightGlow", true)
+	seat(m, "Seat_Driver", Vector3.new(-2.2, 3.6, -10.5))
+	local n = 1
+	for row = 0, 5 do
+		for _, x in { -2, 2 } do
+			if not (x > 0 and (row == 0 or row == 4)) then -- место у дверей свободно
+				seat(m, "Seat_" .. n, Vector3.new(x, 3.6, -7.5 + row * 3.3))
+				n += 1
+			end
+		end
+	end
+	return m
+end
+
+function VehicleDefaults.Build(): { Model }
+	local list = {}
+	table.insert(list, car("DefaultCar", "Civilian", Color3.fromRGB(200, 40, 40)))
+	table.insert(list, car("DefaultTaxi", "Taxi", Color3.fromRGB(250, 200, 30), function(m)
+		local sign = part(m, "TaxiSign", Vector3.new(1.8, 0.6, 0.8), CFrame.new(0, 4.6, 0.6), Color3.fromRGB(255, 255, 200))
+		sign.CanCollide = false
+	end))
+	table.insert(list, car("DefaultPolice", "Police", Color3.fromRGB(245, 245, 250), function(m)
+		for _, x in { -0.6, 0.6 } do
+			local siren = part(m, x < 0 and "SirenRed" or "SirenBlue", Vector3.new(1, 0.4, 0.6), CFrame.new(x, 4.5, 0.6),
+				x < 0 and Color3.fromRGB(230, 30, 30) or Color3.fromRGB(30, 80, 255))
+			light(siren, "PointLight", nil, 18, siren.Color)
+		end
+		local stripe = part(m, "Stripe", Vector3.new(5.05, 0.5, 6), CFrame.new(0, 2.2, 0.5), Color3.fromRGB(30, 50, 140))
+		stripe.CanCollide = false
+	end))
+	table.insert(list, bus())
+	return list
+end
+
+return VehicleDefaults
+
+----------------------------------------------------------------------
+-- 15. ServerScriptService > Script "PoseServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > PoseServer
@@ -1610,7 +1954,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 12. ServerScriptService > Script "InvisibilityServer"
+-- 16. ServerScriptService > Script "InvisibilityServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > InvisibilityServer
@@ -1721,7 +2065,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 13. ServerScriptService > Script "LaserServer"
+-- 17. ServerScriptService > Script "LaserServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > LaserServer
@@ -1906,7 +2250,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 14. ServerScriptService > Script "FlightServer"
+-- 18. ServerScriptService > Script "FlightServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > FlightServer
@@ -2019,7 +2363,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 15. ServerScriptService > Script "CubeServer"
+-- 19. ServerScriptService > Script "CubeServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > CubeServer
@@ -2262,7 +2606,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 16. ServerScriptService > Script "NPCDemo"
+-- 20. ServerScriptService > Script "NPCDemo"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > NPCDemo
@@ -2441,7 +2785,7 @@ street.Name = "Street"
 street.Parent = town
 local Z = "Street"
 
-block(street, "Road", Vector3.new(110, 0.1, 12), CFrame.new(0, 0.05, -32), Color3.fromRGB(60, 60, 65), Enum.Material.Asphalt).CanCollide = false
+block(street, "Road", Vector3.new(117, 0.1, 12), CFrame.new(-7.5, 0.05, -32), Color3.fromRGB(60, 60, 65), Enum.Material.Asphalt).CanCollide = false
 block(street, "Grass", Vector3.new(20, 0.1, 16), CFrame.new(25, 0.05, 12), Color3.fromRGB(90, 160, 70), Enum.Material.Grass).CanCollide = false
 
 -- Фонтан
@@ -2501,8 +2845,154 @@ spawnPoint("StreetSpawnR", Vector3.new(8, 0.1, 3), 4, Z)
 
 system.Parent = workspace
 
+---------------------------------------------------------------------
+-- Транспорт: дороги, светофор, парковки, остановки, вызовы полиции
+---------------------------------------------------------------------
+
+if workspace:FindFirstChild("TrafficSystem") then
+	return
+end
+
+local traffic = Instance.new("Folder")
+traffic.Name = "TrafficSystem"
+local function sub(name: string)
+	local f = Instance.new("Folder")
+	f.Name = name
+	f.Parent = traffic
+	return f
+end
+local roads, parking, stops, calls, lights, places = sub("Roads"), sub("Parking"), sub("BusStops"), sub("PoliceCalls"), sub("TrafficLights"), sub("Places")
+
+local ASPHALT = Color3.fromRGB(60, 60, 65)
+local function road(size: Vector3, pos: Vector3)
+	block(street, "Road", size, CFrame.new(pos), ASPHALT, Enum.Material.Asphalt).CanCollide = false
+end
+road(Vector3.new(117, 0.1, 12), Vector3.new(-7.5, 0.05, 30)) -- север
+road(Vector3.new(12, 0.1, 74), Vector3.new(-60, 0.05, -1)) -- запад
+road(Vector3.new(12, 0.1, 74), Vector3.new(45, 0.05, -1)) -- восток
+road(Vector3.new(12, 0.1, 50), Vector3.new(-45, 0.05, -1)) -- поперечная
+-- Разметка
+for x = -60, 40, 8 do
+	block(street, "Marking", Vector3.new(4, 0.12, 0.4), CFrame.new(x, 0.06, -32), Color3.fromRGB(240, 240, 240)).CanCollide = false
+	block(street, "Marking", Vector3.new(4, 0.12, 0.4), CFrame.new(x, 0.06, 30), Color3.fromRGB(240, 240, 240)).CanCollide = false
+end
+
+-- Точки дороги: по центру, Links — соседние точки (в обе стороны)
+local NODE = Color3.fromRGB(255, 255, 255)
+local function node(name: string, x: number, z: number, links: string, signal: { any }?)
+	local p = block(roads, name, Vector3.new(1.5, 0.3, 1.5), CFrame.new(x, 0.15, z), NODE, Enum.Material.Neon)
+	p.Transparency = 0.3
+	p.CanCollide = false
+	p:SetAttribute("Links", links)
+	if signal then
+		p:SetAttribute("Signal", signal[1])
+		p:SetAttribute("Phase", signal[2])
+		p:SetAttribute("Toward", signal[3])
+	end
+end
+node("A", -60, -32, "P1,D")
+node("P1", -52, -32, "X1", { "X1", 1, "X1" })
+node("X1", -45, -32, "P2,P3")
+node("P2", -37, -32, "M1", { "X1", 1, "X1" })
+node("M1", 5, -32, "B")
+node("B", 45, -32, "C")
+node("C", 45, 30, "M2")
+node("M2", 5, 30, "X2")
+node("X2", -45, 30, "D,P3")
+node("P3", -45, -24, "", { "X1", 2, "X1" })
+node("D", -60, 30, "")
+
+-- Светофоры: фаза 1 — главная дорога, фаза 2 — поперечная
+local function trafficLight(name: string, pos: Vector3, phase: number, facing: Vector3)
+	local m = Instance.new("Model")
+	m.Name = name
+	m:SetAttribute("Group", "X1")
+	m:SetAttribute("Phase", phase)
+	block(m, "Pole", Vector3.new(0.5, 9, 0.5), CFrame.new(pos + Vector3.new(0, 4.5, 0)), Color3.fromRGB(40, 40, 45), Enum.Material.Metal)
+	local head = CFrame.lookAt(pos + Vector3.new(0, 8, 0), pos + Vector3.new(0, 8, 0) + facing)
+	block(m, "Housing", Vector3.new(1.4, 3.6, 1), head, Color3.fromRGB(25, 25, 25), Enum.Material.Metal)
+	for i, c in { { "Red", Color3.fromRGB(255, 40, 40) }, { "Yellow", Color3.fromRGB(255, 200, 40) }, { "Green", Color3.fromRGB(40, 255, 90) } } do
+		local lampPart = block(m, c[1], Vector3.new(0.9, 0.9, 0.3), head * CFrame.new(0, 1.15 - (i - 1) * 1.15, -0.55), c[2], Enum.Material.Neon)
+		lampPart.Shape = Enum.PartType.Cylinder
+		lampPart.CFrame = head * CFrame.new(0, 1.15 - (i - 1) * 1.15, -0.55) * CFrame.Angles(0, math.rad(90), 0)
+		lampPart.Size = Vector3.new(0.3, 0.9, 0.9)
+	end
+	m.Parent = lights
+end
+trafficLight("Light_West", Vector3.new(-53, 0, -39), 1, Vector3.new(-1, 0, 0))
+trafficLight("Light_East", Vector3.new(-37, 0, -25), 1, Vector3.new(1, 0, 0))
+trafficLight("Light_North", Vector3.new(-52, 0, -23), 2, Vector3.new(0, 0, 1))
+
+-- Парковки: передняя грань — куда смотрит машина
+local function spot(name: string, pos: Vector3, look: Vector3, kind: string, zone: string?)
+	local p = block(parking, name, Vector3.new(5, 0.2, 10), CFrame.lookAt(pos, pos + look), Color3.fromRGB(80, 160, 255), Enum.Material.Neon)
+	p.Transparency = 0.6
+	p.CanCollide = false
+	p:SetAttribute("Type", kind)
+	if zone then
+		p:SetAttribute("Zone", zone)
+	end
+end
+local EAST, NORTH = Vector3.new(1, 0, 0), Vector3.new(0, 0, -1)
+spot("Car_Home1", Vector3.new(-30, 0.1, -20.5), EAST, "Civilian", "Дом1")
+spot("Car_Home2", Vector3.new(30, 0.1, -20.5), EAST, "Civilian", "Дом2")
+spot("Car_North1", Vector3.new(-20, 0.1, 40), EAST, "Civilian", "Street")
+spot("Car_North2", Vector3.new(10, 0.1, 40), EAST, "Civilian", "Street")
+spot("Car_North3", Vector3.new(32, 0.1, 40), EAST, "Civilian", "Street")
+spot("Taxi_1", Vector3.new(58, 0.1, -2), NORTH, "Taxi")
+spot("Taxi_2", Vector3.new(58, 0.1, 10), NORTH, "Taxi")
+spot("Police_1", Vector3.new(-73, 0.1, 0), NORTH, "Police")
+spot("Police_2", Vector3.new(-73, 0.1, 12), NORTH, "Police")
+spot("Bus_Depot", Vector3.new(-74, 0.1, -18), NORTH, "Bus")
+
+-- Полицейский участок (декор)
+block(street, "PoliceStation", Vector3.new(10, 9, 26), CFrame.new(-84, 4.5, 2), Color3.fromRGB(60, 80, 140), Enum.Material.Concrete)
+local policeSign = block(street, "PoliceSign", Vector3.new(0.3, 1.5, 8), CFrame.new(-78.8, 7.5, 2), Color3.fromRGB(80, 140, 255), Enum.Material.SmoothPlastic)
+policeSign:SetAttribute(Config.NightLightAttribute, true)
+
+-- Остановки автобуса: на тротуаре, Node — точка дороги, где встаёт автобус
+local function busStop(name: string, pos: Vector3, nodeName: string, order: number, title: string)
+	local p = block(stops, name, Vector3.new(4, 0.2, 2), CFrame.new(pos), Color3.fromRGB(255, 220, 60), Enum.Material.Neon)
+	p.Transparency = 0.5
+	p.CanCollide = false
+	p:SetAttribute("Node", nodeName)
+	p:SetAttribute("Order", order)
+	p:SetAttribute("StopName", title)
+	-- Навес
+	block(street, "ShelterRoof", Vector3.new(6, 0.3, 3), CFrame.new(pos + Vector3.new(0, 4, 0)), Color3.fromRGB(70, 130, 200), Enum.Material.Glass).Transparency = 0.3
+	block(street, "ShelterPost", Vector3.new(0.3, 4, 0.3), CFrame.new(pos + Vector3.new(-2.8, 2, 0)), Color3.fromRGB(50, 50, 55), Enum.Material.Metal)
+	block(street, "ShelterPost", Vector3.new(0.3, 4, 0.3), CFrame.new(pos + Vector3.new(2.8, 2, 0)), Color3.fromRGB(50, 50, 55), Enum.Material.Metal)
+end
+busStop("Stop_Square", Vector3.new(5, 0.1, -23.5), "M1", 1, "Площадь")
+busStop("Stop_North", Vector3.new(5, 0.1, 21.5), "M2", 2, "Северная")
+
+-- Вызовы полиции: у входа в здание, Zone — куда заходят офицеры
+local function call(name: string, pos: Vector3, zone: string)
+	local p = block(calls, name, Vector3.new(2, 0.2, 2), CFrame.new(pos), Color3.fromRGB(30, 60, 255), Enum.Material.Neon)
+	p.Transparency = 0.5
+	p.CanCollide = false
+	p:SetAttribute("Zone", zone)
+end
+call("Call_House1", Vector3.new(-35, 0.1, -38.5), "Дом1")
+call("Call_House2", Vector3.new(35, 0.1, -38.5), "Дом2")
+call("Call_Stall", Vector3.new(-30, 0.1, 2), "Street")
+
+-- Места для такси
+local function place(name: string, pos: Vector3)
+	local p = block(places, name, Vector3.new(2, 0.2, 2), CFrame.new(pos), Color3.fromRGB(255, 200, 40), Enum.Material.Neon)
+	p.Transparency = 0.5
+	p.CanCollide = false
+end
+place("Дом 1", Vector3.new(-35, 0.1, -36))
+place("Дом 2", Vector3.new(35, 0.1, -36))
+place("Площадь", Vector3.new(0, 0.1, -5))
+place("Ларёк с мороженым", Vector3.new(-30, 0.1, 2))
+place("Северная улица", Vector3.new(5, 0.1, 22))
+
+traffic.Parent = workspace
+
 ----------------------------------------------------------------------
--- 17. ServerScriptService > Script "NPCServer"
+-- 21. ServerScriptService > Script "NPCServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > NPCServer
@@ -2532,6 +3022,8 @@ local PhysicsService = game:GetService("PhysicsService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local SoundConfig = require(ReplicatedStorage:WaitForChild("SoundConfig"))
+local Registry = require(script.Parent:WaitForChild("NPCRegistry"))
 
 local folder = workspace:WaitForChild(Config.FolderName, 30)
 if not folder then
@@ -2666,7 +3158,19 @@ end
 -- Внешность
 ---------------------------------------------------------------------
 
-local function makeDescription(): HumanoidDescription
+local function makeDescription(opts): HumanoidDescription
+	if opts and opts.shirt then
+		-- Форма (например, полиция)
+		local desc = Instance.new("HumanoidDescription")
+		local skin = pick(Config.SkinColors)
+		desc.HeadColor = skin
+		desc.TorsoColor = opts.shirt
+		desc.LeftArmColor = opts.shirt
+		desc.RightArmColor = opts.shirt
+		desc.LeftLegColor = opts.pants or opts.shirt
+		desc.RightLegColor = opts.pants or opts.shirt
+		return desc
+	end
 	if #Config.AvatarUserIds > 0 then
 		local ok, desc = pcall(function()
 			return Players:GetHumanoidDescriptionFromUserId(pick(Config.AvatarUserIds))
@@ -2803,7 +3307,7 @@ end
 -- Жители
 ---------------------------------------------------------------------
 
-local npcs = {} -- [model] = npc
+local npcs = Registry.npcs -- [model] = npc (общая таблица с транспортом)
 local total = 0
 
 local function say(npc, text: string, duration: number?)
@@ -2813,6 +3317,14 @@ local function say(npc, text: string, duration: number?)
 	npc.model:SetAttribute("SayDuration", duration or Config.BubbleTime)
 	npc.model:SetAttribute("SayText", text)
 	npc.model:SetAttribute("SayId", (npc.model:GetAttribute("SayId") or 0) + 1)
+end
+
+-- Звук жителя (имя из SoundConfig.NPC), играют клиенты
+local function sfx(npc, name: string)
+	if npc.alive and SoundConfig.NPC[name] then
+		npc.model:SetAttribute("SoundEvent", name)
+		npc.model:SetAttribute("SoundEventId", (npc.model:GetAttribute("SoundEventId") or 0) + 1)
+	end
 end
 
 -- Значок настроения над головой (ключ из NPCConfig.Moods, nil — убрать)
@@ -3039,6 +3551,7 @@ local function finishQuest(npc, player: Player, quest): number
 	addFriendship(npc, player, 5)
 	setMood(npc, "Happy", 4)
 	npc.anim.emote("Cheer")
+	sfx(npc, "Cheer")
 	offerQuestLater(npc, Config.QuestCooldown)
 	return reward
 end
@@ -3229,6 +3742,9 @@ local function spotTaken(point): boolean
 end
 
 local function standUp(npc)
+	if npc.inVehicle then
+		return
+	end
 	if npc.chair then
 		leaveChair(npc)
 	end
@@ -3276,6 +3792,8 @@ local function freeForChat(npc, now: number): boolean
 		and not npc.humanoid.Sit
 		and now >= npc.fleeUntil
 		and not npc.sleeping
+		and not npc.inVehicle
+		and not npc.noSocial
 end
 
 local function runConversation(a, b, lines)
@@ -3338,6 +3856,9 @@ function react(npc, kind: string, target: BasePart)
 		end
 	else
 		setMood(npc, kind == "Cube" and "Laugh" or "Wow", 3)
+		if kind == "Cube" then
+			sfx(npc, "Laugh")
+		end
 		face(npc, target.Position - npc.hrp.Position, 0.3)
 		npc.anim.emote(kind == "Cube" and "Laugh" or "Point")
 		task.wait(2)
@@ -3349,7 +3870,7 @@ function react(npc, kind: string, target: BasePart)
 end
 
 local function tryStartChat(npc, now: number)
-	if now < npc.nextSocialCheck then
+	if now < npc.nextSocialCheck or npc.inVehicle or npc.noSocial then
 		return
 	end
 	npc.nextSocialCheck = now + 0.6
@@ -3391,6 +3912,7 @@ local function tryStartChat(npc, now: number)
 					or pick(Config.Phrases.Greet)
 				task.spawn(function()
 					npc.anim.emote("Wave")
+					sfx(npc, "Wave")
 					say(npc, text, 2.5)
 				end)
 			end
@@ -3514,6 +4036,20 @@ end
 ---------------------------------------------------------------------
 -- Выбор дела
 ---------------------------------------------------------------------
+
+-- Дойти — или доехать (своя машина, такси, автобус), если далеко
+local function travelTo(npc, target: Vector3): boolean
+	if Registry.tryTrip and not shouldStop(npc) then
+		local ok, used = pcall(Registry.tryTrip, npc, target)
+		if not ok then
+			warn("[NPC] Ошибка поездки:", used)
+		end
+		if not npc.alive then
+			return false
+		end
+	end
+	return walkTo(npc, target)
+end
 
 local function choosePoint(npc)
 	local r = rng:NextNumber()
@@ -3681,7 +4217,7 @@ local function goSleep(npc): boolean
 	end
 	point.occupants += 1
 	npc.point = point
-	local arrived = walkTo(npc, approachPosition(point))
+	local arrived = travelTo(npc, approachPosition(point))
 	if arrived and not shouldStop(npc) then
 		npc.zone = npc.homeZone
 		npc.sleeping = true
@@ -3702,6 +4238,7 @@ local function goSleep(npc): boolean
 		while isNight() and not shouldStop(npc) do
 			if os.clock() > nextSnore then
 				say(npc, pick(Config.Phrases.Sleep), 2.5)
+				sfx(npc, "Snore")
 				nextSnore = os.clock() + rng:NextNumber(6, 14)
 			end
 			task.wait(0.5)
@@ -3742,7 +4279,7 @@ local function doWork(npc)
 		npc.job = nil
 		return
 	end
-	if not walkTo(npc, point.part.Position) or shouldStop(npc) then
+	if not travelTo(npc, point.part.Position) or shouldStop(npc) then
 		npc.onBreak = not shouldStop(npc) -- не дошёл до прилавка — займётся чем-то другим
 		return
 	end
@@ -3839,6 +4376,7 @@ local function brain(npc)
 			-- Убегаем подальше
 			standUp(npc)
 			setMood(npc, "Scared", 5)
+			sfx(npc, "Scream")
 			npc.humanoid.WalkSpeed = Config.RunSpeed
 			local target = fleePoint(npc)
 			if target then
@@ -3874,7 +4412,7 @@ local function brain(npc)
 		end
 		point.occupants += 1
 		npc.point = point
-		local arrived = walkTo(npc, approachPosition(point))
+		local arrived = travelTo(npc, approachPosition(point))
 		if arrived and not shouldStop(npc) then
 			if point.zone ~= nil then
 				npc.zone = point.zone
@@ -3943,7 +4481,7 @@ function refreshTopics(npc, player: Player): { string }
 end
 
 local function startPlayerTalk(npc, player: Player)
-	if not npc.alive or npc.talkingTo then
+	if not npc.alive or npc.talkingTo or npc.inVehicle or npc.officer then
 		return
 	end
 	local character = player.Character
@@ -4195,8 +4733,21 @@ local function onDied(npc)
 		total -= 1
 		npc.model:Destroy()
 	end)
+	if npc.inVehicle then
+		local car = npc.inVehicle
+		if npc.vehicleWeld then
+			npc.vehicleWeld:Destroy()
+		end
+		if car.occupants and npc.vehicleSeat then
+			car.occupants[npc.vehicleSeat] = nil
+		end
+		npc.inVehicle = nil
+	end
+	if Registry.releaseCar then
+		Registry.releaseCar(npc)
+	end
 	task.delay(Config.RespawnTime, function()
-		if npc.spawn.Parent then
+		if npc.spawn and npc.spawn.Parent then
 			spawnNPC(npc.spawn)
 		end
 	end)
@@ -4246,19 +4797,22 @@ local function addProp(model: Model, kind: string)
 	end
 end
 
-function spawnNPC(spawnPart: BasePart)
-	if total >= Config.MaxNPCs then
-		return
+-- Создать жителя. spawnPart — точка появления (обычные жители),
+-- opts.custom — без «мозга» (им управляет другой скрипт, например полиция)
+local function createNPC(spawnPart: BasePart?, opts)
+	opts = opts or {}
+	if total >= Config.MaxNPCs + (opts.custom and 6 or 0) then
+		return nil
 	end
 	total += 1
 
 	local ok, model = pcall(function()
-		return Players:CreateHumanoidModelFromDescription(makeDescription(), Enum.HumanoidRigType.R15)
+		return Players:CreateHumanoidModelFromDescription(makeDescription(opts), Enum.HumanoidRigType.R15)
 	end)
 	if not ok or not model then
 		total -= 1
 		warn("[NPC] Не удалось создать модель жителя:", model)
-		return
+		return nil
 	end
 
 	local humanoid = model:FindFirstChildOfClass("Humanoid")
@@ -4266,7 +4820,7 @@ function spawnNPC(spawnPart: BasePart)
 	if not humanoid or not hrp then
 		total -= 1
 		model:Destroy()
-		return
+		return nil
 	end
 	local oldAnimate = model:FindFirstChild("Animate")
 	if oldAnimate then
@@ -4274,7 +4828,11 @@ function spawnNPC(spawnPart: BasePart)
 	end
 
 	local name = pick(Config.FirstNames)
+	if opts.prefix then
+		name = opts.prefix .. " " .. name
+	end
 	model.Name = name
+	model:SetAttribute("VoicePitch", rng:NextNumber(SoundConfig.VoicePitch.Min, SoundConfig.VoicePitch.Max))
 	humanoid.DisplayName = name
 	humanoid.NameDisplayDistance = 40
 	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.DisplayWhenDamaged
@@ -4290,13 +4848,17 @@ function spawnNPC(spawnPart: BasePart)
 	end
 
 	-- Ставим на точку появления
-	local offset = (rng:NextNumber() - 0.5) * 2
-	local top = spawnPart.Position + Vector3.new(offset, spawnPart.Size.Y / 2, offset)
-	local look = flat(spawnPart.CFrame.LookVector)
-	local height = humanoid.HipHeight + hrp.Size.Y / 2 + 0.1
-	model:PivotTo(CFrame.lookAt(top + Vector3.new(0, height, 0), top + Vector3.new(0, height, 0) + (look.Magnitude > 0 and look or Vector3.new(0, 0, -1))))
-	model:SetAttribute("Pose", "Lie")
-	if rng:NextNumber() < Config.PropChance then
+	if opts.cframe then
+		model:PivotTo(opts.cframe)
+	else
+		local offset = (rng:NextNumber() - 0.5) * 2
+		local top = spawnPart.Position + Vector3.new(offset, spawnPart.Size.Y / 2, offset)
+		local look = flat(spawnPart.CFrame.LookVector)
+		local height = humanoid.HipHeight + hrp.Size.Y / 2 + 0.1
+		model:PivotTo(CFrame.lookAt(top + Vector3.new(0, height, 0), top + Vector3.new(0, height, 0) + (look.Magnitude > 0 and look or Vector3.new(0, 0, -1))))
+	end
+	model:SetAttribute("Pose", opts.custom and "Stand" or "Lie")
+	if not opts.custom and rng:NextNumber() < Config.PropChance then
 		addProp(model, pick(PROP_KINDS))
 	end
 	CollectionService:AddTag(model, Config.Tag)
@@ -4320,8 +4882,8 @@ function spawnNPC(spawnPart: BasePart)
 		hrp = hrp,
 		name = name,
 		spawn = spawnPart,
-		zone = spawnPart:GetAttribute("Zone"),
-		homeZone = (spawnPart:GetAttribute("Zone") ~= Config.OutdoorZone) and spawnPart:GetAttribute("Zone") or nil,
+		zone = spawnPart and spawnPart:GetAttribute("Zone") or nil,
+		homeZone = spawnPart and (spawnPart:GetAttribute("Zone") ~= Config.OutdoorZone) and spawnPart:GetAttribute("Zone") or nil,
 		sleeping = false,
 		saidNight = false,
 		following = nil,
@@ -4353,17 +4915,20 @@ function spawnNPC(spawnPart: BasePart)
 	npcs[model] = npc
 
 	-- Работа, задание, собака
-	local role = assignJob(npc)
-	if role then
+	local role = (not opts.custom) and assignJob(npc) or opts.role
+	if opts.custom and role then
+		npc.title = name
+		humanoid.DisplayName = name .. " · " .. role
+	elseif role then
 		npc.title = name .. " · " .. role
 		humanoid.DisplayName = npc.title
 		prompt.ObjectText = npc.title
-	else
+	elseif not opts.custom then
 		if rng:NextNumber() < Config.DogChance then
 			model:SetAttribute("DogColor", pick(Config.DogColors))
 		end
 	end
-	if not npc.route and rng:NextNumber() < Config.QuestChance then
+	if not opts.custom and not npc.route and rng:NextNumber() < Config.QuestChance then
 		npc.hasQuest = true
 		setBaseMood(npc, "Quest")
 	end
@@ -4383,6 +4948,11 @@ function spawnNPC(spawnPart: BasePart)
 			if now - npc.lastHurt > 2 then
 				npc.lastHurt = now
 				say(npc, pick(Config.Phrases.Hurt), 2)
+				sfx(npc, "Hurt")
+			end
+			if npc.inVehicle or npc.officer then
+				lastHealth = health
+				return -- в машине не убегает
 			end
 			npc.fleeUntil = now + 6
 			setMood(npc, "Scared", 6)
@@ -4400,7 +4970,32 @@ function spawnNPC(spawnPart: BasePart)
 		onDied(npc)
 	end)
 
-	task.spawn(brain, npc)
+	if not opts.custom then
+		task.spawn(brain, npc)
+		if Registry.assignCar then
+			task.spawn(Registry.assignCar, npc)
+		end
+	end
+	return npc
+end
+
+function spawnNPC(spawnPart: BasePart)
+	createNPC(spawnPart, nil)
+end
+
+-- API для транспорта
+Registry.walkTo = function(npc, position: Vector3): boolean
+	return walkTo(npc, position)
+end
+Registry.say = say
+Registry.setMood = setMood
+Registry.setPose = setPose
+Registry.face = face
+Registry.spawnCustom = function(cframe: CFrame, options)
+	options = options or {}
+	options.custom = true
+	options.cframe = cframe
+	return createNPC(nil, options)
 end
 
 -- Расселяем жителей по точкам появления
@@ -4423,7 +5018,7 @@ for _, spawnPart in spawnList do
 end
 
 ----------------------------------------------------------------------
--- 18. ServerScriptService > Script "NPCDoors"
+-- 22. ServerScriptService > Script "NPCDoors"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > NPCDoors
@@ -4629,12 +5224,17 @@ RunService.Heartbeat:Connect(function(dt)
 			if state.prompt then
 				state.prompt.ActionText = state.target ~= 0 and "Закрыть" or "Открыть"
 			end
+			-- Для звука скрипа (NPCClient)
+			local opening = state.target ~= 0
+			if door:GetAttribute("DoorOpen") ~= opening then
+				door:SetAttribute("DoorOpen", opening)
+			end
 		end
 	end
 end)
 
 ----------------------------------------------------------------------
--- 19. ServerScriptService > Script "DayNightServer"
+-- 23. ServerScriptService > Script "DayNightServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > DayNightServer
@@ -4727,7 +5327,1888 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 20. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
+-- 24. ServerScriptService > Script "TrafficServer"
+----------------------------------------------------------------------
+
+-- Script: ServerScriptService > TrafficServer
+-- Транспорт города:
+--   * машины едут по дорогам (Workspace > TrafficSystem > Roads) без физики колёс:
+--     плавно, по правой полосе, со скруглёнными поворотами и поворотниками;
+--   * держат дистанцию, пропускают друг друга на перекрёстках, стоят на красный свет;
+--   * тормозят и сигналят перед людьми;
+--   * гражданские: жители ездят на своих машинах (дом ↔ работа, магазин...);
+--   * такси: возит жителей и игроков (за монеты);
+--   * автобус: ходит по маршруту, на остановках люди выходят и заходят;
+--   * полиция: выезжает на вызовы с мигалками и сиреной, офицеры заходят в здание.
+-- Анимации дверей, багажника, фар, мигалок и звуки рисует VehicleClient по атрибутам.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PhysicsService = game:GetService("PhysicsService")
+
+local Config = require(ReplicatedStorage:WaitForChild("VehicleConfig"))
+local NPCConfig = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local Registry = require(script.Parent:WaitForChild("NPCRegistry"))
+local Defaults = require(script.Parent:WaitForChild("VehicleDefaults"))
+
+local map = workspace:WaitForChild(Config.MapFolder, 30)
+if not map then
+	warn("[Traffic] Нет папки Workspace >", Config.MapFolder, "— машины не появятся. См. VEHICLE_SETUP.md")
+	return
+end
+local roadsFolder = map:WaitForChild("Roads", 10)
+if not roadsFolder then
+	warn("[Traffic] В папке", Config.MapFolder, "нужна папка Roads с точками дорог")
+	return
+end
+task.wait(1) -- даём карте и жителям загрузиться
+
+local function folder(name: string): Instance?
+	return map:FindFirstChild(name)
+end
+
+local vehiclesFolder = map:FindFirstChild(Config.VehiclesFolder) or Instance.new("Folder")
+vehiclesFolder.Name = Config.VehiclesFolder
+vehiclesFolder.Parent = map
+
+local remote = ReplicatedStorage:FindFirstChild("VehicleRemote") or Instance.new("RemoteEvent")
+remote.Name = "VehicleRemote"
+remote.Parent = ReplicatedStorage
+
+local rng = Random.new()
+local function pick(list)
+	return list[rng:NextInteger(1, #list)]
+end
+local function flat(v: Vector3): Vector3
+	return Vector3.new(v.X, 0, v.Z)
+end
+local function isNight(): boolean
+	return workspace:GetAttribute("IsNight") == true
+end
+local function toast(player: Player, text: string)
+	local dialog = ReplicatedStorage:FindFirstChild("NPCDialog")
+	if dialog then
+		dialog:FireClient(player, "Toast", text)
+	end
+end
+
+---------------------------------------------------------------------
+-- Группы столкновений: машины не цепляют дороги и друг друга, но толкают людей
+---------------------------------------------------------------------
+
+local VEHICLES, CHARACTERS = "Vehicles", "Characters"
+pcall(function()
+	PhysicsService:RegisterCollisionGroup(VEHICLES)
+	PhysicsService:RegisterCollisionGroup(CHARACTERS)
+	PhysicsService:CollisionGroupSetCollidable(VEHICLES, "Default", false)
+	PhysicsService:CollisionGroupSetCollidable(VEHICLES, VEHICLES, false)
+	PhysicsService:CollisionGroupSetCollidable(VEHICLES, CHARACTERS, true)
+	PhysicsService:CollisionGroupSetCollidable(VEHICLES, "NPCs", true)
+end)
+
+local function setCharacterGroup(character: Model)
+	for _, d in character:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CollisionGroup = CHARACTERS
+		end
+	end
+	character.DescendantAdded:Connect(function(d)
+		if d:IsA("BasePart") then
+			d.CollisionGroup = CHARACTERS
+		end
+	end)
+end
+local function onPlayer(player: Player)
+	player.CharacterAdded:Connect(setCharacterGroup)
+	if player.Character then
+		setCharacterGroup(player.Character)
+	end
+end
+Players.PlayerAdded:Connect(onPlayer)
+for _, p in Players:GetPlayers() do
+	onPlayer(p)
+end
+
+local function hideMarker(part: BasePart)
+	if Config.HideMarkersInGame then
+		part.Transparency = 1
+		part.CanCollide = false
+		part.CanQuery = false
+		part.CanTouch = false
+		for _, d in part:GetDescendants() do
+			if d:IsA("Decal") or d:IsA("SurfaceGui") or d:IsA("BillboardGui") then
+				d:Destroy()
+			end
+		end
+	end
+end
+
+local surfaceParams = RaycastParams.new()
+surfaceParams.FilterType = Enum.RaycastFilterType.Exclude
+local function groundY(position: Vector3): number
+	local ignore = { vehiclesFolder }
+	local npcFolder = workspace:FindFirstChild(NPCConfig.FolderName)
+	if npcFolder and npcFolder:FindFirstChild("Live") then
+		table.insert(ignore, npcFolder.Live)
+	end
+	for _, p in Players:GetPlayers() do
+		if p.Character then
+			table.insert(ignore, p.Character)
+		end
+	end
+	surfaceParams.FilterDescendantsInstances = ignore
+	local hit = workspace:Raycast(position + Vector3.new(0, 5, 0), Vector3.new(0, -20, 0), surfaceParams)
+	return hit and hit.Position.Y or position.Y
+end
+
+---------------------------------------------------------------------
+-- Дороги: граф точек
+---------------------------------------------------------------------
+
+local nodes = {} -- [имя] = { name, pos, links = { [имя] = true }, signal }
+
+for _, p in roadsFolder:GetDescendants() do
+	if p:IsA("BasePart") then
+		if nodes[p.Name] then
+			warn("[Traffic] Две точки дороги с одинаковым именем:", p.Name, "— переименуй одну")
+		end
+		nodes[p.Name] = { name = p.Name, part = p, pos = p.Position, links = {}, signal = nil }
+		hideMarker(p)
+	end
+end
+
+local function split(text: string): { string }
+	local out = {}
+	for item in string.gmatch(text, "[^,;]+") do
+		item = string.gsub(item, "^%s+", "")
+		item = string.gsub(item, "%s+$", "")
+		if item ~= "" then
+			table.insert(out, item)
+		end
+	end
+	return out
+end
+
+for name, node in pairs(nodes) do
+	local links = node.part:GetAttribute("Links")
+	if type(links) == "string" then
+		for _, other in split(links) do
+			if nodes[other] then
+				node.links[other] = true
+				if node.part:GetAttribute("OneWay") ~= true then
+					nodes[other].links[name] = true
+				end
+			else
+				warn("[Traffic] Точка", name, "ссылается на несуществующую точку", other)
+			end
+		end
+	end
+	local group = node.part:GetAttribute("Signal")
+	if type(group) == "string" then
+		node.signal = {
+			group = group,
+			phase = node.part:GetAttribute("Phase") or 1,
+			toward = node.part:GetAttribute("Toward"),
+		}
+	end
+end
+
+local function linkCount(node): number
+	local n = 0
+	for _ in pairs(node.links) do
+		n += 1
+	end
+	return n
+end
+
+local nodeCount = 0
+for _ in pairs(nodes) do
+	nodeCount += 1
+end
+if nodeCount < 2 then
+	warn("[Traffic] В папке Roads меньше двух точек — машинам негде ездить")
+	return
+end
+
+local function nearestNode(position: Vector3): string
+	local best, bestDist = nil, math.huge
+	for name, node in pairs(nodes) do
+		local d = (flat(node.pos - position)).Magnitude
+		if d < bestDist and next(node.links) then
+			best, bestDist = name, d
+		end
+	end
+	return best
+end
+
+-- Точка, с которой начать путь: ближняя, но лучше впереди по ходу (без разворотов)
+local function startNode(position: Vector3, look: Vector3): string
+	local best, bestScore = nil, math.huge
+	local forward = flat(look).Magnitude > 0.1 and flat(look).Unit or Vector3.new(0, 0, -1)
+	for name, node in pairs(nodes) do
+		if next(node.links) then
+			local rel = flat(node.pos - position)
+			local score = rel.Magnitude
+			if rel.Magnitude > 3 and rel.Unit:Dot(forward) < 0 then
+				score += 45 -- точка за спиной: только если впереди ничего нет
+			end
+			if score < bestScore then
+				best, bestScore = name, score
+			end
+		end
+	end
+	return best
+end
+
+-- Кратчайший путь по точкам (Дейкстра)
+local function route(from: string, to: string): { string }?
+	if from == to then
+		return { from }
+	end
+	local dist, prev, done = { [from] = 0 }, {}, {}
+	while true do
+		local best, bestD = nil, math.huge
+		for name, d in pairs(dist) do
+			if not done[name] and d < bestD then
+				best, bestD = name, d
+			end
+		end
+		if not best then
+			return nil
+		end
+		if best == to then
+			break
+		end
+		done[best] = true
+		for nb in pairs(nodes[best].links) do
+			local nd = bestD + (nodes[nb].pos - nodes[best].pos).Magnitude
+			if nd < (dist[nb] or math.huge) then
+				dist[nb] = nd
+				prev[nb] = best
+			end
+		end
+	end
+	local path = { to }
+	local cur = to
+	while prev[cur] do
+		cur = prev[cur]
+		table.insert(path, 1, cur)
+	end
+	return path
+end
+
+---------------------------------------------------------------------
+-- Светофоры
+---------------------------------------------------------------------
+
+local signalGroups = {} -- [группа] = { phases, current, mode, timer, lights = { {model, phase} } }
+
+local function signalGroup(name: string)
+	local g = signalGroups[name]
+	if not g then
+		g = { phases = 1, current = 1, mode = "green", timer = Config.GreenTime, lights = {} }
+		signalGroups[name] = g
+	end
+	return g
+end
+
+for _, node in pairs(nodes) do
+	if node.signal then
+		local g = signalGroup(node.signal.group)
+		g.phases = math.max(g.phases, node.signal.phase)
+	end
+end
+
+local function lamp(model: Instance, name: string): BasePart?
+	local p = model:FindFirstChild(name, true)
+	return p and p:IsA("BasePart") and p or nil
+end
+
+local lightsFolder = folder("TrafficLights")
+if lightsFolder then
+	for _, m in lightsFolder:GetDescendants() do
+		local group = m:GetAttribute("Group")
+		if type(group) == "string" and (m:IsA("Model") or m:IsA("BasePart")) then
+			local g = signalGroup(group)
+			local phase = m:GetAttribute("Phase") or 1
+			g.phases = math.max(g.phases, phase)
+			local entry = { phase = phase, lamps = {} }
+			for _, color in { "Red", "Yellow", "Green" } do
+				local p = lamp(m, color)
+				if p then
+					entry.lamps[color] = { part = p, color = p.Color, material = p.Material }
+				end
+			end
+			table.insert(g.lights, entry)
+		end
+	end
+end
+
+local function signalState(group: string, phase: number): string
+	local g = signalGroups[group]
+	if not g then
+		return "green"
+	end
+	if g.mode == "allred" or g.current ~= phase then
+		return "red"
+	end
+	return g.mode
+end
+
+local function paintLights(g)
+	for _, entry in g.lights do
+		local state = (g.mode == "allred" or g.current ~= entry.phase) and "red" or g.mode
+		for color, l in pairs(entry.lamps) do
+			local on = (color == "Red" and state == "red") or (color == "Yellow" and state == "yellow") or (color == "Green" and state == "green")
+			l.part.Material = on and Enum.Material.Neon or Enum.Material.SmoothPlastic
+			l.part.Color = on and l.color or l.color:Lerp(Color3.new(0, 0, 0), 0.75)
+		end
+	end
+end
+
+for _, g in pairs(signalGroups) do
+	paintLights(g)
+end
+
+local function updateSignals(dt: number)
+	for _, g in pairs(signalGroups) do
+		g.timer -= dt
+		if g.timer <= 0 then
+			if g.mode == "green" then
+				g.mode, g.timer = "yellow", Config.YellowTime
+			elseif g.mode == "yellow" then
+				g.mode, g.timer = "allred", Config.AllRedTime
+			else
+				g.current = g.current % g.phases + 1
+				g.mode, g.timer = "green", Config.GreenTime
+			end
+			paintLights(g)
+		end
+	end
+end
+
+---------------------------------------------------------------------
+-- Маршрут машины: плавная линия по правой полосе
+---------------------------------------------------------------------
+
+-- Боковое смещение на правую полосу для точки с направлениями «до» и «после»
+local function laneOffset(dirIn: Vector3?, dirOut: Vector3?, amount: number): Vector3
+	local d = dirIn and dirOut and (dirIn + dirOut) or dirIn or dirOut
+	if not d or d.Magnitude < 0.05 then
+		d = dirIn or dirOut or Vector3.new(0, 0, -1)
+	end
+	d = d.Unit
+	local right = d:Cross(Vector3.yAxis)
+	local scale = 1
+	if dirIn and dirOut then
+		local ri = dirIn:Cross(Vector3.yAxis)
+		scale = 1 / math.max(0.5, ri:Dot(right))
+	end
+	return right * amount * scale
+end
+
+--[[
+	Строим трек:
+	  startPos/startLook — откуда (позиция на земле)
+	  pathNodes          — имена точек дороги
+	  finish             — { spot = парковка } | { node = true, curb = bool }
+	  pullOut            — машина стоит на парковке, сначала выезжает вперёд
+]]
+local function buildTrack(startPos: Vector3, startLook: Vector3, pathNodes: { string }, finish, pullOut: boolean)
+	local ctrl = {} -- { pos, node = имя? }
+	table.insert(ctrl, { pos = startPos })
+	if pullOut then
+		table.insert(ctrl, { pos = startPos + flat(startLook).Unit * 5 })
+	end
+
+	-- Точки дороги со смещением на правую полосу
+	local raw = {}
+	for _, name in pathNodes do
+		table.insert(raw, nodes[name].pos)
+	end
+	local endAnchor = finish.spot and (finish.spot.pos - finish.spot.look * 7) or nil
+	local lanes = {}
+	for i, p in raw do
+		local before = raw[i - 1] or (i == 1 and ctrl[#ctrl].pos) or nil
+		local after = raw[i + 1] or endAnchor
+		local dirIn = before and flat(p - before).Magnitude > 0.5 and flat(p - before).Unit or nil
+		local dirOut = after and flat(after - p).Magnitude > 0.5 and flat(after - p).Unit or nil
+		local curb = finish.curb == true and 3.5 or (type(finish.curb) == "number" and finish.curb or 0)
+		local extra = i == #raw and curb or 0
+		lanes[i] = p + laneOffset(dirIn, dirOut, Config.LaneOffset + extra)
+	end
+
+	-- Пропускаем точки «за спиной» у начала (чтобы не разворачиваться на месте)
+	local first = 1
+	local look = flat(startLook).Magnitude > 0.1 and flat(startLook).Unit or Vector3.new(0, 0, -1)
+	while first < #lanes do
+		local rel = flat(lanes[first] - ctrl[#ctrl].pos)
+		if rel.Magnitude < 6 or rel.Unit:Dot(look) < -0.2 then
+			first += 1
+		else
+			break
+		end
+	end
+	for i = first, #lanes do
+		table.insert(ctrl, { pos = lanes[i], node = pathNodes[i] })
+	end
+	if finish.spot then
+		table.insert(ctrl, { pos = endAnchor })
+		table.insert(ctrl, { pos = finish.spot.pos })
+	end
+
+	-- Убираем совпадающие точки (иначе направление не определить)
+	local cleaned = { ctrl[1] }
+	for i = 2, #ctrl do
+		if (ctrl[i].pos - cleaned[#cleaned].pos).Magnitude > 0.5 then
+			table.insert(cleaned, ctrl[i])
+		elseif ctrl[i].node then
+			cleaned[#cleaned].node = ctrl[i].node
+		end
+	end
+	ctrl = cleaned
+
+	-- Скругляем углы кривыми Безье и раскладываем на частые точки
+	local samples = {} -- { p, s, slow }
+	local nodeS = {} -- [индекс ctrl] = расстояние
+	local s = 0
+	local function add(p: Vector3, slow: boolean)
+		local last = samples[#samples]
+		if last then
+			local d = (p - last.p).Magnitude
+			if d < 0.05 then
+				return
+			end
+			s += d
+		end
+		table.insert(samples, { p = p, s = s, slow = slow })
+	end
+	local function line(a: Vector3, b: Vector3, slow: boolean)
+		local n = math.max(1, math.ceil((b - a).Magnitude / 2))
+		for k = 1, n do
+			add(a:Lerp(b, k / n), slow)
+		end
+	end
+
+	local events = { stops = {}, reserves = {}, indicators = {}, corners = {} }
+	add(ctrl[1].pos, false)
+	local cursor = ctrl[1].pos
+	for i = 2, #ctrl - 1 do
+		local a, c, b = ctrl[i - 1].pos, ctrl[i].pos, ctrl[i + 1].pos
+		local din, dout = flat(c - a), flat(b - c)
+		local r = math.min(Config.CornerRadius, (c - a).Magnitude / 2, (b - c).Magnitude / 2)
+		local cutIn = c + (a - c).Unit * r
+		local cutOut = c + (b - c).Unit * r
+		local angle = 0
+		if din.Magnitude > 0.1 and dout.Magnitude > 0.1 then
+			angle = math.deg(math.acos(math.clamp(din.Unit:Dot(dout.Unit), -1, 1)))
+		end
+		local sharp = angle > 25
+		line(cursor, cutIn, false)
+		local sStart = s
+		for k = 1, 8 do
+			local t = k / 8
+			local p = cutIn:Lerp(c, t):Lerp(c:Lerp(cutOut, t), t)
+			add(p, sharp)
+			if k == 4 then
+				nodeS[i] = s
+			end
+		end
+		cursor = cutOut
+		if sharp then
+			table.insert(events.corners, { s0 = sStart - 8, s1 = s })
+			if ctrl[i].node and angle > 35 then
+				local side = din.Unit:Cross(dout.Unit).Y > 0 and "L" or "R"
+				table.insert(events.indicators, { s0 = nodeS[i] - 25, s1 = nodeS[i] + 4, side = side })
+			end
+		end
+	end
+	line(cursor, ctrl[#ctrl].pos, false)
+	nodeS[1] = 0
+	nodeS[#ctrl] = s
+
+	-- События: светофоры и перекрёстки
+	for i, c in ctrl do
+		if c.node then
+			local node = nodes[c.node]
+			local nextCtrl = ctrl[i + 1]
+			local si = nodeS[i] or 0
+			if node.signal and nextCtrl and nextCtrl.node == node.signal.toward then
+				table.insert(events.stops, { s = si - 1, group = node.signal.group, phase = node.signal.phase })
+			end
+			if linkCount(node) >= 3 then
+				table.insert(events.reserves, { node = c.node, enter = si - 8, exit = si + 8 })
+			end
+		end
+	end
+
+	return { samples = samples, length = s, events = events, index = 1 }
+end
+
+local function trackPos(track, s: number): Vector3
+	local samples = track.samples
+	local i = track.index
+	while i < #samples and samples[i + 1].s < s do
+		i += 1
+	end
+	while i > 1 and samples[i].s > s do
+		i -= 1
+	end
+	track.index = i
+	local a, b = samples[i], samples[i + 1]
+	if not b then
+		return a.p
+	end
+	local t = (s - a.s) / math.max(0.001, b.s - a.s)
+	return a.p:Lerp(b.p, math.clamp(t, 0, 1))
+end
+
+---------------------------------------------------------------------
+-- Парковки, остановки, вызовы, места
+---------------------------------------------------------------------
+
+local spots = { Civilian = {}, Taxi = {}, Bus = {}, Police = {} }
+local parkingFolder = folder("Parking")
+if parkingFolder then
+	for _, p in parkingFolder:GetDescendants() do
+		if p:IsA("BasePart") then
+			local kind = p:GetAttribute("Type") or "Civilian"
+			if spots[kind] then
+				local look = flat(p.CFrame.LookVector)
+				table.insert(spots[kind], {
+					part = p,
+					pos = Vector3.new(p.Position.X, p.Position.Y, p.Position.Z),
+					look = look.Magnitude > 0.1 and look.Unit or Vector3.new(0, 0, -1),
+					zone = p:GetAttribute("Zone"),
+					kind = kind,
+					car = nil,
+				})
+				hideMarker(p)
+			end
+		end
+	end
+end
+
+local function freeSpot(kind: string, near: Vector3, exclude): any
+	local best, bestDist = nil, math.huge
+	for _, spot in spots[kind] do
+		if spot ~= exclude and not spot.car then
+			local d = (spot.pos - near).Magnitude
+			if d < bestDist then
+				best, bestDist = spot, d
+			end
+		end
+	end
+	return best
+end
+
+local busStops = {}
+local stopsFolder = folder("BusStops")
+if stopsFolder then
+	for _, p in stopsFolder:GetDescendants() do
+		if p:IsA("BasePart") then
+			local nodeName = p:GetAttribute("Node")
+			table.insert(busStops, {
+				part = p,
+				pos = p.Position,
+				order = p:GetAttribute("Order") or #busStops + 1,
+				name = p:GetAttribute("StopName") or p.Name,
+				node = (type(nodeName) == "string" and nodes[nodeName]) and nodeName or nearestNode(p.Position),
+			})
+			hideMarker(p)
+		end
+	end
+	table.sort(busStops, function(a, b)
+		return a.order < b.order
+	end)
+end
+
+local policeCalls = {}
+local callsFolder = folder("PoliceCalls")
+if callsFolder then
+	for _, p in callsFolder:GetDescendants() do
+		if p:IsA("BasePart") then
+			table.insert(policeCalls, { part = p, pos = p.Position, zone = p:GetAttribute("Zone") })
+			hideMarker(p)
+		end
+	end
+end
+
+-- Места для такси: Places или центры зон жителей
+local places = {}
+local placesFolder = folder("Places")
+if placesFolder then
+	for _, p in placesFolder:GetDescendants() do
+		if p:IsA("BasePart") then
+			table.insert(places, { name = p:GetAttribute("PlaceName") or p.Name, pos = p.Position })
+			hideMarker(p)
+		end
+	end
+end
+if #places == 0 then
+	local npcFolder = workspace:FindFirstChild(NPCConfig.FolderName)
+	local pointsFolder = npcFolder and npcFolder:FindFirstChild("Points")
+	if pointsFolder then
+		local sums = {}
+		for _, p in pointsFolder:GetDescendants() do
+			if p:IsA("BasePart") then
+				local zone = p:GetAttribute("Zone") or NPCConfig.OutdoorZone
+				sums[zone] = sums[zone] or { sum = Vector3.zero, n = 0 }
+				sums[zone].sum += p.Position
+				sums[zone].n += 1
+			end
+		end
+		for zone, data in pairs(sums) do
+			table.insert(places, { name = zone == NPCConfig.OutdoorZone and "Улица" or zone, pos = data.sum / data.n })
+		end
+	end
+end
+
+local function zonePoints(zone: string?): { BasePart }
+	local list = {}
+	local npcFolder = workspace:FindFirstChild(NPCConfig.FolderName)
+	local pointsFolder = npcFolder and npcFolder:FindFirstChild("Points")
+	if zone and pointsFolder then
+		for _, p in pointsFolder:GetDescendants() do
+			if p:IsA("BasePart") and p:GetAttribute("Zone") == zone and not p:IsA("Seat") then
+				table.insert(list, p)
+			end
+		end
+	end
+	return list
+end
+
+---------------------------------------------------------------------
+-- Машины: сборка из шаблона
+---------------------------------------------------------------------
+
+local templates = { Civilian = {}, Taxi = {}, Bus = {}, Police = {} }
+local templatesFolder = ServerStorage:FindFirstChild(Config.TemplatesFolder)
+if templatesFolder then
+	for _, m in templatesFolder:GetDescendants() do
+		if m:IsA("Model") then
+			local kind = m:GetAttribute("VehicleType")
+			if templates[kind] then
+				table.insert(templates[kind], m)
+			end
+		end
+	end
+end
+local defaults = nil
+for kind, list in pairs(templates) do
+	if #list == 0 then
+		defaults = defaults or Defaults.Build()
+		for _, m in defaults do
+			if m:GetAttribute("VehicleType") == kind then
+				table.insert(list, m)
+			end
+		end
+	end
+end
+
+local cars = {} -- список машин
+local nextId = 0
+
+-- Группа детали: дверь/багажник (по имени или атрибуту PartOf), колесо, или кузов
+local function groupOf(p: BasePart, model: Model): (string?, string?)
+	local partOf = p:GetAttribute("PartOf")
+	if type(partOf) == "string" then
+		return partOf, string.find(partOf, "^Trunk") and "Trunk" or "Door"
+	end
+	local inst: Instance? = p
+	while inst and inst ~= model do
+		if string.find(inst.Name, "^Door") then
+			return inst.Name, "Door"
+		elseif string.find(inst.Name, "^Trunk") then
+			return inst.Name, "Trunk"
+		elseif string.find(inst.Name, "^Wheel") and inst:IsA("BasePart") then
+			return nil, "Wheel"
+		end
+		inst = inst.Parent
+	end
+	return nil, nil
+end
+
+local function bodyBounds(body: BasePart, parts: { BasePart })
+	local minV = Vector3.new(math.huge, math.huge, math.huge)
+	local maxV = -minV
+	for _, p in parts do
+		local half = p.Size / 2
+		for _, sx in { -1, 1 } do
+			for _, sy in { -1, 1 } do
+				for _, sz in { -1, 1 } do
+					local corner = body.CFrame:PointToObjectSpace(p.CFrame:PointToWorldSpace(Vector3.new(half.X * sx, half.Y * sy, half.Z * sz)))
+					minV = minV:Min(corner)
+					maxV = maxV:Max(corner)
+				end
+			end
+		end
+	end
+	return minV, maxV
+end
+
+local function setupVehicle(model: Model, kind: string)
+	local body = model.PrimaryPart or model:FindFirstChild("Body")
+	if not body or not body:IsA("BasePart") then
+		warn("[Traffic] У шаблона", model.Name, "нет детали Body (PrimaryPart)")
+		return nil
+	end
+	model.PrimaryPart = body
+
+	local parts = {}
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			table.insert(parts, d)
+		end
+	end
+	local minV, maxV = bodyBounds(body, parts)
+
+	-- Покраска гражданских
+	if kind == "Civilian" then
+		local color = pick(Config.PaintColors)
+		for _, p in parts do
+			if p:GetAttribute("Paint") then
+				p.Color = color
+			end
+		end
+	end
+
+	local groups = {} -- [имя] = { kind, parts }
+	local wheels, seats = {}, {}
+	for _, p in parts do
+		p.Anchored = false
+		p.CollisionGroup = VEHICLES
+		if p ~= body then
+			p.Massless = true
+		end
+		if p:IsA("Seat") then
+			p.Disabled = true
+			p.CanCollide = false
+			table.insert(seats, p)
+		end
+		local groupName, groupKind = groupOf(p, model)
+		if groupKind == "Wheel" then
+			p.CanCollide = false
+			table.insert(wheels, p)
+		elseif groupName then
+			p.CanCollide = false
+			groups[groupName] = groups[groupName] or { kind = groupKind, parts = {} }
+			table.insert(groups[groupName].parts, p)
+		elseif p ~= body and not p:IsA("Seat") then
+			local w = Instance.new("WeldConstraint")
+			w.Part0 = body
+			w.Part1 = p
+			w.Parent = p
+		end
+	end
+	for _, s in seats do
+		local w = Instance.new("WeldConstraint")
+		w.Part0 = body
+		w.Part1 = s
+		w.Parent = s
+	end
+
+	-- Двери и багажник: шарнир Motor6D, анимацию крутит клиент
+	local doors = {}
+	for name, g in pairs(groups) do
+		local main = g.parts[1]
+		for _, p in g.parts do
+			if p.Size.Magnitude > main.Size.Magnitude then
+				main = p
+			end
+		end
+		for _, p in g.parts do
+			if p ~= main then
+				local w = Instance.new("WeldConstraint")
+				w.Part0 = main
+				w.Part1 = p
+				w.Parent = p
+			end
+		end
+		local gMin, gMax = bodyBounds(body, g.parts)
+		local center = (gMin + gMax) / 2
+		local hinge, axis, angle, slide
+		local hingeType = main:GetAttribute("Hinge") or (g.parts[1].Parent and g.parts[1].Parent:GetAttribute("Hinge")) or "Front"
+		if g.kind == "Trunk" then
+			hinge = Vector3.new(center.X, gMax.Y, gMin.Z) -- передний верхний край
+			axis = Vector3.xAxis
+			angle = -math.rad(Config.TrunkOpenAngle)
+		elseif hingeType == "Slide" then
+			local side = center.X >= 0 and 1 or -1
+			slide = Vector3.new(side * 0.35, 0, Config.SlideDistance)
+		else
+			local side = center.X >= 0 and 1 or -1
+			local back = hingeType == "Back"
+			hinge = Vector3.new(side > 0 and gMax.X or gMin.X, center.Y, back and gMax.Z or gMin.Z)
+			axis = Vector3.yAxis
+			angle = math.rad(Config.DoorOpenAngle) * side * (back and -1 or 1)
+		end
+
+		local motor = Instance.new("Motor6D")
+		motor.Name = "Joint_" .. name
+		motor.Part0 = body
+		motor.Part1 = main
+		motor.C0 = body.CFrame:ToObjectSpace(main.CFrame)
+		motor:SetAttribute("Group", name)
+		motor:SetAttribute("Kind", g.kind)
+		local mainCF = main.CFrame
+		if hinge then
+			local hingeWorld = body.CFrame:PointToWorldSpace(hinge)
+			motor:SetAttribute("HingeLocal", mainCF:PointToObjectSpace(hingeWorld))
+			motor:SetAttribute("AxisLocal", mainCF:VectorToObjectSpace(body.CFrame:VectorToWorldSpace(axis)))
+			motor:SetAttribute("OpenAngle", angle)
+		else
+			motor:SetAttribute("SlideLocal", mainCF:VectorToObjectSpace(body.CFrame:VectorToWorldSpace(slide)))
+		end
+		motor.Parent = body
+		doors[name] = { motor = motor, center = center }
+		model:SetAttribute(name, false)
+	end
+
+	-- Колёса: вращает клиент
+	for i, w in wheels do
+		local motor = Instance.new("Motor6D")
+		motor.Name = "Wheel_" .. i
+		motor.Part0 = body
+		motor.Part1 = w
+		motor.C0 = body.CFrame:ToObjectSpace(w.CFrame)
+		local axle = w.CFrame:VectorToObjectSpace(body.CFrame.RightVector)
+		local a = Vector3.new(math.abs(axle.X), math.abs(axle.Y), math.abs(axle.Z))
+		local radius = (w.Size.X * (1 - a.X) + w.Size.Y * (1 - a.Y) + w.Size.Z * (1 - a.Z)) / 4
+		motor:SetAttribute("Kind", "Wheel")
+		motor:SetAttribute("AxleLocal", axle)
+		motor:SetAttribute("Radius", math.max(0.2, radius))
+		motor.Parent = body
+	end
+
+	if #seats == 0 then
+		warn("[Traffic] В шаблоне", model.Name, "нет мест Seat_Driver / Seat_1... — машина не появится")
+		return nil
+	end
+
+	-- Места
+	table.sort(seats, function(a, b)
+		return a.Name < b.Name
+	end)
+	local driverSeat = model:FindFirstChild("Seat_Driver", true)
+	if not driverSeat then
+		driverSeat = seats[1]
+	end
+	local passengerSeats = {}
+	for _, s in seats do
+		if s ~= driverSeat then
+			table.insert(passengerSeats, s)
+		end
+	end
+
+	-- Удержание: «жёсткие» выравниватели ведут машину по треку
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "DriveAttachment"
+	attachment.Parent = body
+	local alignPos = Instance.new("AlignPosition")
+	alignPos.Mode = Enum.PositionAlignmentMode.OneAttachment
+	alignPos.Attachment0 = attachment
+	alignPos.RigidityEnabled = true
+	alignPos.Parent = body
+	local alignRot = Instance.new("AlignOrientation")
+	alignRot.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	alignRot.Attachment0 = attachment
+	alignRot.RigidityEnabled = true
+	alignRot.Parent = body
+
+	nextId += 1
+	model:SetAttribute("VehicleType", kind)
+	model:SetAttribute("VehicleId", nextId)
+	return {
+		id = nextId,
+		model = model,
+		body = body,
+		kind = kind,
+		doors = doors,
+		driverSeat = driverSeat,
+		seats = passengerSeats,
+		occupants = {},
+		ride = -minV.Y, -- высота центра кузова над землёй
+		length = maxV.Z - minV.Z,
+		width = maxV.X - minV.X,
+		alignPos = alignPos,
+		alignRot = alignRot,
+		pos = body.Position,
+		look = body.CFrame.LookVector,
+		v = 0,
+		s = 0,
+		track = nil,
+		state = "parked",
+		onRoad = false,
+		held = {},
+		honkAt = 0,
+		stuck = 0,
+	}
+end
+
+local function placeCar(car, position: Vector3, look: Vector3)
+	look = flat(look).Magnitude > 0.1 and flat(look).Unit or Vector3.new(0, 0, -1)
+	local cf = CFrame.lookAt(position, position + look) * CFrame.new(0, car.ride, 0)
+	car.model:PivotTo(cf)
+	car.alignPos.Position = cf.Position
+	car.alignRot.CFrame = cf.Rotation
+	car.pos = position
+	car.look = look
+end
+
+local function spawnCar(kind: string, spot)
+	if #cars >= Config.MaxVehicles or #templates[kind] == 0 then
+		return nil
+	end
+	local model = pick(templates[kind]):Clone()
+	local car = setupVehicle(model, kind)
+	if not car then
+		model:Destroy()
+		return nil
+	end
+	model.Parent = vehiclesFolder
+	car.homeSpot = spot
+	car.spot = spot
+	if spot then
+		spot.car = car
+		local ground = groundY(spot.pos)
+		placeCar(car, Vector3.new(spot.pos.X, ground, spot.pos.Z), spot.look)
+	end
+	pcall(function()
+		car.body:SetNetworkOwner(nil)
+	end)
+	table.insert(cars, car)
+	return car
+end
+
+---------------------------------------------------------------------
+-- Езда
+---------------------------------------------------------------------
+
+local reservations = {} -- [точка-перекрёсток] = машина
+
+local function releaseAll(car)
+	for node in pairs(car.held) do
+		if reservations[node] == car then
+			reservations[node] = nil
+		end
+	end
+	table.clear(car.held)
+end
+
+local function honk(car)
+	local now = os.clock()
+	if now - car.honkAt > Config.HonkCooldown then
+		car.honkAt = now
+		car.model:SetAttribute("HornId", (car.model:GetAttribute("HornId") or 0) + 1)
+	end
+end
+
+local function humansNear(position: Vector3, radius: number)
+	local list = {}
+	for _, p in Players:GetPlayers() do
+		local c = p.Character
+		local r = c and c:FindFirstChild("HumanoidRootPart")
+		if r and (r.Position - position).Magnitude < radius then
+			table.insert(list, r)
+		end
+	end
+	for model, npc in pairs(Registry.npcs) do
+		if npc.alive and not npc.inVehicle and npc.hrp and (npc.hrp.Position - position).Magnitude < radius then
+			table.insert(list, npc.hrp)
+		end
+	end
+	return list
+end
+
+local function isPassenger(car, hrp: BasePart): boolean
+	for _, who in pairs(car.occupants) do
+		if (typeof(who) == "Instance" and who.Character and who.Character:FindFirstChild("HumanoidRootPart") == hrp)
+			or (type(who) == "table" and who.hrp == hrp) then
+			return true
+		end
+	end
+	return false
+end
+
+local function finishDrive(car, ok: boolean)
+	car.track = nil
+	car.v = 0
+	releaseAll(car)
+	car.model:SetAttribute("Indicator", "")
+	car.model:SetAttribute("Brake", true)
+	car.driveOk = ok
+	car.driveDone = true
+end
+
+-- Ехать: spec = { spot = парковка } или { node = имя, curb = true }
+local function drive(car, spec): boolean
+	local fromNode = startNode(car.pos, car.look)
+	local toNode = spec.spot and nearestNode(spec.spot.pos) or spec.node
+	local path = fromNode and toNode and route(fromNode, toNode)
+	if not path then
+		warn("[Traffic] Нет пути от", fromNode, "до", toNode, "— проверь атрибуты Links у точек дороги")
+		return false
+	end
+	local pullOut = car.spot ~= nil
+	if car.spot and car.spot.car == car then
+		car.spot.car = nil
+	end
+	car.spot = nil
+	if spec.spot then
+		spec.spot.car = car -- бронь места
+	end
+	car.track = buildTrack(car.pos, car.look, path, spec, pullOut)
+	car.s = 0
+	car.stuck = 0
+	car.onRoad = true
+	car.driveDone = false
+	car.maxSpeed = (car.kind == "Police" and car.model:GetAttribute("Siren")) and Config.PoliceSpeed or Config.CitySpeed
+	car.model:SetAttribute("Brake", false)
+	while not car.driveDone do
+		task.wait(0.1)
+	end
+	if spec.spot and car.driveOk then
+		car.spot = spec.spot
+		car.onRoad = false
+	elseif spec.spot then
+		spec.spot.car = nil
+	end
+	return car.driveOk
+end
+
+-- Застряла надолго — исчезает и появляется на своей парковке
+local function rescue(car)
+	local home = car.homeSpot
+	if home and home.car and home.car ~= car then
+		home = freeSpot(car.kind, car.pos, nil)
+	end
+	if home then
+		local ground = groundY(home.pos)
+		placeCar(car, Vector3.new(home.pos.X, ground, home.pos.Z), home.look)
+		home.car = car
+		car.spot = home
+		car.onRoad = false
+	end
+	finishDrive(car, false)
+end
+
+local function stepCar(car, dt: number)
+	local track = car.track
+	if not track then
+		car.v = 0
+		return
+	end
+	local model = car.model
+	local target = car.maxSpeed or Config.CitySpeed
+	local remaining = track.length - car.s
+	local function limitTo(distance: number)
+		target = math.min(target, math.sqrt(2 * Config.Braking * math.max(0, distance)))
+	end
+	limitTo(remaining - 0.3)
+
+	-- Повороты: заранее сбавляем скорость
+	for _, c in track.events.corners do
+		if car.s < c.s1 and c.s0 - car.s < 20 then
+			local before = math.max(0, c.s0 - car.s)
+			target = math.min(target, math.sqrt(Config.TurnSpeed ^ 2 + 2 * Config.Braking * before))
+		end
+	end
+
+	-- Светофоры
+	for _, stop in track.events.stops do
+		local d = stop.s - car.s
+		if d > -0.5 and d < 70 then
+			local state = signalState(stop.group, stop.phase)
+			local canStop = d > (car.v * car.v) / (2 * Config.Braking) + 0.5
+			if state == "red" or (state == "yellow" and canStop) then
+				limitTo(d - 0.5)
+			end
+			break
+		end
+	end
+
+	-- Перекрёстки: один проезжает, остальные ждут
+	for _, r in track.events.reserves do
+		if car.s > r.exit then
+			if car.held[r.node] then
+				car.held[r.node] = nil
+				if reservations[r.node] == car then
+					reservations[r.node] = nil
+				end
+			end
+		elseif car.s < r.enter + 1 and r.enter - car.s < 14 then
+			local owner = reservations[r.node]
+			if owner == nil or owner == car or not owner.track then
+				reservations[r.node] = car
+				car.held[r.node] = true
+			else
+				limitTo(r.enter - car.s - 0.5)
+				break
+			end
+		end
+	end
+
+	-- Машина впереди
+	local look = car.look
+	local right = look:Cross(Vector3.yAxis)
+	car.blockedBy = nil
+	for _, other in cars do
+		if other ~= car and (other.track or other.onRoad) then
+			local rel = flat(other.pos - car.pos)
+			local forward = rel:Dot(look)
+			local lateral = math.abs(rel:Dot(right))
+			if forward > 0 and forward < 45 and lateral < (car.width + other.width) / 2 - 0.3 then
+				-- Взаимная блокировка: пропускает тот, у кого номер больше
+				if not (other.blockedBy == car and car.id < other.id) then
+					local gap = forward - (car.length + other.length) / 2 - Config.SafeGap
+					limitTo(gap)
+					car.blockedBy = other
+				end
+			end
+		end
+	end
+
+	-- Люди на дороге: тормозим и сигналим
+	local reach = Config.PedestrianStop + car.length / 2
+	for _, hrp in humansNear(car.pos, reach + 4) do
+		if not isPassenger(car, hrp) then
+			local rel = flat(hrp.Position - car.pos)
+			local forward = rel:Dot(look)
+			local lateral = math.abs(rel:Dot(right))
+			if forward > 0 and forward < reach and lateral < car.width / 2 + 0.6 then
+				limitTo(forward - car.length / 2 - 2.5)
+				if car.v < 3 then
+					honk(car)
+				end
+			end
+		end
+	end
+
+	-- Разгон и торможение
+	local dv = target - car.v
+	if dv > 0 then
+		car.v = math.min(target, car.v + Config.Acceleration * dt)
+	else
+		car.v = math.max(target, car.v - Config.Braking * dt)
+	end
+	car.s = math.min(track.length, car.s + car.v * dt)
+
+	local pos = trackPos(track, car.s)
+	local ahead = trackPos(track, math.min(track.length, car.s + 2.5))
+	local dir = ahead - pos
+	if dir.Magnitude > 0.05 then
+		car.look = flat(dir).Magnitude > 0.05 and flat(dir).Unit or car.look
+	end
+	car.pos = pos
+	local lookFull = dir.Magnitude > 0.05 and dir.Unit or car.look
+	local cf = CFrame.lookAt(pos, pos + lookFull) * CFrame.new(0, car.ride, 0)
+	car.alignPos.Position = cf.Position
+	car.alignRot.CFrame = cf.Rotation
+
+	-- Стоп-сигналы и поворотники
+	local braking = dv < -0.5 or car.v < 0.5
+	if model:GetAttribute("Brake") ~= braking then
+		model:SetAttribute("Brake", braking)
+	end
+	local indicator = ""
+	for _, ind in track.events.indicators do
+		if car.s >= ind.s0 and car.s <= ind.s1 then
+			indicator = ind.side
+			break
+		end
+	end
+	if model:GetAttribute("Indicator") ~= indicator then
+		model:SetAttribute("Indicator", indicator)
+	end
+
+	-- Приехали / застряли
+	if remaining < 0.3 and car.v < 0.5 then
+		finishDrive(car, true)
+	elseif car.v < 0.3 then
+		car.stuck += dt
+		if car.stuck > Config.StuckRespawnTime then
+			warn("[Traffic] Машина", model.Name, "застряла — возвращаю на парковку")
+			rescue(car)
+		end
+	else
+		car.stuck = 0
+	end
+end
+
+local lightTimer = 0
+RunService.Heartbeat:Connect(function(dt)
+	updateSignals(dt)
+	for _, car in cars do
+		if car.model.Parent then
+			stepCar(car, dt)
+		end
+	end
+	lightTimer += dt
+	if lightTimer > 0.25 then
+		lightTimer = 0
+		local night = isNight()
+		for _, car in cars do
+			local model = car.model
+			local siren = model:GetAttribute("Siren") == true
+			local engine = car.occupants[car.driverSeat] ~= nil
+			local lights = engine and (night or siren) or false
+			if model:GetAttribute("Headlights") ~= lights then
+				model:SetAttribute("Headlights", lights)
+			end
+			if model:GetAttribute("Engine") ~= engine then
+				model:SetAttribute("Engine", engine)
+			end
+			local speed = math.floor(car.v * 10) / 10
+			if model:GetAttribute("Speed") ~= speed then
+				model:SetAttribute("Speed", speed)
+			end
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- Посадка и высадка
+---------------------------------------------------------------------
+
+local function doorFor(car, seat: BasePart): string?
+	local seatLocal = car.body.CFrame:PointToObjectSpace(seat.Position)
+	local best, bestDist = nil, math.huge
+	for name, d in pairs(car.doors) do
+		local dist = (Vector3.new(d.center.X, 0, d.center.Z) - Vector3.new(seatLocal.X, 0, seatLocal.Z)).Magnitude
+		if dist < bestDist then
+			best, bestDist = name, dist
+		end
+	end
+	return best
+end
+
+local function setDoor(car, name: string?, open: boolean)
+	if name then
+		car.model:SetAttribute(name, open)
+	end
+end
+
+-- Где встать у двери (снаружи, на земле)
+local function doorSide(car, seat: BasePart, forceSide: number?): Vector3
+	local seatLocal = car.body.CFrame:PointToObjectSpace(seat.Position)
+	local side = forceSide or (seatLocal.X >= 0 and 1 or -1)
+	local out = car.body.CFrame:PointToWorldSpace(Vector3.new(side * (car.width / 2 + 1.8), 0, seatLocal.Z))
+	return Vector3.new(out.X, groundY(out), out.Z)
+end
+
+local function freeSeat(car): BasePart?
+	for _, s in car.seats do
+		if not car.occupants[s] and not s.Occupant then
+			return s
+		end
+	end
+	return nil
+end
+
+local function seatNPC(npc, car, seat: BasePart)
+	local door = doorFor(car, seat)
+	setDoor(car, door, true)
+	task.wait(0.55)
+	if not npc.alive then
+		setDoor(car, door, false)
+		return false
+	end
+	local hrp = npc.hrp
+	local top = seat.Position + seat.CFrame.UpVector * (seat.Size.Y / 2)
+	local pos = top + Vector3.new(0, hrp.Size.Y / 2 + 0.3, 0)
+	local target = CFrame.lookAt(pos, pos + car.body.CFrame.LookVector)
+	npc.humanoid.PlatformStand = true
+	hrp.CFrame = target
+	local weld = Instance.new("Weld")
+	weld.Name = "VehicleSeatWeld"
+	weld.Part0 = seat
+	weld.Part1 = hrp
+	weld.C0 = seat.CFrame:ToObjectSpace(target)
+	weld.Parent = seat
+	npc.vehicleWeld = weld
+	npc.inVehicle = car
+	npc.vehicleSeat = seat
+	car.occupants[seat] = npc
+	if npc.prompt then
+		npc.prompt.Enabled = false
+	end
+	Registry.setPose(npc, "Chair")
+	task.wait(0.4)
+	setDoor(car, door, false)
+	return true
+end
+
+local function unseatNPC(npc, forceSide: number?)
+	local car, seat = npc.inVehicle, npc.vehicleSeat
+	if not car or not seat then
+		return
+	end
+	local door = doorFor(car, seat)
+	setDoor(car, door, true)
+	task.wait(0.45)
+	if npc.vehicleWeld then
+		npc.vehicleWeld:Destroy()
+		npc.vehicleWeld = nil
+	end
+	car.occupants[seat] = nil
+	npc.inVehicle = nil
+	npc.vehicleSeat = nil
+	if npc.alive then
+		local out = doorSide(car, seat, forceSide)
+		local height = npc.humanoid.HipHeight + npc.hrp.Size.Y / 2 + 0.1
+		local pos = out + Vector3.new(0, height, 0)
+		npc.hrp.CFrame = CFrame.lookAt(pos, pos + car.look)
+		npc.humanoid.PlatformStand = false
+		Registry.setPose(npc, "Stand")
+		if npc.prompt and not npc.officer then
+			npc.prompt.Enabled = true
+		end
+	end
+	task.wait(0.35)
+	setDoor(car, door, false)
+end
+
+local function seatPlayer(player: Player, car, seat)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return false
+	end
+	local door = doorFor(car, seat)
+	setDoor(car, door, true)
+	task.wait(0.4)
+	seat.Disabled = false
+	seat:Sit(humanoid)
+	car.occupants[seat] = player
+	local conn
+	conn = seat:GetPropertyChangedSignal("Occupant"):Connect(function()
+		if seat.Occupant == nil then
+			conn:Disconnect()
+			if car.occupants[seat] == player then
+				car.occupants[seat] = nil
+			end
+			seat.Disabled = true
+		end
+	end)
+	task.delay(0.4, function()
+		setDoor(car, door, false)
+	end)
+	return true
+end
+
+local function unseatPlayer(player: Player, car, forceSide: number?)
+	for seat, who in pairs(car.occupants) do
+		if who == player then
+			local door = doorFor(car, seat)
+			setDoor(car, door, true)
+			task.wait(0.35)
+			local weld = seat:FindFirstChild("SeatWeld")
+			if weld then
+				weld:Destroy()
+			end
+			car.occupants[seat] = nil
+			seat.Disabled = true
+			local character = player.Character
+			if character then
+				local out = doorSide(car, seat, forceSide)
+				character:PivotTo(CFrame.lookAt(out + Vector3.new(0, 3.2, 0), out + Vector3.new(0, 3.2, 0) + car.look))
+			end
+			task.delay(0.4, function()
+				setDoor(car, door, false)
+			end)
+			return
+		end
+	end
+end
+
+---------------------------------------------------------------------
+-- Гражданские машины и поездки жителей
+---------------------------------------------------------------------
+
+local function carTrip(npc, car, target: Vector3): boolean
+	car.state = "busy"
+	local seat = car.driverSeat
+	if not Registry.walkTo(npc, doorSide(car, seat)) then
+		car.state = "parked"
+		return false
+	end
+	-- Иногда сначала кладёт что-то в багажник
+	if car.doors.Trunk and rng:NextNumber() < Config.TrunkChance then
+		local behind = car.pos - car.look * (car.length / 2 + 1.5)
+		if Registry.walkTo(npc, Vector3.new(behind.X, groundY(behind), behind.Z)) then
+			Registry.face(npc, car.look)
+			setDoor(car, "Trunk", true)
+			task.wait(1.4)
+			setDoor(car, "Trunk", false)
+			task.wait(0.4)
+			Registry.walkTo(npc, doorSide(car, seat))
+		end
+	end
+	if not npc.alive or not seatNPC(npc, car, seat) then
+		car.state = "parked"
+		return false
+	end
+	local dest = freeSpot("Civilian", target, car.spot)
+	local ok = false
+	if dest then
+		ok = drive(car, { spot = dest })
+	end
+	unseatNPC(npc)
+	car.state = "parked"
+	return ok
+end
+
+local function freeTaxi()
+	for _, car in cars do
+		if car.kind == "Taxi" and car.state == "parked" then
+			return car
+		end
+	end
+	return nil
+end
+
+local function taxiReturn(car)
+	local stand = freeSpot("Taxi", car.pos, nil) or car.homeSpot
+	if stand then
+		drive(car, { spot = stand })
+	end
+	car.state = "parked"
+	car.model:SetAttribute("TaxiBusy", false)
+end
+
+local function taxiTrip(npc, target: Vector3): boolean
+	local taxi = freeTaxi()
+	if not taxi then
+		return false
+	end
+	taxi.state = "busy"
+	taxi.model:SetAttribute("TaxiBusy", true)
+	local pickupNode = nearestNode(npc.hrp.Position)
+	Registry.say(npc, "Такси!")
+	-- Такси едет, житель идёт к дороге
+	local arrived = false
+	task.spawn(function()
+		arrived = drive(taxi, { node = pickupNode, curb = 5 })
+	end)
+	local away = flat(npc.hrp.Position - nodes[pickupNode].pos)
+	Registry.walkTo(npc, nodes[pickupNode].pos + (away.Magnitude > 0.5 and away.Unit or Vector3.xAxis) * 6)
+	local deadline = os.clock() + 70
+	while not taxi.driveDone and os.clock() < deadline and npc.alive do
+		task.wait(0.3)
+	end
+	if not arrived or not npc.alive then
+		task.spawn(taxiReturn, taxi)
+		return false
+	end
+	local seat = taxi.seats[#taxi.seats] or taxi.seats[1]
+	if not seat or not Registry.walkTo(npc, doorSide(taxi, seat)) or not seatNPC(npc, taxi, seat) then
+		task.spawn(taxiReturn, taxi)
+		return false
+	end
+	local ok = drive(taxi, { node = nearestNode(target), curb = 5 })
+	unseatNPC(npc, 1)
+	task.spawn(taxiReturn, taxi)
+	return ok
+end
+
+---------------------------------------------------------------------
+-- Автобус
+---------------------------------------------------------------------
+
+local bus = nil
+
+local function busTrip(npc, target: Vector3): boolean
+	if not bus or #busStops < 2 then
+		return false
+	end
+	local function nearestStop(pos: Vector3)
+		local best, bestDist = nil, math.huge
+		for _, stop in busStops do
+			local d = (stop.pos - pos).Magnitude
+			if d < bestDist then
+				best, bestDist = stop, d
+			end
+		end
+		return best
+	end
+	local from, to = nearestStop(npc.hrp.Position), nearestStop(target)
+	if from == to then
+		return false
+	end
+	if not Registry.walkTo(npc, from.pos) then
+		return false
+	end
+	Registry.setMood(npc, "Wait")
+	-- Ждём автобус с открытыми дверями на этой остановке
+	local deadline = os.clock() + 150
+	while npc.alive and os.clock() < deadline and not (bus.atStop == from and bus.doorsOpen) do
+		task.wait(0.4)
+	end
+	Registry.setMood(npc, nil)
+	if not npc.alive or bus.atStop ~= from then
+		return false
+	end
+	local seat = freeSeat(bus)
+	if not seat or not Registry.walkTo(npc, doorSide(bus, seat, 1)) or bus.atStop ~= from then
+		return false
+	end
+	if not seatNPC(npc, bus, seat) then
+		return false
+	end
+	-- Едем до своей остановки
+	repeat
+		task.wait(0.4)
+	until not npc.alive or not npc.inVehicle or (bus.atStop == to and bus.doorsOpen) or (bus.atStop == nil and bus.atTerminal)
+	if npc.inVehicle then
+		unseatNPC(npc, 1)
+	end
+	return true
+end
+
+local function busLoop()
+	while bus and bus.model.Parent do
+		for _, stop in busStops do
+			bus.atTerminal = false
+			drive(bus, { node = stop.node, curb = true })
+			bus.atStop = stop
+			bus.model:SetAttribute("BusDoors", true)
+			for name in pairs(bus.doors) do
+				setDoor(bus, name, true)
+			end
+			bus.doorsOpen = true
+			bus.model:SetAttribute("HornId", (bus.model:GetAttribute("HornId") or 0) + 1)
+			task.wait(Config.BusStopTime)
+			bus.doorsOpen = false
+			for name in pairs(bus.doors) do
+				setDoor(bus, name, false)
+			end
+			task.wait(1)
+			bus.atStop = nil
+		end
+		-- Конечная: на стоянку автобуса, отдых
+		if bus.homeSpot then
+			drive(bus, { spot = bus.homeSpot })
+		end
+		bus.atTerminal = true
+		task.wait(Config.BusLoopPause)
+	end
+end
+
+---------------------------------------------------------------------
+-- Полиция
+---------------------------------------------------------------------
+
+local function spawnOfficer(car, index: number)
+	if not Registry.spawnCustom then
+		return nil
+	end
+	local seat = index == 1 and car.driverSeat or car.seats[1]
+	local pos = doorSide(car, seat or car.body, nil)
+	local officer = Registry.spawnCustom(CFrame.lookAt(pos + Vector3.new(0, 3, 0), pos + Vector3.new(0, 3, 0) + car.look), {
+		prefix = "Офицер",
+		shirt = Config.PoliceShirt,
+		pants = Config.PolicePants,
+		role = "Полиция",
+	})
+	if officer then
+		officer.officer = true
+		officer.noSocial = true
+		if officer.prompt then
+			officer.prompt.Enabled = false
+		end
+	end
+	return officer
+end
+
+local function policeLoop(car)
+	car.officers = {}
+	for i = 1, Config.PoliceOfficersPerCar do
+		car.officers[i] = spawnOfficer(car, i)
+	end
+	while car.model.Parent do
+		local waitTime = rng:NextNumber(Config.PoliceCallInterval.Min, Config.PoliceCallInterval.Max)
+		if isNight() then
+			waitTime *= Config.PoliceNightFactor
+		end
+		task.wait(waitTime)
+		if #policeCalls == 0 then
+			continue
+		end
+		-- Замена погибших офицеров
+		for i = 1, Config.PoliceOfficersPerCar do
+			local o = car.officers[i]
+			if not o or not o.alive then
+				car.officers[i] = spawnOfficer(car, i)
+			end
+		end
+		local call = pick(policeCalls)
+		car.state = "busy"
+
+		-- По машинам
+		local seated = 0
+		for i, officer in car.officers do
+			task.spawn(function()
+				local seat = i == 1 and car.driverSeat or car.seats[i - 1]
+				if officer and officer.alive and seat and Registry.walkTo(officer, doorSide(car, seat)) then
+					seatNPC(officer, car, seat)
+				end
+				seated += 1
+			end)
+		end
+		local deadline = os.clock() + 25
+		while seated < #car.officers and os.clock() < deadline do
+			task.wait(0.3)
+		end
+
+		car.model:SetAttribute("Siren", true)
+		car.model:SetAttribute("SirenMuted", false)
+		drive(car, { node = nearestNode(call.pos), curb = 5 })
+		car.model:SetAttribute("SirenMuted", true) -- мигалки горят, сирена молчит
+
+		-- Выходят и идут в здание
+		local inside = zonePoints(call.zone)
+		local done = 0
+		for _, officer in car.officers do
+			task.spawn(function()
+				if officer and officer.alive then
+					unseatNPC(officer)
+					if Registry.walkTo(officer, call.pos) then
+						Registry.say(officer, pick(Config.PolicePhrases))
+						if #inside > 0 then
+							Registry.walkTo(officer, pick(inside).Position)
+						end
+						task.wait(rng:NextNumber(Config.PoliceInsideTime.Min, Config.PoliceInsideTime.Max))
+						Registry.say(officer, pick(Config.PoliceDonePhrases))
+						Registry.walkTo(officer, call.pos)
+					end
+				end
+				done += 1
+			end)
+		end
+		while done < #car.officers do
+			task.wait(0.5)
+		end
+
+		-- Обратно в машину и на базу
+		seated = 0
+		for i, officer in car.officers do
+			task.spawn(function()
+				local seat = i == 1 and car.driverSeat or car.seats[i - 1]
+				if officer and officer.alive and seat and Registry.walkTo(officer, doorSide(car, seat)) then
+					seatNPC(officer, car, seat)
+				end
+				seated += 1
+			end)
+		end
+		deadline = os.clock() + 40
+		while seated < #car.officers and os.clock() < deadline do
+			task.wait(0.3)
+		end
+		car.model:SetAttribute("Siren", false)
+		car.model:SetAttribute("SirenMuted", false)
+		drive(car, { spot = car.homeSpot })
+		for _, officer in car.officers do
+			if officer and officer.inVehicle then
+				task.spawn(unseatNPC, officer)
+			end
+		end
+		car.state = "parked"
+	end
+end
+
+---------------------------------------------------------------------
+-- Такси и автобус для игроков
+---------------------------------------------------------------------
+
+local function coins(player: Player): IntValue?
+	local stats = player:FindFirstChild("leaderstats")
+	return stats and stats:FindFirstChild(NPCConfig.CurrencyName) or nil
+end
+
+local function addPrompt(car, text: string, onTrigger)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "VehiclePrompt"
+	prompt.ActionText = text
+	prompt.ObjectText = car.kind == "Taxi" and "Такси" or "Автобус"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = car.kind == "Bus" and 14 or 10
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = car.body
+	prompt.Triggered:Connect(onTrigger)
+	car.prompt = prompt
+	return prompt
+end
+
+local playerTaxiBusy = {}
+
+local function playerTaxi(car, player: Player, placeIndex: number)
+	local place = places[placeIndex]
+	local wallet = coins(player)
+	if not place or car.state ~= "parked" or playerTaxiBusy[player] then
+		return
+	end
+	if not wallet or wallet.Value < Config.TaxiPrice then
+		toast(player, "Не хватает монет на такси 🪙")
+		return
+	end
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or (root.Position - car.pos).Magnitude > 20 then
+		return
+	end
+	local seat = freeSeat(car)
+	if not seat then
+		return
+	end
+	wallet.Value -= Config.TaxiPrice
+	toast(player, string.format("-%d 🪙 Едем: %s", Config.TaxiPrice, place.name))
+	playerTaxiBusy[player] = true
+	car.state = "busy"
+	car.model:SetAttribute("TaxiBusy", true)
+	car.prompt.Enabled = false
+	seatPlayer(player, car, seat)
+	task.wait(0.8)
+	drive(car, { node = nearestNode(place.pos), curb = 5 })
+	unseatPlayer(player, car, 1)
+	toast(player, "Приехали! 🚕")
+	playerTaxiBusy[player] = nil
+	taxiReturn(car)
+	car.prompt.Enabled = true
+end
+
+remote.OnServerEvent:Connect(function(player: Player, action: any, model: any, index: any)
+	if action ~= "TaxiGo" or typeof(model) ~= "Instance" or type(index) ~= "number" then
+		return
+	end
+	for _, car in cars do
+		if car.model == model and car.kind == "Taxi" then
+			task.spawn(playerTaxi, car, player, index)
+			return
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- Запуск
+---------------------------------------------------------------------
+
+-- Гражданские
+for i = 1, math.min(Config.Count.Civilian, #spots.Civilian) do
+	spawnCar("Civilian", spots.Civilian[i])
+end
+
+-- Такси
+for i = 1, math.min(Config.Count.Taxi, #spots.Taxi) do
+	local car = spawnCar("Taxi", spots.Taxi[i])
+	if car then
+		local names = {}
+		for k, place in places do
+			names[k] = place.name
+		end
+		addPrompt(car, string.format("Такси (%d 🪙)", Config.TaxiPrice), function(player)
+			if car.state == "parked" and #names > 0 then
+				remote:FireClient(player, "TaxiMenu", car.model, names, Config.TaxiPrice)
+			end
+		end)
+	end
+end
+
+-- Автобус
+if Config.Count.Bus > 0 and #busStops >= 2 then
+	local spot = spots.Bus[1]
+	bus = spawnCar("Bus", spot)
+	if bus then
+		if not spot then
+			local first = busStops[1]
+			placeCar(bus, nodes[first.node].pos, Vector3.new(0, 0, -1))
+		end
+		addPrompt(bus, "Сесть в автобус", function(player)
+			if bus.atStop or bus.state == "parked" or bus.atTerminal then
+				local seat = freeSeat(bus)
+				if seat then
+					task.spawn(seatPlayer, player, bus, seat)
+				else
+					toast(player, "Автобус полный 🚌")
+				end
+			end
+		end)
+		bus.state = "busy"
+		task.spawn(busLoop)
+	end
+elseif Config.Count.Bus > 0 then
+	warn("[Traffic] Для автобуса нужно минимум 2 остановки в папке BusStops")
+end
+
+-- Полиция
+for i = 1, math.min(Config.Count.Police, #spots.Police) do
+	local car = spawnCar("Police", spots.Police[i])
+	if car then
+		task.spawn(policeLoop, car)
+	end
+end
+
+if #cars == 0 then
+	warn("[Traffic] Ни одной машины: добавь парковки (Workspace >", Config.MapFolder, "> Parking) с атрибутом Type")
+end
+
+---------------------------------------------------------------------
+-- Связь с жителями
+---------------------------------------------------------------------
+
+function Registry.assignCar(npc)
+	if npc.car or npc.officer or not npc.homeZone then
+		return
+	end
+	local best
+	for _, car in cars do
+		if car.kind == "Civilian" and not car.owner then
+			if not best or (car.homeSpot and car.homeSpot.zone == npc.homeZone) then
+				best = car
+			end
+		end
+	end
+	if best then
+		best.owner = npc
+		npc.car = best
+	end
+end
+
+function Registry.releaseCar(npc)
+	if npc.car and npc.car.owner == npc then
+		npc.car.owner = nil
+	end
+	npc.car = nil
+end
+
+function Registry.tryTrip(npc, target: Vector3): boolean
+	if not npc.alive or npc.inVehicle or npc.officer then
+		return false
+	end
+	if (flat(target - npc.hrp.Position)).Magnitude < Config.TripMinDistance then
+		return false
+	end
+	local car = npc.car
+	if car and car.owner == npc and car.state == "parked" and car.model.Parent then
+		return carTrip(npc, car, target)
+	end
+	if rng:NextNumber() < Config.TaxiChance and freeTaxi() then
+		return taxiTrip(npc, target)
+	end
+	if bus and rng:NextNumber() < Config.BusChance then
+		return busTrip(npc, target)
+	end
+	return false
+end
+
+for _, npc in pairs(Registry.npcs) do
+	Registry.assignCar(npc)
+end
+
+----------------------------------------------------------------------
+-- 25. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > PoseClient
@@ -5270,7 +7751,7 @@ if PoseConfig.ShowHint and UserInputService.KeyboardEnabled then
 end
 
 ----------------------------------------------------------------------
--- 21. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
+-- 26. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > InvisibilityClient
@@ -5717,7 +8198,7 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 22. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
+-- 27. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > LaserClient
@@ -6198,7 +8679,7 @@ RunService.RenderStepped:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 23. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
+-- 28. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > FlightClient
@@ -6687,7 +9168,7 @@ AbilityButton.Create({
 })
 
 ----------------------------------------------------------------------
--- 24. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
+-- 29. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > CubeClient
@@ -6886,7 +9367,7 @@ AbilityButton.Create({
 })
 
 ----------------------------------------------------------------------
--- 25. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
+-- 30. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > NPCClient
@@ -6896,7 +9377,9 @@ AbilityButton.Create({
 --   * окно разговора с жителем: имя, уровень дружбы, ответ и кнопки тем;
 --   * задания: вещь видна только тебе, отмечена значком сквозь стены, трекер сверху экрана;
 --   * всплывающие уведомления (+монеты, новый друг);
---   * собаки на поводке у жителей: бегают рядом, виляют хвостом, садятся, гавкают.
+--   * собаки на поводке у жителей: бегают рядом, виляют хвостом, садятся, гавкают;
+--   * звуки жителей: шаги, «бормотание» голосом при репликах (у каждого своя высота),
+--     смех, крик, храп, лай, скрип дверей (ID звуков — в SoundConfig).
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -6906,6 +9389,7 @@ local TextService = game:GetService("TextService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local Sounds = require(ReplicatedStorage:WaitForChild("SoundConfig"))
 local dialogRemote = ReplicatedStorage:WaitForChild("NPCDialog")
 
 local player = Players.LocalPlayer
@@ -6915,6 +9399,29 @@ local BUBBLE_FONT = Enum.Font.GothamMedium
 local BUBBLE_TEXT_SIZE = 18
 local BUBBLE_MAX_WIDTH = 240
 local TYPE_SPEED = 45 -- букв в секунду
+
+-- Звук в детали (3D: громче рядом, тише вдали)
+local function playAt(parent: Instance?, def, pitch: number?)
+	if not parent or not def or def.Id == "" then
+		return
+	end
+	local sound = Instance.new("Sound")
+	sound.SoundId = def.Id
+	sound.Volume = def.Volume or 0.5
+	sound.PlaybackSpeed = pitch or 1
+	sound.RollOffMinDistance = 6
+	sound.RollOffMaxDistance = 70
+	sound.Parent = parent
+	sound:Play()
+	sound.Ended:Once(function()
+		sound:Destroy()
+	end)
+	task.delay(8, function()
+		if sound.Parent then
+			sound:Destroy()
+		end
+	end)
+end
 
 local bubbleGui = Instance.new("ScreenGui")
 bubbleGui.Name = "NPCBubbles"
@@ -6998,9 +9505,16 @@ local function showBubble(model: Instance, text: string, duration: number)
 		-- Печатаем по буквам
 		local length = utf8.len(text) or #text
 		local start = os.clock()
+		-- Голос: короткие «слоги» с высотой этого жителя
+		local pitch = (not model:IsA("BasePart")) and model:GetAttribute("VoicePitch") or nil
+		local nextBlip = 0
 		while billboard.Parent do
 			local shown = math.floor((os.clock() - start) * TYPE_SPEED)
 			label.MaxVisibleGraphemes = math.min(shown, length)
+			if pitch and os.clock() >= nextBlip and shown < length then
+				nextBlip = os.clock() + 1 / Sounds.VoiceSpeed
+				playAt(head, Sounds.NPC.Voice, pitch * (0.9 + math.random() * 0.25))
+			end
 			if shown >= length then
 				break
 			end
@@ -7081,6 +9595,13 @@ local function watchNpc(model: Instance)
 	if not model:IsA("Model") then
 		return
 	end
+	-- Звуковые события с сервера: смех, крик, храп...
+	model:GetAttributeChangedSignal("SoundEventId"):Connect(function()
+		local name = model:GetAttribute("SoundEvent")
+		local def = type(name) == "string" and Sounds.NPC[name] or nil
+		local pitch = model:GetAttribute("VoicePitch") or 1
+		playAt(model:FindFirstChild("Head"), def, name == "Hurt" and pitch * 0.9 + 0.1 or pitch)
+	end)
 	model:GetAttributeChangedSignal("Mood"):Connect(function()
 		showMood(model)
 	end)
@@ -7588,6 +10109,7 @@ local function updateDog(model: Model, dog, dt: number, now: number)
 	if now > dog.nextBark then
 		dog.nextBark = now + math.random(12, 35)
 		showBubble(dog.head, "Гав!", 1.2)
+		playAt(dog.head, Sounds.NPC.DogBark, 0.9 + math.random() * 0.3)
 	end
 end
 
@@ -7635,4 +10157,465 @@ dialogRemote.OnClientEvent:Connect(function(action, model, a, b, c)
 	elseif action == "Close" and model == currentNpc then
 		closeDialog()
 	end
+end)
+
+---------------------------------------------------------------------
+-- Шаги жителей
+---------------------------------------------------------------------
+
+local steps = {} -- [npc] = пройденное расстояние
+local STEP_LENGTH = 2.6
+
+RunService.Heartbeat:Connect(function(dt)
+	local camera = workspace.CurrentCamera
+	for _, model in CollectionService:GetTagged(Config.Tag) do
+		local hrp = model:FindFirstChild("HumanoidRootPart")
+		local humanoid = model:FindFirstChildOfClass("Humanoid")
+		if hrp and humanoid and humanoid.Health > 0 and (hrp.Position - camera.CFrame.Position).Magnitude < 60 then
+			local v = hrp.AssemblyLinearVelocity
+			local speed = Vector3.new(v.X, 0, v.Z).Magnitude
+			local grounded = math.abs(v.Y) < 2
+			if speed > 2 and grounded and not humanoid.PlatformStand then
+				steps[model] = (steps[model] or 0) + speed * dt
+				if steps[model] >= STEP_LENGTH then
+					steps[model] = 0
+					playAt(hrp, Sounds.NPC.Footstep, 0.9 + math.random() * 0.25 + (speed > 15 and 0.15 or 0))
+				end
+			end
+		else
+			steps[model] = nil
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- Скрип дверей домов
+---------------------------------------------------------------------
+
+task.spawn(function()
+	local system = workspace:WaitForChild(Config.FolderName, 60)
+	local doors = system and system:WaitForChild("Doors", 30)
+	if not doors then
+		return
+	end
+	local function watchDoor(door: Instance)
+		door:GetAttributeChangedSignal("DoorOpen"):Connect(function()
+			local part = door:IsA("BasePart") and door or door:FindFirstChildWhichIsA("BasePart", true)
+			playAt(part, door:GetAttribute("DoorOpen") and Sounds.NPC.HouseDoorOpen or Sounds.NPC.HouseDoorClose)
+		end)
+	end
+	for _, d in doors:GetChildren() do
+		watchDoor(d)
+	end
+	doors.ChildAdded:Connect(watchDoor)
+end)
+
+----------------------------------------------------------------------
+-- 31. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
+----------------------------------------------------------------------
+
+-- LocalScript: StarterPlayer > StarterPlayerScripts > VehicleClient
+-- Внешний вид и звуки машин (у каждого игрока на экране, плавно):
+--   * двери и багажник открываются/закрываются, автобусные двери отъезжают;
+--   * колёса крутятся по скорости;
+--   * фары, стоп-сигналы, поворотники (с тиканьем), мигалки полиции, шашечки такси;
+--   * звуки: двигатель, гудок, сирена, двери, багажник, щелчок фар;
+--   * меню такси для игрока (куда ехать).
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("VehicleConfig"))
+local Sounds = require(ReplicatedStorage:WaitForChild("SoundConfig"))
+local remote = ReplicatedStorage:WaitForChild("VehicleRemote")
+
+local player = Players.LocalPlayer
+local BLACK = Color3.new(0, 0, 0)
+
+local vehicles = {} -- [model] = состояние
+
+local function makeSound(parent: Instance, def, looped: boolean?): Sound?
+	if not def or def.Id == "" then
+		return nil
+	end
+	local s = Instance.new("Sound")
+	s.SoundId = def.Id
+	s.Volume = def.Volume or 0.5
+	s.Looped = looped == true
+	s.RollOffMaxDistance = 120
+	s.RollOffMinDistance = 10
+	s.Parent = parent
+	return s
+end
+
+local function play(sound: Sound?)
+	if sound then
+		sound.TimePosition = 0
+		sound:Play()
+	end
+end
+
+local LIGHT_PREFIXES = {
+	{ "Headlight", "head" },
+	{ "Taillight", "tail" },
+	{ "Indicator_L", "indL" },
+	{ "Indicator_R", "indR" },
+	{ "SirenRed", "sirenR" },
+	{ "SirenBlue", "sirenB" },
+	{ "TaxiSign", "taxi" },
+}
+
+local function setLamp(lamp, on: boolean, strength: number?)
+	local p = lamp.part
+	local k = strength or 1
+	p.Material = on and Enum.Material.Neon or Enum.Material.SmoothPlastic
+	p.Color = on and lamp.color:Lerp(BLACK, 1 - k) or lamp.color:Lerp(BLACK, 0.55)
+	for _, l in lamp.lights do
+		l.Enabled = on
+	end
+end
+
+local function setup(model: Model)
+	if vehicles[model] or not model:GetAttribute("VehicleId") then
+		return
+	end
+	local body = model.PrimaryPart or model:WaitForChild("Body", 5)
+	if not body then
+		return
+	end
+	local kind = model:GetAttribute("VehicleType")
+	local state = {
+		model = model,
+		body = body,
+		kind = kind,
+		joints = {},
+		wheels = {},
+		lamps = { head = {}, tail = {}, indL = {}, indR = {}, sirenR = {}, sirenB = {}, taxi = {}, glow = {} },
+		last = {},
+		blinkOn = false,
+	}
+
+	for _, d in model:GetDescendants() do
+		if d:IsA("Motor6D") then
+			local kindAttr = d:GetAttribute("Kind")
+			if kindAttr == "Wheel" then
+				table.insert(state.wheels, { motor = d, axle = d:GetAttribute("AxleLocal") or Vector3.xAxis, radius = d:GetAttribute("Radius") or 1, angle = 0 })
+			elseif kindAttr == "Door" or kindAttr == "Trunk" then
+				table.insert(state.joints, {
+					motor = d,
+					kind = kindAttr,
+					group = d:GetAttribute("Group"),
+					hinge = d:GetAttribute("HingeLocal"),
+					axis = d:GetAttribute("AxisLocal"),
+					angle = d:GetAttribute("OpenAngle"),
+					slide = d:GetAttribute("SlideLocal"),
+					alpha = 0,
+					open = false,
+				})
+			end
+		elseif d:IsA("BasePart") then
+			for _, pair in LIGHT_PREFIXES do
+				if string.find(d.Name, "^" .. pair[1]) then
+					local lights = {}
+					for _, l in d:GetDescendants() do
+						if l:IsA("Light") then
+							table.insert(lights, l)
+						end
+					end
+					table.insert(state.lamps[pair[2]], { part = d, color = d.Color, lights = lights })
+					break
+				end
+			end
+			if d:GetAttribute("NightGlow") then
+				table.insert(state.lamps.glow, { part = d, color = d.Color, lights = {} })
+			end
+		end
+	end
+	for _, group in state.lamps do
+		for _, lamp in group do
+			setLamp(lamp, false)
+		end
+	end
+
+	local isBus = kind == "Bus"
+	local V = Sounds.Vehicle
+	state.sounds = {
+		engine = makeSound(body, (isBus and V.BusEngine.Id ~= "") and V.BusEngine or V.Engine, true),
+		horn = makeSound(body, (isBus and V.BusHorn.Id ~= "") and V.BusHorn or V.Horn),
+		siren = kind == "Police" and makeSound(body, V.Siren, true) or nil,
+		doorOpen = makeSound(body, isBus and V.BusDoor or V.DoorOpen),
+		doorClose = makeSound(body, isBus and V.BusDoor or V.DoorClose),
+		trunkOpen = makeSound(body, V.TrunkOpen),
+		trunkClose = makeSound(body, V.TrunkClose),
+		indicator = makeSound(body, V.Indicator),
+		lightSwitch = makeSound(body, V.LightSwitch),
+		brake = makeSound(body, V.Brake),
+	}
+
+	model:GetAttributeChangedSignal("HornId"):Connect(function()
+		play(state.sounds.horn)
+	end)
+	vehicles[model] = state
+	model.AncestryChanged:Connect(function()
+		if not model.Parent then
+			vehicles[model] = nil
+		end
+	end)
+end
+
+local function easeInOut(t: number): number
+	return t * t * (3 - 2 * t)
+end
+
+local function updateVehicle(state, dt: number, now: number)
+	local model, body = state.model, state.body
+	local look = body.CFrame.LookVector
+	local speed = body.AssemblyLinearVelocity:Dot(look)
+
+	-- Колёса
+	for _, w in state.wheels do
+		w.angle = (w.angle - speed * dt / w.radius) % (math.pi * 2)
+		w.motor.Transform = CFrame.fromAxisAngle(w.axle, w.angle)
+	end
+
+	-- Двери и багажник
+	for _, j in state.joints do
+		local open = model:GetAttribute(j.group) == true
+		if open ~= j.open then
+			j.open = open
+			if j.kind == "Trunk" then
+				play(open and state.sounds.trunkOpen or nil)
+			else
+				play(open and state.sounds.doorOpen or nil)
+			end
+			j.closingSound = not open
+		end
+		local targetAlpha = open and 1 or 0
+		if j.alpha ~= targetAlpha then
+			local step = dt * Config.DoorSpeed * (j.kind == "Trunk" and 0.7 or 1)
+			j.alpha = targetAlpha > j.alpha and math.min(1, j.alpha + step) or math.max(0, j.alpha - step)
+			local t = easeInOut(j.alpha)
+			if j.slide then
+				j.motor.Transform = CFrame.new(j.slide * t)
+			elseif j.hinge and j.axis then
+				j.motor.Transform = CFrame.new(j.hinge) * CFrame.fromAxisAngle(j.axis, j.angle * t) * CFrame.new(-j.hinge)
+			end
+			if j.alpha == 0 and j.closingSound then
+				j.closingSound = false
+				play(j.kind == "Trunk" and state.sounds.trunkClose or state.sounds.doorClose)
+			end
+		end
+	end
+
+	-- Фары
+	local headlights = model:GetAttribute("Headlights") == true
+	if state.last.headlights ~= headlights then
+		state.last.headlights = headlights
+		for _, lamp in state.lamps.head do
+			setLamp(lamp, headlights)
+		end
+		for _, lamp in state.lamps.glow do
+			setLamp(lamp, headlights)
+		end
+		play(state.sounds.lightSwitch)
+	end
+	local brake = model:GetAttribute("Brake") == true and model:GetAttribute("Engine") == true
+	local tailKey = (brake and "brake") or (headlights and "dim") or "off"
+	if state.last.tail ~= tailKey then
+		if tailKey == "brake" and state.last.tail ~= nil and math.abs(speed) > 8 then
+			play(state.sounds.brake)
+		end
+		state.last.tail = tailKey
+		for _, lamp in state.lamps.tail do
+			setLamp(lamp, tailKey ~= "off", tailKey == "brake" and 1 or 0.55)
+		end
+	end
+
+	-- Поворотники: мигают и тикают
+	local indicator = model:GetAttribute("Indicator") or ""
+	local blink = indicator ~= "" and (now * 1.6) % 1 < 0.5
+	if blink ~= state.blinkOn or indicator ~= state.last.indicator then
+		if blink and not state.blinkOn then
+			play(state.sounds.indicator)
+		end
+		state.blinkOn = blink
+		state.last.indicator = indicator
+		for _, lamp in state.lamps.indL do
+			setLamp(lamp, blink and indicator == "L")
+		end
+		for _, lamp in state.lamps.indR do
+			setLamp(lamp, blink and indicator == "R")
+		end
+	end
+
+	-- Мигалки и сирена
+	local siren = model:GetAttribute("Siren") == true
+	if siren then
+		local phase = (now * 4) % 1 < 0.5
+		for _, lamp in state.lamps.sirenR do
+			setLamp(lamp, phase)
+		end
+		for _, lamp in state.lamps.sirenB do
+			setLamp(lamp, not phase)
+		end
+	elseif state.last.siren then
+		for _, lamp in state.lamps.sirenR do
+			setLamp(lamp, false)
+		end
+		for _, lamp in state.lamps.sirenB do
+			setLamp(lamp, false)
+		end
+	end
+	state.last.siren = siren
+	local sirenSound = state.sounds.siren
+	if sirenSound then
+		local wantSound = siren and model:GetAttribute("SirenMuted") ~= true
+		if wantSound and not sirenSound.IsPlaying then
+			sirenSound:Play()
+		elseif not wantSound and sirenSound.IsPlaying then
+			sirenSound:Stop()
+		end
+	end
+
+	-- Шашечки такси: горят, когда свободно
+	local taxiFree = model:GetAttribute("TaxiBusy") ~= true
+	if state.last.taxiFree ~= taxiFree then
+		state.last.taxiFree = taxiFree
+		for _, lamp in state.lamps.taxi do
+			setLamp(lamp, taxiFree)
+		end
+	end
+
+	-- Двигатель
+	local engine = state.sounds.engine
+	if engine then
+		local on = model:GetAttribute("Engine") == true
+		if on and not engine.IsPlaying then
+			engine:Play()
+		elseif not on and engine.IsPlaying then
+			engine:Stop()
+		end
+		engine.PlaybackSpeed = 0.7 + math.min(1, math.abs(speed) / 30) * 0.8
+	end
+end
+
+task.spawn(function()
+	local map = workspace:WaitForChild(Config.MapFolder, 60)
+	if not map then
+		return
+	end
+	local folder = map:WaitForChild(Config.VehiclesFolder, 60)
+	if not folder then
+		return
+	end
+	for _, m in folder:GetChildren() do
+		if m:IsA("Model") then
+			task.spawn(setup, m)
+		end
+	end
+	folder.ChildAdded:Connect(function(m)
+		if m:IsA("Model") then
+			task.wait(0.2)
+			setup(m)
+		end
+	end)
+end)
+
+RunService.RenderStepped:Connect(function(dt)
+	local now = os.clock()
+	for model, state in pairs(vehicles) do
+		if state.body.Parent then
+			updateVehicle(state, dt, now)
+		else
+			vehicles[model] = nil
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- Меню такси
+---------------------------------------------------------------------
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "TaxiMenu"
+gui.ResetOnSpawn = false
+gui.Enabled = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local panel = Instance.new("Frame")
+panel.AnchorPoint = Vector2.new(0.5, 0.5)
+panel.Position = UDim2.fromScale(0.5, 0.5)
+panel.Size = UDim2.fromOffset(340, 0)
+panel.AutomaticSize = Enum.AutomaticSize.Y
+panel.BackgroundColor3 = Color3.fromRGB(30, 28, 20)
+panel.BackgroundTransparency = 0.05
+panel.Parent = gui
+Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 16)
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(255, 200, 40)
+stroke.Thickness = 2
+stroke.Parent = panel
+local pad = Instance.new("UIPadding")
+pad.PaddingTop = UDim.new(0, 14)
+pad.PaddingBottom = UDim.new(0, 14)
+pad.PaddingLeft = UDim.new(0, 14)
+pad.PaddingRight = UDim.new(0, 14)
+pad.Parent = panel
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 8)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = panel
+local scale = Instance.new("UIScale")
+scale.Parent = panel
+
+local title = Instance.new("TextLabel")
+title.LayoutOrder = 0
+title.BackgroundTransparency = 1
+title.Size = UDim2.new(1, 0, 0, 28)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+title.TextColor3 = Color3.fromRGB(255, 210, 60)
+title.Text = "🚕 Куда едем?"
+title.Parent = panel
+
+local function button(text: string, order: number, accent: boolean, onClick)
+	local b = Instance.new("TextButton")
+	b.LayoutOrder = order
+	b.Size = UDim2.new(1, 0, 0, 38)
+	b.BackgroundColor3 = accent and Color3.fromRGB(70, 45, 45) or Color3.fromRGB(60, 55, 35)
+	b.Font = Enum.Font.GothamMedium
+	b.TextSize = 16
+	b.TextColor3 = Color3.fromRGB(245, 240, 225)
+	b.Text = text
+	b.Parent = panel
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+	b.Activated:Connect(onClick)
+end
+
+local function closeMenu()
+	gui.Enabled = false
+end
+
+remote.OnClientEvent:Connect(function(action, model, names, price)
+	if action ~= "TaxiMenu" then
+		return
+	end
+	for _, c in panel:GetChildren() do
+		if c:IsA("TextButton") then
+			c:Destroy()
+		end
+	end
+	title.Text = string.format("🚕 Куда едем? (%d 🪙)", price)
+	for i, name in names do
+		button(name, i, false, function()
+			remote:FireServer("TaxiGo", model, i)
+			closeMenu()
+		end)
+	end
+	button("Отмена", #names + 1, true, closeMenu)
+	gui.Enabled = true
+	scale.Scale = 0.85
+	TweenService:Create(scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 end)

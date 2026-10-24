@@ -150,6 +150,21 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 
 Файлы: `NPCConfig` (ModuleScript, ReplicatedStorage), `NPCServer`, `NPCDoors`, `NPCDemo`, `DayNightServer` (Script, ServerScriptService), `NPCClient` (LocalScript, StarterPlayerScripts). Все настройки, фразы и диалоги — в `NPCConfig`.
 
+## Транспорт 🚗🚕🚌🚓
+
+- **Машины ездят сами** по точкам дорог: по правой полосе, плавно, с поворотниками перед поворотами. Держат дистанцию, пропускают друг друга на перекрёстках, стоят на красный свет. Перед людьми тормозят и сигналят.
+- **Гражданские:** у жителей есть свои машины. Если идти далеко (дом ↔ работа, магазин), житель идёт к машине, иногда кладёт что-то в багажник, садится (дверь открывается и хлопает), едет, паркуется и выходит.
+- **Такси:** возит жителей. Игрок подходит к такси, нажимает **E**, выбирает место в меню и платит **5 монет**.
+- **Автобус:** ходит по маршруту. На остановках открывает двери, люди выходят и заходят. Потом минута отдыха на конечной — и снова. Игрок садится на остановке (**E**), а выходит прыжком.
+- **Полиция:** раз в 1–3 минуты выезжает на вызов с мигалками и сиреной. Офицеры выходят, заходят в здание, через полминуты возвращаются и уезжают на базу. Ночью вызовы чаще.
+- **Анимации:** двери, багажник, сдвижные двери автобуса, крутящиеся колёса, фары ночью, стоп-сигналы, поворотники, мигалки, шашечки такси.
+- **Звуки:** двигатель, гудок, сирена, двери, багажник, щелчки поворотников и фар. У жителей шаги, «бормотание» голосом (у каждого своя высота), смех, крик, храп, лай собак, скрип дверей. Все ID — в `SoundConfig`.
+- Нет своих шаблонов или дорог — строятся машины-заглушки и демо-дороги со светофором, парковками, остановками и участком полиции.
+
+**Как сделать шаблоны машин, дороги и звуки** — в `VEHICLE_SETUP.md`. Там же готовый текст для Claude в Studio.
+
+Файлы: `VehicleConfig`, `SoundConfig` (ModuleScript, ReplicatedStorage), `NPCRegistry`, `VehicleDefaults` (ModuleScript, ServerScriptService), `TrafficServer` (Script, ServerScriptService), `VehicleClient` (LocalScript, StarterPlayerScripts).
+
 ## Все клавиши
 
 | Клавиша | Способность |
@@ -159,16 +174,16 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 | R | Лазеры из глаз |
 | F | Полёт |
 | T | Куб |
-| E | Поговорить с жителем / открыть дверь |
+| E | Поговорить с жителем / открыть дверь / такси / автобус |
 
 ## Все файлы
 
 | Где | Тип | Имена |
 |---|---|---|
-| ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `NPCConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
-| ServerScriptService | ModuleScript | `AbilityRegistry` |
-| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCServer`, `NPCDoors`, `NPCDemo`, `DayNightServer` |
-| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient` |
+| ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `NPCConfig`, `VehicleConfig`, `SoundConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
+| ServerScriptService | ModuleScript | `AbilityRegistry`, `NPCRegistry`, `VehicleDefaults` |
+| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCServer`, `NPCDoors`, `NPCDemo`, `DayNightServer`, `TrafficServer` |
+| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient`, `VehicleClient` |
 
 - `RigAnimator` — общий движок анимаций способностей. Он смешивает анимации разных способностей и не мешает системе поз.
 - `AbilityFx` — частицы, пыль и тряска камеры.

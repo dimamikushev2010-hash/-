@@ -219,6 +219,7 @@ NPCConfig.Moods = {
 	Wow = "😮",
 	Laugh = "😂",
 	Quest = "❗",
+	Wait = "🚏",
 	Happy = "❤️",
 }
 

@@ -25,6 +25,8 @@ local PhysicsService = game:GetService("PhysicsService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local SoundConfig = require(ReplicatedStorage:WaitForChild("SoundConfig"))
+local Registry = require(script.Parent:WaitForChild("NPCRegistry"))
 
 local folder = workspace:WaitForChild(Config.FolderName, 30)
 if not folder then
@@ -159,7 +161,19 @@ end
 -- Внешность
 ---------------------------------------------------------------------
 
-local function makeDescription(): HumanoidDescription
+local function makeDescription(opts): HumanoidDescription
+	if opts and opts.shirt then
+		-- Форма (например, полиция)
+		local desc = Instance.new("HumanoidDescription")
+		local skin = pick(Config.SkinColors)
+		desc.HeadColor = skin
+		desc.TorsoColor = opts.shirt
+		desc.LeftArmColor = opts.shirt
+		desc.RightArmColor = opts.shirt
+		desc.LeftLegColor = opts.pants or opts.shirt
+		desc.RightLegColor = opts.pants or opts.shirt
+		return desc
+	end
 	if #Config.AvatarUserIds > 0 then
 		local ok, desc = pcall(function()
 			return Players:GetHumanoidDescriptionFromUserId(pick(Config.AvatarUserIds))
@@ -296,7 +310,7 @@ end
 -- Жители
 ---------------------------------------------------------------------
 
-local npcs = {} -- [model] = npc
+local npcs = Registry.npcs -- [model] = npc (общая таблица с транспортом)
 local total = 0
 
 local function say(npc, text: string, duration: number?)
@@ -306,6 +320,14 @@ local function say(npc, text: string, duration: number?)
 	npc.model:SetAttribute("SayDuration", duration or Config.BubbleTime)
 	npc.model:SetAttribute("SayText", text)
 	npc.model:SetAttribute("SayId", (npc.model:GetAttribute("SayId") or 0) + 1)
+end
+
+-- Звук жителя (имя из SoundConfig.NPC), играют клиенты
+local function sfx(npc, name: string)
+	if npc.alive and SoundConfig.NPC[name] then
+		npc.model:SetAttribute("SoundEvent", name)
+		npc.model:SetAttribute("SoundEventId", (npc.model:GetAttribute("SoundEventId") or 0) + 1)
+	end
 end
 
 -- Значок настроения над головой (ключ из NPCConfig.Moods, nil — убрать)
@@ -532,6 +554,7 @@ local function finishQuest(npc, player: Player, quest): number
 	addFriendship(npc, player, 5)
 	setMood(npc, "Happy", 4)
 	npc.anim.emote("Cheer")
+	sfx(npc, "Cheer")
 	offerQuestLater(npc, Config.QuestCooldown)
 	return reward
 end
@@ -722,6 +745,9 @@ local function spotTaken(point): boolean
 end
 
 local function standUp(npc)
+	if npc.inVehicle then
+		return
+	end
 	if npc.chair then
 		leaveChair(npc)
 	end
@@ -769,6 +795,8 @@ local function freeForChat(npc, now: number): boolean
 		and not npc.humanoid.Sit
 		and now >= npc.fleeUntil
 		and not npc.sleeping
+		and not npc.inVehicle
+		and not npc.noSocial
 end
 
 local function runConversation(a, b, lines)
@@ -831,6 +859,9 @@ function react(npc, kind: string, target: BasePart)
 		end
 	else
 		setMood(npc, kind == "Cube" and "Laugh" or "Wow", 3)
+		if kind == "Cube" then
+			sfx(npc, "Laugh")
+		end
 		face(npc, target.Position - npc.hrp.Position, 0.3)
 		npc.anim.emote(kind == "Cube" and "Laugh" or "Point")
 		task.wait(2)
@@ -842,7 +873,7 @@ function react(npc, kind: string, target: BasePart)
 end
 
 local function tryStartChat(npc, now: number)
-	if now < npc.nextSocialCheck then
+	if now < npc.nextSocialCheck or npc.inVehicle or npc.noSocial then
 		return
 	end
 	npc.nextSocialCheck = now + 0.6
@@ -884,6 +915,7 @@ local function tryStartChat(npc, now: number)
 					or pick(Config.Phrases.Greet)
 				task.spawn(function()
 					npc.anim.emote("Wave")
+					sfx(npc, "Wave")
 					say(npc, text, 2.5)
 				end)
 			end
@@ -1007,6 +1039,20 @@ end
 ---------------------------------------------------------------------
 -- Выбор дела
 ---------------------------------------------------------------------
+
+-- Дойти — или доехать (своя машина, такси, автобус), если далеко
+local function travelTo(npc, target: Vector3): boolean
+	if Registry.tryTrip and not shouldStop(npc) then
+		local ok, used = pcall(Registry.tryTrip, npc, target)
+		if not ok then
+			warn("[NPC] Ошибка поездки:", used)
+		end
+		if not npc.alive then
+			return false
+		end
+	end
+	return walkTo(npc, target)
+end
 
 local function choosePoint(npc)
 	local r = rng:NextNumber()
@@ -1174,7 +1220,7 @@ local function goSleep(npc): boolean
 	end
 	point.occupants += 1
 	npc.point = point
-	local arrived = walkTo(npc, approachPosition(point))
+	local arrived = travelTo(npc, approachPosition(point))
 	if arrived and not shouldStop(npc) then
 		npc.zone = npc.homeZone
 		npc.sleeping = true
@@ -1195,6 +1241,7 @@ local function goSleep(npc): boolean
 		while isNight() and not shouldStop(npc) do
 			if os.clock() > nextSnore then
 				say(npc, pick(Config.Phrases.Sleep), 2.5)
+				sfx(npc, "Snore")
 				nextSnore = os.clock() + rng:NextNumber(6, 14)
 			end
 			task.wait(0.5)
@@ -1235,7 +1282,7 @@ local function doWork(npc)
 		npc.job = nil
 		return
 	end
-	if not walkTo(npc, point.part.Position) or shouldStop(npc) then
+	if not travelTo(npc, point.part.Position) or shouldStop(npc) then
 		npc.onBreak = not shouldStop(npc) -- не дошёл до прилавка — займётся чем-то другим
 		return
 	end
@@ -1332,6 +1379,7 @@ local function brain(npc)
 			-- Убегаем подальше
 			standUp(npc)
 			setMood(npc, "Scared", 5)
+			sfx(npc, "Scream")
 			npc.humanoid.WalkSpeed = Config.RunSpeed
 			local target = fleePoint(npc)
 			if target then
@@ -1367,7 +1415,7 @@ local function brain(npc)
 		end
 		point.occupants += 1
 		npc.point = point
-		local arrived = walkTo(npc, approachPosition(point))
+		local arrived = travelTo(npc, approachPosition(point))
 		if arrived and not shouldStop(npc) then
 			if point.zone ~= nil then
 				npc.zone = point.zone
@@ -1436,7 +1484,7 @@ function refreshTopics(npc, player: Player): { string }
 end
 
 local function startPlayerTalk(npc, player: Player)
-	if not npc.alive or npc.talkingTo then
+	if not npc.alive or npc.talkingTo or npc.inVehicle or npc.officer then
 		return
 	end
 	local character = player.Character
@@ -1688,8 +1736,21 @@ local function onDied(npc)
 		total -= 1
 		npc.model:Destroy()
 	end)
+	if npc.inVehicle then
+		local car = npc.inVehicle
+		if npc.vehicleWeld then
+			npc.vehicleWeld:Destroy()
+		end
+		if car.occupants and npc.vehicleSeat then
+			car.occupants[npc.vehicleSeat] = nil
+		end
+		npc.inVehicle = nil
+	end
+	if Registry.releaseCar then
+		Registry.releaseCar(npc)
+	end
 	task.delay(Config.RespawnTime, function()
-		if npc.spawn.Parent then
+		if npc.spawn and npc.spawn.Parent then
 			spawnNPC(npc.spawn)
 		end
 	end)
@@ -1739,19 +1800,22 @@ local function addProp(model: Model, kind: string)
 	end
 end
 
-function spawnNPC(spawnPart: BasePart)
-	if total >= Config.MaxNPCs then
-		return
+-- Создать жителя. spawnPart — точка появления (обычные жители),
+-- opts.custom — без «мозга» (им управляет другой скрипт, например полиция)
+local function createNPC(spawnPart: BasePart?, opts)
+	opts = opts or {}
+	if total >= Config.MaxNPCs + (opts.custom and 6 or 0) then
+		return nil
 	end
 	total += 1
 
 	local ok, model = pcall(function()
-		return Players:CreateHumanoidModelFromDescription(makeDescription(), Enum.HumanoidRigType.R15)
+		return Players:CreateHumanoidModelFromDescription(makeDescription(opts), Enum.HumanoidRigType.R15)
 	end)
 	if not ok or not model then
 		total -= 1
 		warn("[NPC] Не удалось создать модель жителя:", model)
-		return
+		return nil
 	end
 
 	local humanoid = model:FindFirstChildOfClass("Humanoid")
@@ -1759,7 +1823,7 @@ function spawnNPC(spawnPart: BasePart)
 	if not humanoid or not hrp then
 		total -= 1
 		model:Destroy()
-		return
+		return nil
 	end
 	local oldAnimate = model:FindFirstChild("Animate")
 	if oldAnimate then
@@ -1767,7 +1831,11 @@ function spawnNPC(spawnPart: BasePart)
 	end
 
 	local name = pick(Config.FirstNames)
+	if opts.prefix then
+		name = opts.prefix .. " " .. name
+	end
 	model.Name = name
+	model:SetAttribute("VoicePitch", rng:NextNumber(SoundConfig.VoicePitch.Min, SoundConfig.VoicePitch.Max))
 	humanoid.DisplayName = name
 	humanoid.NameDisplayDistance = 40
 	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.DisplayWhenDamaged
@@ -1783,13 +1851,17 @@ function spawnNPC(spawnPart: BasePart)
 	end
 
 	-- Ставим на точку появления
-	local offset = (rng:NextNumber() - 0.5) * 2
-	local top = spawnPart.Position + Vector3.new(offset, spawnPart.Size.Y / 2, offset)
-	local look = flat(spawnPart.CFrame.LookVector)
-	local height = humanoid.HipHeight + hrp.Size.Y / 2 + 0.1
-	model:PivotTo(CFrame.lookAt(top + Vector3.new(0, height, 0), top + Vector3.new(0, height, 0) + (look.Magnitude > 0 and look or Vector3.new(0, 0, -1))))
-	model:SetAttribute("Pose", "Lie")
-	if rng:NextNumber() < Config.PropChance then
+	if opts.cframe then
+		model:PivotTo(opts.cframe)
+	else
+		local offset = (rng:NextNumber() - 0.5) * 2
+		local top = spawnPart.Position + Vector3.new(offset, spawnPart.Size.Y / 2, offset)
+		local look = flat(spawnPart.CFrame.LookVector)
+		local height = humanoid.HipHeight + hrp.Size.Y / 2 + 0.1
+		model:PivotTo(CFrame.lookAt(top + Vector3.new(0, height, 0), top + Vector3.new(0, height, 0) + (look.Magnitude > 0 and look or Vector3.new(0, 0, -1))))
+	end
+	model:SetAttribute("Pose", opts.custom and "Stand" or "Lie")
+	if not opts.custom and rng:NextNumber() < Config.PropChance then
 		addProp(model, pick(PROP_KINDS))
 	end
 	CollectionService:AddTag(model, Config.Tag)
@@ -1813,8 +1885,8 @@ function spawnNPC(spawnPart: BasePart)
 		hrp = hrp,
 		name = name,
 		spawn = spawnPart,
-		zone = spawnPart:GetAttribute("Zone"),
-		homeZone = (spawnPart:GetAttribute("Zone") ~= Config.OutdoorZone) and spawnPart:GetAttribute("Zone") or nil,
+		zone = spawnPart and spawnPart:GetAttribute("Zone") or nil,
+		homeZone = spawnPart and (spawnPart:GetAttribute("Zone") ~= Config.OutdoorZone) and spawnPart:GetAttribute("Zone") or nil,
 		sleeping = false,
 		saidNight = false,
 		following = nil,
@@ -1846,17 +1918,20 @@ function spawnNPC(spawnPart: BasePart)
 	npcs[model] = npc
 
 	-- Работа, задание, собака
-	local role = assignJob(npc)
-	if role then
+	local role = (not opts.custom) and assignJob(npc) or opts.role
+	if opts.custom and role then
+		npc.title = name
+		humanoid.DisplayName = name .. " · " .. role
+	elseif role then
 		npc.title = name .. " · " .. role
 		humanoid.DisplayName = npc.title
 		prompt.ObjectText = npc.title
-	else
+	elseif not opts.custom then
 		if rng:NextNumber() < Config.DogChance then
 			model:SetAttribute("DogColor", pick(Config.DogColors))
 		end
 	end
-	if not npc.route and rng:NextNumber() < Config.QuestChance then
+	if not opts.custom and not npc.route and rng:NextNumber() < Config.QuestChance then
 		npc.hasQuest = true
 		setBaseMood(npc, "Quest")
 	end
@@ -1876,6 +1951,11 @@ function spawnNPC(spawnPart: BasePart)
 			if now - npc.lastHurt > 2 then
 				npc.lastHurt = now
 				say(npc, pick(Config.Phrases.Hurt), 2)
+				sfx(npc, "Hurt")
+			end
+			if npc.inVehicle or npc.officer then
+				lastHealth = health
+				return -- в машине не убегает
 			end
 			npc.fleeUntil = now + 6
 			setMood(npc, "Scared", 6)
@@ -1893,7 +1973,32 @@ function spawnNPC(spawnPart: BasePart)
 		onDied(npc)
 	end)
 
-	task.spawn(brain, npc)
+	if not opts.custom then
+		task.spawn(brain, npc)
+		if Registry.assignCar then
+			task.spawn(Registry.assignCar, npc)
+		end
+	end
+	return npc
+end
+
+function spawnNPC(spawnPart: BasePart)
+	createNPC(spawnPart, nil)
+end
+
+-- API для транспорта
+Registry.walkTo = function(npc, position: Vector3): boolean
+	return walkTo(npc, position)
+end
+Registry.say = say
+Registry.setMood = setMood
+Registry.setPose = setPose
+Registry.face = face
+Registry.spawnCustom = function(cframe: CFrame, options)
+	options = options or {}
+	options.custom = true
+	options.cframe = cframe
+	return createNPC(nil, options)
 end
 
 -- Расселяем жителей по точкам появления
