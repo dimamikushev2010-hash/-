@@ -1,0 +1,4142 @@
+-- ВСЕ СКРИПТЫ: позы, невидимость, лазеры, полёт, куб
+-- Каждый блок ниже — отдельный скрипт. Создай объект нужного типа в нужном месте,
+-- назови его точно как написано и вставь код блока целиком.
+-- Проще всего: открыть PoseSystem.rbxlx, там всё уже расставлено.
+
+-- СПИСОК:
+--    1. ReplicatedStorage > ModuleScript "PoseConfig"
+--    2. ReplicatedStorage > ModuleScript "InvisibilityConfig"
+--    3. ReplicatedStorage > ModuleScript "LaserConfig"
+--    4. ReplicatedStorage > ModuleScript "FlightConfig"
+--    5. ReplicatedStorage > ModuleScript "CubeConfig"
+--    6. ReplicatedStorage > ModuleScript "AbilityButton"
+--    7. ReplicatedStorage > ModuleScript "RigAnimator"
+--    8. ReplicatedStorage > ModuleScript "AbilityFx"
+--    9. ServerScriptService > ModuleScript "AbilityRegistry"
+--   10. ServerScriptService > Script "PoseServer"
+--   11. ServerScriptService > Script "InvisibilityServer"
+--   12. ServerScriptService > Script "LaserServer"
+--   13. ServerScriptService > Script "FlightServer"
+--   14. ServerScriptService > Script "CubeServer"
+--   15. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
+--   16. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
+--   17. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
+--   18. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
+--   19. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
+
+
+----------------------------------------------------------------------
+-- 1. ReplicatedStorage > ModuleScript "PoseConfig"
+----------------------------------------------------------------------
+
+-- ModuleScript: ReplicatedStorage > PoseConfig
+-- Общие настройки системы поз (сидеть / лежать / на коленях).
+-- Используется и сервером, и клиентом.
+
+local PoseConfig = {}
+
+-- Имена служебных объектов
+PoseConfig.RemoteName = "PoseRequest" -- RemoteEvent в ReplicatedStorage (создаётся сервером)
+PoseConfig.AttributeName = "Pose" -- атрибут персонажа с текущей позой
+
+-- Управление: две кнопки
+--   Вниз:  Стоя -> Сидя -> Лёжа
+--   Вверх: Лёжа -> На коленях -> Стоя
+PoseConfig.Keys = {
+	Down = { Enum.KeyCode.C, Enum.KeyCode.DPadDown },
+	Up = { Enum.KeyCode.X, Enum.KeyCode.DPadUp },
+}
+
+-- Прыжок (пробел) в любой позе = сразу встать
+PoseConfig.JumpToStand = true
+
+-- Переходы между позами. Можно менять как угодно.
+PoseConfig.Transitions = {
+	Down = {
+		Stand = "Sit",
+		Sit = "Lie",
+		Kneel = "Sit",
+		Lie = "Lie",
+	},
+	Up = {
+		Lie = "Kneel",
+		Kneel = "Stand",
+		Sit = "Stand",
+		Stand = "Stand",
+	},
+}
+
+-- Подписи (для кнопок на телефоне и подсказки на экране)
+PoseConfig.StateNames = {
+	Stand = "Стоит",
+	Sit = "Сидит",
+	Lie = "Лежит",
+	Kneel = "На коленях",
+}
+PoseConfig.ActionNames = {
+	Stand = "Встать",
+	Sit = "Сесть",
+	Lie = "Лечь",
+	Kneel = "На колени",
+}
+
+PoseConfig.TransitionTime = 0.4 -- длительность анимации перехода, сек
+PoseConfig.ClientCooldown = 0.25 -- защита от спама на клиенте
+PoseConfig.ServerCooldown = 0.15 -- защита от спама на сервере
+PoseConfig.PredictionTimeout = 1 -- сколько клиент ждёт подтверждения сервера
+PoseConfig.ShowHint = true -- подсказка внизу экрана
+PoseConfig.Debug = true -- писать в Output, что происходит (потом можно выключить)
+
+--[[
+	ПОЗЫ (процедурные анимации)
+
+	Все углы — в градусах, Vector3.new(X, Y, Z), относительно родительской части тела:
+	  X > 0  — наклон назад для торса/головы, подъём вперёд для рук/ног
+	  X < 0  — наклон вперёд для торса/головы, отвод назад для рук/ног, сгиб колена
+	  Z      — отвод руки/ноги в сторону (левая: минус = наружу, правая: плюс = наружу)
+
+	HipHeight — высота таза над землёй в долях длины ноги (1 = стоит, 0.3 = почти на полу)
+	Shift     — дополнительный сдвиг всего тела (в стадах для стандартного размера)
+	Root      — поворот всего тела вокруг таза
+	Breath    — амплитуда «дыхания» в градусах (0 — выключено)
+	WalkSpeed — скорость ходьбы в этой позе (0 — нельзя ходить)
+	R6        — переопределения для R6-персонажей (у них нет коленей и локтей)
+]]
+PoseConfig.Poses = {
+	Sit = {
+		HipHeight = 0.3,
+		Shift = Vector3.new(0, 0, 0),
+		Root = Vector3.new(10, 0, 0),
+		Breath = 1.5,
+		WalkSpeed = 0,
+		Joints = {
+			Waist = Vector3.new(-6, 0, 0),
+			Neck = Vector3.new(-6, 0, 0),
+			LeftShoulder = Vector3.new(35, 0, -6),
+			RightShoulder = Vector3.new(35, 0, 6),
+			LeftElbow = Vector3.new(35, 0, 0),
+			RightElbow = Vector3.new(30, 0, 0),
+			LeftHip = Vector3.new(80, 0, -4),
+			RightHip = Vector3.new(76, 0, 4),
+			LeftKnee = Vector3.new(-12, 0, 0),
+			RightKnee = Vector3.new(-22, 0, 0),
+			LeftAnkle = Vector3.new(0, 0, 0),
+			RightAnkle = Vector3.new(0, 0, 0),
+		},
+		R6 = {
+			LeftShoulder = Vector3.new(45, 0, -4),
+			RightShoulder = Vector3.new(45, 0, 4),
+		},
+	},
+
+	Lie = {
+		HipHeight = 0.3,
+		Shift = Vector3.new(0, 0, -0.75),
+		Root = Vector3.new(90, 0, 0), -- на спину, лицом вверх
+		Breath = 2.5,
+		WalkSpeed = 0,
+		Joints = {
+			Waist = Vector3.new(0, 0, 0),
+			Neck = Vector3.new(-22, 0, 0), -- голова чуть приподнята
+			LeftShoulder = Vector3.new(0, 0, -14),
+			RightShoulder = Vector3.new(0, 0, 14),
+			LeftElbow = Vector3.new(15, 0, 0),
+			RightElbow = Vector3.new(15, 0, 0),
+			LeftHip = Vector3.new(0, 0, -4),
+			RightHip = Vector3.new(40, 0, 4), -- правое колено согнуто
+			LeftKnee = Vector3.new(-5, 0, 0),
+			RightKnee = Vector3.new(-80, 0, 0),
+			LeftAnkle = Vector3.new(0, 0, 0),
+			RightAnkle = Vector3.new(20, 0, 0),
+		},
+		R6 = {
+			RightHip = Vector3.new(12, 0, 4),
+		},
+	},
+
+	Kneel = {
+		HipHeight = 0.6,
+		Shift = Vector3.new(0, 0, 0),
+		Root = Vector3.new(0, 0, 0),
+		Breath = 1.5,
+		WalkSpeed = 0,
+		Joints = {
+			Waist = Vector3.new(-4, 0, 0),
+			Neck = Vector3.new(-4, 0, 0),
+			LeftShoulder = Vector3.new(15, 0, -5),
+			RightShoulder = Vector3.new(15, 0, 5),
+			LeftElbow = Vector3.new(25, 0, 0),
+			RightElbow = Vector3.new(25, 0, 0),
+			LeftHip = Vector3.new(0, 0, -3),
+			RightHip = Vector3.new(0, 0, 3),
+			LeftKnee = Vector3.new(-90, 0, 0), -- голени лежат на полу
+			RightKnee = Vector3.new(-90, 0, 0),
+			LeftAnkle = Vector3.new(-90, 0, 0), -- стопы вытянуты назад
+			RightAnkle = Vector3.new(-90, 0, 0),
+		},
+		R6 = {
+			HipHeight = 0.65,
+			LeftHip = Vector3.new(-45, 0, -3),
+			RightHip = Vector3.new(-45, 0, 3),
+		},
+	},
+}
+
+function PoseConfig.IsValidState(state: any): boolean
+	return state == "Stand" or (type(state) == "string" and PoseConfig.Poses[state] ~= nil)
+end
+
+-- direction: "Down" | "Up" | "Stand"
+function PoseConfig.GetNextState(current: string, direction: string): string
+	if direction == "Stand" then
+		return "Stand"
+	end
+	local map = PoseConfig.Transitions[direction]
+	return (map and map[current]) or current
+end
+
+return PoseConfig
+
+----------------------------------------------------------------------
+-- 2. ReplicatedStorage > ModuleScript "InvisibilityConfig"
+----------------------------------------------------------------------
+
+-- ModuleScript: ReplicatedStorage > InvisibilityConfig
+-- Настройки способности «Невидимость».
+
+local InvisibilityConfig = {}
+
+InvisibilityConfig.RemoteName = "InvisibilityRequest"
+
+-- Атрибуты (выставляет сервер, читают все клиенты)
+InvisibilityConfig.ActiveAttribute = "Invisible" -- на персонаже: true/false
+InvisibilityConfig.UntilAttribute = "InvisibleUntil" -- на персонаже: время окончания (серверное)
+InvisibilityConfig.CooldownAttribute = "InvisibilityCooldownUntil" -- на игроке: конец кулдауна
+
+-- Время
+InvisibilityConfig.Duration = 8 -- сколько длится невидимость, сек
+InvisibilityConfig.Cooldown = 20 -- кулдаун, отсчитывается после окончания невидимости
+InvisibilityConfig.CanCancelEarly = true -- повторное нажатие = выйти раньше
+InvisibilityConfig.FadeTime = 0.5 -- плавное исчезновение/появление, сек
+
+-- Управление
+InvisibilityConfig.Keys = { Enum.KeyCode.Q, Enum.KeyCode.ButtonY }
+
+-- Как ты видишь себя: «стекло»
+InvisibilityConfig.SelfTransparency = 0.6 -- 0 = как обычно, 1 = совсем не видно
+InvisibilityConfig.SelfMaterial = Enum.Material.Glass
+InvisibilityConfig.SelfTint = Color3.fromRGB(170, 215, 255) -- голубоватый оттенок
+InvisibilityConfig.SelfTintStrength = 0.35 -- 0 = без оттенка, 1 = полностью голубой
+
+-- Лёгкая синева на экране, пока ты невидим
+InvisibilityConfig.ScreenTint = Color3.fromRGB(215, 230, 255)
+InvisibilityConfig.ScreenSaturation = -0.15
+
+-- Красная подсветка при выходе из невидимости (её видят все)
+InvisibilityConfig.FlashColor = Color3.fromRGB(255, 40, 40)
+InvisibilityConfig.FlashTime = 1.5 -- сколько держится и гаснет, сек
+InvisibilityConfig.FlashFillTransparency = 0.8 -- слабое свечение внутри тела
+
+-- Что скрывать у невидимого игрока от других
+InvisibilityConfig.HideName = true -- ник и полоска здоровья
+InvisibilityConfig.HideSounds = true -- шаги и прочие звуки персонажа
+
+-- Интерфейс
+InvisibilityConfig.ButtonText = "Невидимость"
+InvisibilityConfig.ButtonSlot = 1 -- место в ряду кнопок (1 = крайняя справа)
+InvisibilityConfig.ActiveColor = Color3.fromRGB(120, 200, 255)
+
+return InvisibilityConfig
+
+----------------------------------------------------------------------
+-- 3. ReplicatedStorage > ModuleScript "LaserConfig"
+----------------------------------------------------------------------
+
+-- ModuleScript: ReplicatedStorage > LaserConfig
+-- Настройки способности «Лазеры из глаз».
+
+local LaserConfig = {}
+
+LaserConfig.RemoteName = "LaserRequest" -- включить/выключить
+LaserConfig.AimRemoteName = "LaserAim" -- куда целится игрок (часто, без гарантии доставки)
+
+-- Атрибуты (выставляет сервер, читают все клиенты)
+LaserConfig.ActiveAttribute = "LaserActive" -- на персонаже: true/false
+LaserConfig.UntilAttribute = "LaserUntil" -- на персонаже: время окончания (серверное)
+LaserConfig.AimAttribute = "LaserAimPoint" -- на персонаже: точка прицела (Vector3)
+LaserConfig.CooldownAttribute = "LaserCooldownUntil" -- на игроке: конец кулдауна
+
+-- Время
+LaserConfig.Duration = 3 -- сколько секунд бьют лазеры
+LaserConfig.Cooldown = 12 -- кулдаун после окончания
+LaserConfig.CanCancelEarly = true -- повторное нажатие = выключить раньше
+
+-- Урон
+LaserConfig.DamagePerSecond = 35
+LaserConfig.DamageInterval = 0.1 -- как часто сервер наносит урон, сек
+LaserConfig.Range = 200 -- дальность, стады
+LaserConfig.FriendlyFire = false -- бить игроков своей команды (если есть Teams)
+
+-- Управление: целишься мышкой (на телефоне — центром экрана)
+LaserConfig.Keys = { Enum.KeyCode.R, Enum.KeyCode.ButtonX }
+LaserConfig.AimSendRate = 20 -- сколько раз в секунду клиент шлёт прицел
+LaserConfig.TurnToAim = true -- персонаж разворачивается туда, куда стреляет
+
+-- Внешний вид
+LaserConfig.Color = Color3.fromRGB(255, 30, 30) -- внешнее свечение луча
+LaserConfig.CoreColor = Color3.fromRGB(255, 220, 220) -- яркая середина луча
+LaserConfig.OuterWidth = 0.35
+LaserConfig.CoreWidth = 0.1
+LaserConfig.ChargeTime = 0.15 -- лучи «разгораются» и гаснут за это время
+LaserConfig.EyeLightRange = 5 -- красное свечение у глаз
+LaserConfig.ImpactLightRange = 10 -- свечение в точке попадания
+LaserConfig.SparkColor = Color3.fromRGB(255, 120, 40)
+
+-- Звук (необязательно): вставь rbxassetid://ID любого звука лазера из Toolbox
+LaserConfig.SoundId = ""
+LaserConfig.SoundVolume = 0.5
+
+-- Интерфейс
+LaserConfig.ButtonText = "Лазеры"
+LaserConfig.ButtonIcon = "🔴"
+LaserConfig.ButtonSlot = 2 -- левее кнопки невидимости
+LaserConfig.ActiveColor = Color3.fromRGB(255, 70, 70)
+
+return LaserConfig
+
+----------------------------------------------------------------------
+-- 4. ReplicatedStorage > ModuleScript "FlightConfig"
+----------------------------------------------------------------------
+
+-- ModuleScript: ReplicatedStorage > FlightConfig
+-- Настройки способности «Полёт».
+
+local FlightConfig = {}
+
+FlightConfig.RemoteName = "FlightRequest"
+
+FlightConfig.ActiveAttribute = "Flying" -- на персонаже: true/false
+FlightConfig.UntilAttribute = "FlyingUntil" -- на персонаже: время окончания
+FlightConfig.CooldownAttribute = "FlightCooldownUntil" -- на игроке: конец кулдауна
+
+-- Время
+FlightConfig.Duration = 15 -- сколько секунд можно летать
+FlightConfig.Cooldown = 10 -- кулдаун после приземления
+FlightConfig.CanCancelEarly = true
+
+-- Управление:
+--   WASD / стик — лететь туда, куда смотрит камера (вверх/вниз тоже)
+--   Пробел — вверх, Ctrl или C — вниз
+FlightConfig.Keys = { Enum.KeyCode.F, Enum.KeyCode.ButtonL1 }
+FlightConfig.UpKeys = { Enum.KeyCode.Space, Enum.KeyCode.ButtonA }
+FlightConfig.DownKeys = { Enum.KeyCode.LeftControl, Enum.KeyCode.C, Enum.KeyCode.ButtonB }
+
+-- Физика
+FlightConfig.Speed = 45 -- обычная скорость
+FlightConfig.MaxSpeed = 95 -- разгон, если долго лететь в одну сторону
+FlightConfig.BoostTime = 2.5 -- за сколько секунд разгоняешься до максимума
+FlightConfig.Acceleration = 4 -- насколько резко меняется скорость (больше = резче)
+FlightConfig.LaunchSpeed = 45 -- рывок вверх при взлёте
+FlightConfig.MaxPitch = 165 -- насколько можно наклониться (90 = горизонтально, 165 = пике вниз)
+FlightConfig.TurnResponsiveness = 18 -- как быстро тело поворачивается
+FlightConfig.BankStrength = 0.35 -- крен в поворотах
+
+-- Эффекты
+FlightConfig.FovBoost = 18 -- насколько расширяется обзор на скорости
+FlightConfig.TrailColor = Color3.fromRGB(200, 230, 255)
+FlightConfig.BoomColor = Color3.fromRGB(220, 240, 255) -- «звуковой удар» на максимальной скорости
+FlightConfig.LandingMinFallSpeed = 30 -- с какой скорости падения будет «супергеройское» приземление
+
+-- Интерфейс
+FlightConfig.ButtonText = "Полёт"
+FlightConfig.ButtonIcon = "🦅"
+FlightConfig.ButtonSlot = 3
+FlightConfig.ActiveColor = Color3.fromRGB(140, 220, 255)
+
+return FlightConfig
+
+----------------------------------------------------------------------
+-- 5. ReplicatedStorage > ModuleScript "CubeConfig"
+----------------------------------------------------------------------
+
+-- ModuleScript: ReplicatedStorage > CubeConfig
+-- Настройки способности «Превращение в куб».
+
+local CubeConfig = {}
+
+CubeConfig.RemoteName = "CubeRequest"
+
+CubeConfig.ActiveAttribute = "CubeForm" -- на персонаже: true/false
+CubeConfig.UntilAttribute = "CubeFormUntil" -- на персонаже: время окончания
+CubeConfig.CooldownAttribute = "CubeCooldownUntil" -- на игроке: конец кулдауна
+CubeConfig.PartName = "AbilityCube" -- деталь-куб внутри персонажа
+
+-- Время
+CubeConfig.Duration = 15
+CubeConfig.Cooldown = 15
+CubeConfig.CanCancelEarly = true
+CubeConfig.PopTime = 0.5 -- «выпрыгивание» куба с пружинкой
+CubeConfig.PopOutTime = 0.35 -- сжатие куба при выходе
+
+CubeConfig.Keys = { Enum.KeyCode.T, Enum.KeyCode.ButtonR1 }
+
+-- Внешний вид
+CubeConfig.Size = 4 -- размер куба для персонажа обычного роста
+CubeConfig.Colors = { -- цвет выбирается случайно при каждом превращении
+	Color3.fromRGB(255, 170, 40),
+	Color3.fromRGB(60, 200, 255),
+	Color3.fromRGB(255, 80, 160),
+	Color3.fromRGB(120, 230, 90),
+	Color3.fromRGB(170, 110, 255),
+	Color3.fromRGB(255, 225, 60),
+}
+CubeConfig.EdgeColor = Color3.fromRGB(255, 255, 255) -- светящиеся рёбра
+CubeConfig.EdgeThickness = 0.08
+
+-- Движение в форме куба
+CubeConfig.WalkSpeed = 22
+CubeConfig.JumpPower = 65 -- куб прыгучий
+CubeConfig.HopHeight = 0.9 -- высота подскоков при ходьбе
+CubeConfig.HopRate = 2.6 -- подскоков в секунду
+
+-- Интерфейс
+CubeConfig.ButtonText = "Куб"
+CubeConfig.ButtonIcon = "🧊"
+CubeConfig.ButtonSlot = 4
+CubeConfig.ActiveColor = Color3.fromRGB(255, 190, 70)
+
+return CubeConfig
+
+----------------------------------------------------------------------
+-- 6. ReplicatedStorage > ModuleScript "AbilityButton"
+----------------------------------------------------------------------
+
+-- ModuleScript: ReplicatedStorage > AbilityButton
+-- Общая кнопка способности: иконка, клавиша, затемнение и секунды кулдауна,
+-- полоска оставшегося действия. Кнопки выстраиваются в ряд справа внизу по Slot.
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local ContextActionService = game:GetService("ContextActionService")
+
+local AbilityButton = {}
+AbilityButton.__index = AbilityButton
+
+local SIZE = 78
+local GAP = 14
+local BAR_HEIGHT = 6
+local WHITE = Color3.new(1, 1, 1)
+local IDLE_STROKE = Color3.fromRGB(150, 165, 190)
+local COOLDOWN_STROKE = Color3.fromRGB(90, 100, 120)
+
+local function getGui(): ScreenGui
+	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+	local gui = playerGui:FindFirstChild("AbilitiesGui")
+	if not gui then
+		gui = Instance.new("ScreenGui")
+		gui.Name = "AbilitiesGui"
+		gui.ResetOnSpawn = false
+		gui.Parent = playerGui
+	end
+	return gui
+end
+
+--[[
+	opts = {
+		Name = "Невидимость",
+		Icon = "👻",
+		KeyName = "Q",
+		Slot = 1,            -- 1 = крайняя справа, 2 = левее и т.д.
+		Duration = 8,        -- для полоски действия
+		Cooldown = 20,       -- для затемнения
+		ActiveColor = Color3,
+		OnActivate = function() end,
+	}
+]]
+function AbilityButton.new(opts)
+	local self = setmetatable({}, AbilityButton)
+	self.duration = opts.Duration
+	self.cooldown = opts.Cooldown
+	self.activeColor = opts.ActiveColor
+
+	local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local slotOffset = (opts.Slot - 1) * (SIZE + GAP)
+
+	-- Контейнер: кнопка сверху, полоска под ней
+	local holder = Instance.new("Frame")
+	holder.Name = opts.Name
+	holder.BackgroundTransparency = 1
+	holder.AnchorPoint = Vector2.new(1, 1)
+	holder.Size = UDim2.fromOffset(SIZE, SIZE + BAR_HEIGHT + 6)
+	holder.Position = isTouch and UDim2.new(1, -20 - slotOffset, 1, -165)
+		or UDim2.new(1, -24 - slotOffset, 1, -24)
+	holder.Parent = getGui()
+
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.fromOffset(SIZE, SIZE)
+	button.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
+	button.BackgroundTransparency = 0.2
+	button.Text = ""
+	button.ClipsDescendants = true
+	button.Parent = holder
+	Instance.new("UICorner", button).CornerRadius = UDim.new(0, 14)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 2
+	stroke.Color = IDLE_STROKE
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = button
+
+	local icon = Instance.new("TextLabel")
+	icon.BackgroundTransparency = 1
+	icon.Size = UDim2.new(1, 0, 1, -18)
+	icon.Text = opts.Icon
+	icon.TextScaled = true
+	icon.Font = Enum.Font.GothamBold
+	icon.TextColor3 = WHITE
+	icon.ZIndex = 2
+	icon.Parent = button
+	local iconPad = Instance.new("UIPadding")
+	iconPad.PaddingTop = UDim.new(0, 8)
+	iconPad.PaddingLeft = UDim.new(0, 14)
+	iconPad.PaddingRight = UDim.new(0, 14)
+	iconPad.Parent = icon
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.AnchorPoint = Vector2.new(0, 1)
+	nameLabel.Position = UDim2.new(0, 0, 1, -4)
+	nameLabel.Size = UDim2.new(1, 0, 0, 14)
+	nameLabel.Text = opts.Name
+	nameLabel.TextColor3 = Color3.fromRGB(210, 220, 235)
+	nameLabel.Font = Enum.Font.GothamMedium
+	nameLabel.TextSize = 11
+	nameLabel.ZIndex = 2
+	nameLabel.Parent = button
+
+	if not isTouch and opts.KeyName then
+		local keyLabel = Instance.new("TextLabel")
+		keyLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+		keyLabel.BackgroundTransparency = 0.4
+		keyLabel.Position = UDim2.fromOffset(5, 5)
+		keyLabel.Size = UDim2.fromOffset(18, 18)
+		keyLabel.Text = opts.KeyName
+		keyLabel.TextColor3 = WHITE
+		keyLabel.Font = Enum.Font.GothamBold
+		keyLabel.TextSize = 12
+		keyLabel.ZIndex = 4
+		keyLabel.Parent = button
+		Instance.new("UICorner", keyLabel).CornerRadius = UDim.new(0, 4)
+	end
+
+	-- Затемнение кулдауна: уменьшается снизу вверх по мере отката
+	local shade = Instance.new("Frame")
+	shade.AnchorPoint = Vector2.new(0, 1)
+	shade.Position = UDim2.fromScale(0, 1)
+	shade.Size = UDim2.fromScale(1, 0)
+	shade.BackgroundColor3 = Color3.new(0, 0, 0)
+	shade.BackgroundTransparency = 0.35
+	shade.BorderSizePixel = 0
+	shade.ZIndex = 3
+	shade.Parent = button
+
+	local cooldownText = Instance.new("TextLabel")
+	cooldownText.BackgroundTransparency = 1
+	cooldownText.Size = UDim2.fromScale(1, 1)
+	cooldownText.Text = ""
+	cooldownText.TextColor3 = WHITE
+	cooldownText.Font = Enum.Font.GothamBlack
+	cooldownText.TextSize = 28
+	cooldownText.TextStrokeTransparency = 0.5
+	cooldownText.ZIndex = 4
+	cooldownText.Parent = button
+
+	-- Полоска оставшегося действия
+	local barBack = Instance.new("Frame")
+	barBack.AnchorPoint = Vector2.new(0, 1)
+	barBack.Position = UDim2.fromScale(0, 1)
+	barBack.Size = UDim2.new(1, 0, 0, BAR_HEIGHT)
+	barBack.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
+	barBack.BackgroundTransparency = 0.2
+	barBack.BorderSizePixel = 0
+	barBack.Visible = false
+	barBack.Parent = holder
+	Instance.new("UICorner", barBack).CornerRadius = UDim.new(1, 0)
+
+	local barFill = Instance.new("Frame")
+	barFill.Size = UDim2.fromScale(1, 1)
+	barFill.BackgroundColor3 = opts.ActiveColor
+	barFill.BorderSizePixel = 0
+	barFill.Parent = barBack
+	Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
+
+	local uiScale = Instance.new("UIScale")
+	uiScale.Parent = holder
+
+	-- Нажатие: кнопка «проседает» и пружинит обратно
+	button.Activated:Connect(function()
+		self:Pulse(0.86)
+		opts.OnActivate()
+	end)
+
+	self.uiScale = uiScale
+	self.wasCooling = false
+	self.stroke = stroke
+	self.icon = icon
+	self.shade = shade
+	self.cooldownText = cooldownText
+	self.barBack = barBack
+	self.barFill = barFill
+	return self
+end
+
+function AbilityButton:Pulse(from: number)
+	self.uiScale.Scale = from
+	TweenService:Create(self.uiScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1,
+	}):Play()
+end
+
+-- Вспышка «способность готова»
+function AbilityButton:ReadyFlash()
+	self:Pulse(1.18)
+	self.stroke.Thickness = 5
+	TweenService:Create(self.stroke, TweenInfo.new(0.5), { Thickness = 2 }):Play()
+end
+
+-- activeLeft: сколько секунд ещё действует способность (nil — не активна)
+-- cooldownLeft: сколько секунд осталось до готовности
+function AbilityButton:Update(activeLeft: number?, cooldownLeft: number)
+	local cooling = activeLeft == nil and cooldownLeft > 0
+	if self.wasCooling and not cooling and activeLeft == nil then
+		self:ReadyFlash()
+	end
+	self.wasCooling = cooling
+	if self.wasActive and not activeLeft then
+		self.stroke.Thickness = 2
+	end
+	self.wasActive = activeLeft ~= nil
+
+	if activeLeft then
+		-- Пока способность действует, обводка «дышит»
+		self.stroke.Thickness = 2.5 + math.sin(os.clock() * 8) * 1.2
+		self.barBack.Visible = true
+		self.barFill.Size = UDim2.fromScale(math.clamp(activeLeft / self.duration, 0, 1), 1)
+		self.stroke.Color = self.activeColor
+		self.shade.Size = UDim2.fromScale(1, 0)
+		self.cooldownText.Text = ""
+		self.icon.TextTransparency = 0.4
+	elseif cooldownLeft > 0 then
+		self.barBack.Visible = false
+		self.shade.Size = UDim2.fromScale(1, math.clamp(cooldownLeft / self.cooldown, 0, 1))
+		self.cooldownText.Text = tostring(math.ceil(cooldownLeft))
+		self.stroke.Color = COOLDOWN_STROKE
+		self.icon.TextTransparency = 0.5
+	else
+		self.barBack.Visible = false
+		self.shade.Size = UDim2.fromScale(1, 0)
+		self.cooldownText.Text = ""
+		self.stroke.Color = IDLE_STROKE
+		self.icon.TextTransparency = 0
+	end
+end
+
+-- Всё сразу: кнопка, клавиши, запрос на сервер и таймеры по атрибутам.
+-- opts — как у new(), плюс Remote, Keys, ActionName,
+-- ActiveAttribute, UntilAttribute, CooldownAttribute.
+function AbilityButton.Create(opts)
+	local player = Players.LocalPlayer
+	local lastRequest = 0
+	local button
+
+	local function request()
+		local t = os.clock()
+		if t - lastRequest < 0.25 then
+			return
+		end
+		lastRequest = t
+		opts.Remote:FireServer()
+	end
+
+	opts.OnActivate = request
+	opts.KeyName = opts.KeyName or opts.Keys[1].Name
+	button = AbilityButton.new(opts)
+
+	ContextActionService:BindAction(opts.ActionName, function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			button:Pulse(0.86)
+			request()
+			return Enum.ContextActionResult.Sink
+		end
+		return Enum.ContextActionResult.Pass
+	end, false, table.unpack(opts.Keys))
+
+	RunService.Heartbeat:Connect(function()
+		local now = workspace:GetServerTimeNow()
+		local character = player.Character
+		local active = character ~= nil and character:GetAttribute(opts.ActiveAttribute) == true
+		local activeLeft = active and math.max(0, (character:GetAttribute(opts.UntilAttribute) or 0) - now) or nil
+		local cooldownLeft = math.max(0, (player:GetAttribute(opts.CooldownAttribute) or 0) - now)
+		button:Update(activeLeft, cooldownLeft)
+	end)
+
+	return button
+end
+
+return AbilityButton
+
+----------------------------------------------------------------------
+-- 7. ReplicatedStorage > ModuleScript "RigAnimator"
+----------------------------------------------------------------------
+
+-- ModuleScript: ReplicatedStorage > RigAnimator
+-- Общий движок процедурных анимаций для способностей.
+-- Каждая способность добавляет персонажу «слой» анимации; движок раз в кадр
+-- смешивает слои поверх обычных анимаций Roblox и выставляет суставы.
+-- Работает с Motor6D и AnimationConstraint, для R15 и R6.
+--
+-- Слой:
+--   {
+--     Priority = 10,          -- кто выше, тот поверх
+--     Additive = false,       -- true: добавляется к позе, false: заменяет её с весом
+--     Update = function(rig, dt, now) return frames, weight, done end,
+--   }
+--   frames: { ИмяСустава = CFrame (поворот в пространстве родительской части),
+--             Root = CFrame (смещение всего тела в пространстве HumanoidRootPart) }
+--   done = true — слой закончился и будет удалён.
+
+local RunService = game:GetService("RunService")
+
+local RigAnimator = {}
+
+local POSE_ATTRIBUTE = "Pose" -- пока персонаж сидит/лежит, анимации поз главнее
+local IDENTITY = CFrame.identity
+
+local JOINTS = {
+	R15 = {
+		Root = { "LowerTorso", "Root" },
+		Waist = { "UpperTorso", "Waist" },
+		Neck = { "Head", "Neck" },
+		LeftShoulder = { "LeftUpperArm", "LeftShoulder" },
+		RightShoulder = { "RightUpperArm", "RightShoulder" },
+		LeftElbow = { "LeftLowerArm", "LeftElbow" },
+		RightElbow = { "RightLowerArm", "RightElbow" },
+		LeftHip = { "LeftUpperLeg", "LeftHip" },
+		RightHip = { "RightUpperLeg", "RightHip" },
+		LeftKnee = { "LeftLowerLeg", "LeftKnee" },
+		RightKnee = { "RightLowerLeg", "RightKnee" },
+		LeftAnkle = { "LeftFoot", "LeftAnkle" },
+		RightAnkle = { "RightFoot", "RightAnkle" },
+	},
+	R6 = {
+		Root = { "HumanoidRootPart", "RootJoint" },
+		Neck = { "Torso", "Neck" },
+		LeftShoulder = { "Torso", "Left Shoulder" },
+		RightShoulder = { "Torso", "Right Shoulder" },
+		LeftHip = { "Torso", "Left Hip" },
+		RightHip = { "Torso", "Right Hip" },
+	},
+}
+
+local function isJoint(obj: Instance): boolean
+	return obj:IsA("Motor6D") or obj:IsA("AnimationConstraint")
+end
+
+local function buildRig(character: Model)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not hrp then
+		return nil
+	end
+	local rigType = humanoid.RigType == Enum.HumanoidRigType.R15 and "R15" or "R6"
+	local motors = {}
+	for name, path in pairs(JOINTS[rigType]) do
+		local part = character:FindFirstChild(path[1])
+		local motor = part and part:FindFirstChild(path[2])
+		if motor and isJoint(motor) then
+			motors[name] = motor
+		end
+	end
+	if not motors.Root then
+		return nil
+	end
+	local legLength
+	if rigType == "R15" then
+		legLength = humanoid.HipHeight
+	else
+		local leg = character:FindFirstChild("Left Leg")
+		legLength = leg and leg.Size.Y or 2
+	end
+	if legLength <= 0 then
+		legLength = 2
+	end
+	return {
+		character = character,
+		rigType = rigType,
+		motors = motors,
+		hrpHalf = hrp.Size.Y / 2,
+		legLength = legLength,
+		scale = legLength / 2,
+	}
+end
+
+local function toJointSpace(name: string, motor: any, frame: CFrame): CFrame
+	if name == "Root" then
+		local c0 = motor.C0
+		return c0:Inverse() * frame * c0
+	end
+	local q = motor.C0.Rotation
+	return q:Inverse() * frame * q
+end
+
+---------------------------------------------------------------------
+-- Помощники для описания поз
+---------------------------------------------------------------------
+
+function RigAnimator.Angles(v: Vector3): CFrame
+	return CFrame.Angles(math.rad(v.X), math.rad(v.Y), math.rad(v.Z))
+end
+
+-- Таблица {Сустав = Vector3 градусов} -> {Сустав = CFrame}; R6-переопределения по ключу R6
+function RigAnimator.Frames(rig, pose: { [string]: any }): { [string]: CFrame }
+	local frames = {}
+	local overrides = (rig.rigType == "R6" and pose.R6) or {}
+	for name, value in pairs(pose) do
+		if typeof(value) == "Vector3" and rig.motors[name] then
+			frames[name] = RigAnimator.Angles(overrides[name] or value)
+		end
+	end
+	for name, value in pairs(overrides) do
+		if typeof(value) == "Vector3" and rig.motors[name] and not frames[name] then
+			frames[name] = RigAnimator.Angles(value)
+		end
+	end
+	return frames
+end
+
+-- Смешать две позы (таблицы Vector3) с коэффициентом t
+function RigAnimator.Blend(a, b, t: number)
+	local out = {}
+	for name, va in pairs(a) do
+		local vb = b[name]
+		if typeof(va) == "Vector3" then
+			out[name] = typeof(vb) == "Vector3" and va:Lerp(vb, t) or va:Lerp(Vector3.zero, t)
+		end
+	end
+	for name, vb in pairs(b) do
+		if typeof(vb) == "Vector3" and out[name] == nil then
+			out[name] = Vector3.zero:Lerp(vb, t)
+		end
+	end
+	return out
+end
+
+-- Смещение всего тела: высота таза (доля длины ноги, 1 = стоит) и поворот вокруг таза
+function RigAnimator.RootFrame(rig, hipHeight: number, rootAngles: Vector3?, shift: Vector3?): CFrame
+	local drop = Vector3.new(0, (hipHeight - 1) * rig.legLength, 0)
+	local pivot = Vector3.new(0, -rig.hrpHalf, 0)
+	local offset = (shift or Vector3.zero) * rig.scale + drop
+	return CFrame.new(offset) * CFrame.new(pivot) * RigAnimator.Angles(rootAngles or Vector3.zero) * CFrame.new(-pivot)
+end
+
+-- Огибающая веса: плавно появиться за fadeIn, держаться, плавно уйти за fadeOut
+function RigAnimator.Envelope(elapsed: number, total: number, fadeIn: number, fadeOut: number): number
+	if elapsed <= 0 or elapsed >= total then
+		return 0
+	end
+	local w = 1
+	if elapsed < fadeIn then
+		w = elapsed / fadeIn
+	elseif elapsed > total - fadeOut then
+		w = (total - elapsed) / fadeOut
+	end
+	return w * w * (3 - 2 * w)
+end
+
+function RigAnimator.Smooth(t: number): number
+	t = math.clamp(t, 0, 1)
+	return t * t * (3 - 2 * t)
+end
+
+---------------------------------------------------------------------
+-- Слои
+---------------------------------------------------------------------
+
+local entries = {} -- [character] = { rig, layers }
+
+function RigAnimator.SetLayer(character: Model, name: string, layer)
+	local entry = entries[character]
+	if not entry then
+		entry = { rig = nil, layers = {} }
+		entries[character] = entry
+	end
+	entry.layers[name] = layer
+end
+
+function RigAnimator.RemoveLayer(character: Model, name: string)
+	local entry = entries[character]
+	if entry then
+		entry.layers[name] = nil
+	end
+end
+
+function RigAnimator.HasLayer(character: Model, name: string): boolean
+	local entry = entries[character]
+	return entry ~= nil and entry.layers[name] ~= nil
+end
+
+local function ensureRig(character: Model, entry)
+	local rig = entry.rig
+	if rig then
+		for _, motor in pairs(rig.motors) do
+			if not motor:IsDescendantOf(character) then
+				rig = nil
+				break
+			end
+		end
+	end
+	if not rig then
+		rig = buildRig(character)
+		entry.rig = rig
+	end
+	return rig
+end
+
+local function byPriority(a, b)
+	return a.layer.Priority < b.layer.Priority
+end
+
+-- PreSimulation идёт после стандартных анимаций: наши значения перекрывают их
+RunService.PreSimulation:Connect(function(dt)
+	local now = os.clock()
+	for character, entry in pairs(entries) do
+		if not character.Parent or next(entry.layers) == nil then
+			entries[character] = nil
+			continue
+		end
+		local pose = character:GetAttribute(POSE_ATTRIBUTE)
+		if pose ~= nil and pose ~= "Stand" then
+			continue
+		end
+		local rig = ensureRig(character, entry)
+		if not rig then
+			continue
+		end
+
+		local list = {}
+		for name, layer in pairs(entry.layers) do
+			table.insert(list, { name = name, layer = layer })
+		end
+		table.sort(list, byPriority)
+
+		local finals = {}
+		for name, motor in pairs(rig.motors) do
+			finals[name] = motor.Transform
+		end
+
+		local wrote = false
+		for _, item in list do
+			local ok, frames, weight, done = pcall(item.layer.Update, rig, dt, now)
+			if not ok then
+				warn("[RigAnimator] ошибка в слое", item.name, frames)
+				entry.layers[item.name] = nil
+			elseif done then
+				entry.layers[item.name] = nil
+			elseif frames and weight and weight > 0.001 then
+				wrote = true
+				for jointName, frame in pairs(frames) do
+					local motor = rig.motors[jointName]
+					if motor then
+						local target = toJointSpace(jointName, motor, frame)
+						if item.layer.Additive then
+							finals[jointName] = finals[jointName] * IDENTITY:Lerp(target, weight)
+						else
+							finals[jointName] = finals[jointName]:Lerp(target, weight)
+						end
+					end
+				end
+			end
+		end
+
+		if wrote then
+			for name, motor in pairs(rig.motors) do
+				motor.Transform = finals[name]
+			end
+		end
+	end
+end)
+
+return RigAnimator
+
+----------------------------------------------------------------------
+-- 8. ReplicatedStorage > ModuleScript "AbilityFx"
+----------------------------------------------------------------------
+
+-- ModuleScript: ReplicatedStorage > AbilityFx
+-- Общие эффекты для способностей (только на клиенте):
+-- вспышки частиц, тряска камеры, плавные функции.
+
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
+
+local AbilityFx = {}
+
+---------------------------------------------------------------------
+-- Вспышка частиц в точке
+---------------------------------------------------------------------
+--[[
+	opts = {
+		Color = Color3 или ColorSequence,
+		Count = 30,
+		Speed = NumberRange.new(6, 14),
+		Size = 0.5,               -- начальный размер, к концу уменьшается до 0
+		Lifetime = NumberRange.new(0.3, 0.7),
+		LightEmission = 1,
+		Drag = 3,
+		Acceleration = Vector3.zero,
+		Spread = Vector2.new(180, 180),
+		Direction = Enum.NormalId.Top,
+	}
+]]
+function AbilityFx.Burst(position: Vector3, opts)
+	opts = opts or {}
+	local part = Instance.new("Part")
+	part.Name = "AbilityBurst"
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.Transparency = 1
+	part.Size = Vector3.new(0.2, 0.2, 0.2)
+	part.CFrame = CFrame.new(position)
+	part.Parent = workspace
+
+	local attachment = Instance.new("Attachment")
+	attachment.Parent = part
+
+	local lifetime = opts.Lifetime or NumberRange.new(0.3, 0.7)
+	local color = opts.Color or Color3.new(1, 1, 1)
+	local size = opts.Size or 0.5
+
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Color = typeof(color) == "ColorSequence" and color or ColorSequence.new(color)
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, size),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	emitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.7, 0.2),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	emitter.Lifetime = lifetime
+	emitter.Speed = opts.Speed or NumberRange.new(6, 14)
+	emitter.SpreadAngle = opts.Spread or Vector2.new(180, 180)
+	emitter.EmissionDirection = opts.Direction or Enum.NormalId.Top
+	emitter.LightEmission = opts.LightEmission or 1
+	emitter.Drag = opts.Drag or 3
+	emitter.Acceleration = opts.Acceleration or Vector3.zero
+	emitter.RotSpeed = NumberRange.new(-180, 180)
+	emitter.Rotation = NumberRange.new(0, 360)
+	emitter.Rate = 0
+	emitter.Parent = attachment
+	emitter:Emit(opts.Count or 30)
+
+	if opts.Light then
+		local light = Instance.new("PointLight")
+		light.Color = typeof(color) == "Color3" and color or Color3.new(1, 1, 1)
+		light.Range = opts.Light
+		light.Brightness = 3
+		light.Parent = attachment
+		task.spawn(function()
+			local start = os.clock()
+			while light.Parent and os.clock() - start < 0.35 do
+				light.Brightness = 3 * (1 - (os.clock() - start) / 0.35)
+				RunService.Heartbeat:Wait()
+			end
+			light:Destroy()
+		end)
+	end
+
+	Debris:AddItem(part, lifetime.Max + 0.3)
+	return part
+end
+
+-- Пыль у ног персонажа
+function AbilityFx.Dust(character: Model, count: number?, color: Color3?)
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not hrp or not humanoid then
+		return
+	end
+	local legLength = humanoid.RigType == Enum.HumanoidRigType.R15 and humanoid.HipHeight or 2
+	local feet = hrp.Position - Vector3.new(0, hrp.Size.Y / 2 + legLength - 0.2, 0)
+	AbilityFx.Burst(feet, {
+		Color = color or Color3.fromRGB(200, 190, 175),
+		Count = count or 24,
+		Speed = NumberRange.new(10, 18),
+		Size = 1.2,
+		Lifetime = NumberRange.new(0.4, 0.8),
+		LightEmission = 0,
+		Drag = 5,
+		Spread = Vector2.new(85, 85),
+		Acceleration = Vector3.new(0, 4, 0),
+	})
+end
+
+---------------------------------------------------------------------
+-- Тряска камеры
+---------------------------------------------------------------------
+
+local shakes = {}
+
+function AbilityFx.Shake(intensity: number, duration: number)
+	table.insert(shakes, { intensity = intensity, duration = duration, start = os.clock() })
+end
+
+RunService:BindToRenderStep("AbilityCameraShake", Enum.RenderPriority.Camera.Value + 1, function()
+	if #shakes == 0 then
+		return
+	end
+	local now = os.clock()
+	local amount = 0
+	for i = #shakes, 1, -1 do
+		local s = shakes[i]
+		local k = 1 - (now - s.start) / s.duration
+		if k <= 0 then
+			table.remove(shakes, i)
+		else
+			amount += s.intensity * k
+		end
+	end
+	if amount > 0 then
+		local camera = workspace.CurrentCamera
+		local x = math.noise(now * 25, 1.3) * amount
+		local y = math.noise(now * 25, 7.1) * amount
+		local z = math.noise(now * 25, 3.7) * amount * 0.5
+		camera.CFrame = camera.CFrame * CFrame.Angles(x, y, z)
+	end
+end)
+
+---------------------------------------------------------------------
+-- Плавные функции
+---------------------------------------------------------------------
+
+function AbilityFx.ElasticOut(t: number): number
+	if t <= 0 then
+		return 0
+	elseif t >= 1 then
+		return 1
+	end
+	return 2 ^ (-10 * t) * math.sin((t * 10 - 0.75) * (2 * math.pi / 3)) + 1
+end
+
+function AbilityFx.BackIn(t: number): number
+	t = math.clamp(t, 0, 1)
+	local c1 = 1.70158
+	return (c1 + 1) * t * t * t - c1 * t * t
+end
+
+function AbilityFx.Approach(current: number, target: number, step: number): number
+	if current < target then
+		return math.min(target, current + step)
+	end
+	return math.max(target, current - step)
+end
+
+return AbilityFx
+
+----------------------------------------------------------------------
+-- 9. ServerScriptService > ModuleScript "AbilityRegistry"
+----------------------------------------------------------------------
+
+-- ModuleScript: ServerScriptService > AbilityRegistry
+-- Связывает серверные скрипты способностей между собой:
+--   * одна способность может мгновенно выключить другую (куб выключает полёт и невидимость);
+--   * способности могут поднять персонажа из позы (сидя/лёжа).
+
+local AbilityRegistry = {}
+
+local stoppers = {} -- [имя] = function(player, character)
+local poseStandHandler = nil
+
+-- Атрибуты, при которых нельзя садиться/ложиться
+AbilityRegistry.BlockPoseAttributes = { "Flying", "CubeForm" }
+
+function AbilityRegistry.RegisterStopper(name: string, stop: (Player, Model) -> ())
+	stoppers[name] = stop
+end
+
+function AbilityRegistry.Stop(name: string, player: Player, character: Model)
+	local stop = stoppers[name]
+	if stop then
+		stop(player, character)
+	end
+end
+
+function AbilityRegistry.SetPoseStandHandler(handler: (Model) -> ())
+	poseStandHandler = handler
+end
+
+function AbilityRegistry.ForcePoseStand(character: Model)
+	if poseStandHandler then
+		poseStandHandler(character)
+	end
+end
+
+function AbilityRegistry.BlocksPose(character: Model): boolean
+	for _, attribute in AbilityRegistry.BlockPoseAttributes do
+		if character:GetAttribute(attribute) == true then
+			return true
+		end
+	end
+	return false
+end
+
+return AbilityRegistry
+
+----------------------------------------------------------------------
+-- 10. ServerScriptService > Script "PoseServer"
+----------------------------------------------------------------------
+
+-- Script: ServerScriptService > PoseServer
+-- Сервер: принимает запросы «вниз/вверх/встать», проверяет их,
+-- выставляет атрибут позы персонажу (его видят все игроки) и блокирует ходьбу.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local PoseConfig = require(ReplicatedStorage:WaitForChild("PoseConfig"))
+local AbilityRegistry = require(script.Parent:WaitForChild("AbilityRegistry"))
+local ATTR = PoseConfig.AttributeName
+
+local remote = ReplicatedStorage:FindFirstChild(PoseConfig.RemoteName)
+if not remote then
+	remote = Instance.new("RemoteEvent")
+	remote.Name = PoseConfig.RemoteName
+	remote.Parent = ReplicatedStorage
+end
+
+local lastRequest: { [Player]: number } = {}
+
+local SAVED = {
+	WalkSpeed = "PoseSavedWalkSpeed",
+	JumpPower = "PoseSavedJumpPower",
+	JumpHeight = "PoseSavedJumpHeight",
+	AutoRotate = "PoseSavedAutoRotate",
+}
+
+local function applyMovement(humanoid: Humanoid, state: string)
+	local pose = PoseConfig.Poses[state]
+	if pose then
+		-- Запоминаем исходные значения только при выходе из положения «стоя»
+		if humanoid:GetAttribute(SAVED.WalkSpeed) == nil then
+			humanoid:SetAttribute(SAVED.WalkSpeed, humanoid.WalkSpeed)
+			humanoid:SetAttribute(SAVED.JumpPower, humanoid.JumpPower)
+			humanoid:SetAttribute(SAVED.JumpHeight, humanoid.JumpHeight)
+			humanoid:SetAttribute(SAVED.AutoRotate, humanoid.AutoRotate)
+		end
+		humanoid.WalkSpeed = pose.WalkSpeed or 0
+		humanoid.JumpPower = 0
+		humanoid.JumpHeight = 0
+		humanoid.AutoRotate = (pose.WalkSpeed or 0) > 0
+	else
+		local walkSpeed = humanoid:GetAttribute(SAVED.WalkSpeed)
+		if walkSpeed ~= nil then
+			humanoid.WalkSpeed = walkSpeed
+			humanoid.JumpPower = humanoid:GetAttribute(SAVED.JumpPower)
+			humanoid.JumpHeight = humanoid:GetAttribute(SAVED.JumpHeight)
+			humanoid.AutoRotate = humanoid:GetAttribute(SAVED.AutoRotate)
+			for _, name in pairs(SAVED) do
+				humanoid:SetAttribute(name, nil)
+			end
+		end
+	end
+end
+
+local function setPose(character: Model, state: string)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return
+	end
+	character:SetAttribute(ATTR, state)
+	applyMovement(humanoid, state)
+end
+
+-- Полёт и куб поднимают персонажа из позы
+AbilityRegistry.SetPoseStandHandler(function(character: Model)
+	if character:GetAttribute(ATTR) ~= "Stand" then
+		setPose(character, "Stand")
+	end
+end)
+
+remote.OnServerEvent:Connect(function(player: Player, direction: any)
+	if direction ~= "Down" and direction ~= "Up" and direction ~= "Stand" then
+		return
+	end
+
+	local now = os.clock()
+	-- «Встать» пропускаем без кулдауна, чтобы игрок не застревал в позе
+	if direction ~= "Stand" then
+		if lastRequest[player] and now - lastRequest[player] < PoseConfig.ServerCooldown then
+			return
+		end
+		lastRequest[player] = now
+	end
+
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	local current = character:GetAttribute(ATTR)
+	if not PoseConfig.IsValidState(current) then
+		current = "Stand"
+	end
+
+	local nextState = PoseConfig.GetNextState(current, direction)
+	if nextState == current or not PoseConfig.IsValidState(nextState) then
+		return
+	end
+
+	-- Нельзя садиться, если персонаж уже сидит на сиденье (Seat), летит или стал кубом
+	if current == "Stand" and (humanoid.Sit or AbilityRegistry.BlocksPose(character)) then
+		return
+	end
+
+	setPose(character, nextState)
+end)
+
+local function onCharacterAdded(character: Model)
+	character:SetAttribute(ATTR, "Stand")
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if not humanoid then
+		return
+	end
+	-- Сел на настоящее сиденье — выходим из позы
+	humanoid.Seated:Connect(function(active)
+		if active and character:GetAttribute(ATTR) ~= "Stand" then
+			setPose(character, "Stand")
+		end
+	end)
+end
+
+local function onPlayerAdded(player: Player)
+	player.CharacterAdded:Connect(onCharacterAdded)
+	if player.Character then
+		task.spawn(onCharacterAdded, player.Character)
+	end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in Players:GetPlayers() do
+	onPlayerAdded(player)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	lastRequest[player] = nil
+end)
+
+----------------------------------------------------------------------
+-- 11. ServerScriptService > Script "InvisibilityServer"
+----------------------------------------------------------------------
+
+-- Script: ServerScriptService > InvisibilityServer
+-- Сервер ведёт таймеры невидимости и кулдауна. Сами эффекты рисует
+-- каждый клиент по атрибутам: себе — «стекло», другим — полная невидимость.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("InvisibilityConfig"))
+local AbilityRegistry = require(script.Parent:WaitForChild("AbilityRegistry"))
+
+local remote = ReplicatedStorage:FindFirstChild(Config.RemoteName)
+if not remote then
+	remote = Instance.new("RemoteEvent")
+	remote.Name = Config.RemoteName
+	remote.Parent = ReplicatedStorage
+end
+
+local lastRequest: { [Player]: number } = {}
+local tokens: { [Player]: number } = {} -- чтобы старый таймер не выключил новую невидимость
+
+local function now(): number
+	return workspace:GetServerTimeNow()
+end
+
+local function endInvisibility(player: Player, character: Model)
+	if character:GetAttribute(Config.ActiveAttribute) ~= true then
+		return
+	end
+	character:SetAttribute(Config.ActiveAttribute, false)
+	character:SetAttribute(Config.UntilAttribute, 0)
+	player:SetAttribute(Config.CooldownAttribute, now() + Config.Cooldown)
+end
+
+local function startInvisibility(player: Player, character: Model)
+	AbilityRegistry.Stop("Cube", player, character) -- куб и невидимость вместе не работают
+	local token = (tokens[player] or 0) + 1
+	tokens[player] = token
+	character:SetAttribute(Config.ActiveAttribute, true)
+	character:SetAttribute(Config.UntilAttribute, now() + Config.Duration)
+
+	task.delay(Config.Duration, function()
+		if tokens[player] == token and character.Parent then
+			endInvisibility(player, character)
+		end
+	end)
+end
+
+AbilityRegistry.RegisterStopper("Invisibility", endInvisibility)
+
+remote.OnServerEvent:Connect(function(player: Player)
+	local t = os.clock()
+	if lastRequest[player] and t - lastRequest[player] < 0.25 then
+		return
+	end
+	lastRequest[player] = t
+
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	if character:GetAttribute(Config.ActiveAttribute) == true then
+		if Config.CanCancelEarly then
+			endInvisibility(player, character)
+		end
+		return
+	end
+
+	if now() < (player:GetAttribute(Config.CooldownAttribute) or 0) then
+		return
+	end
+
+	startInvisibility(player, character)
+end)
+
+local function onCharacterAdded(player: Player, character: Model)
+	character:SetAttribute(Config.ActiveAttribute, false)
+	character:SetAttribute(Config.UntilAttribute, 0)
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if humanoid then
+		humanoid.Died:Connect(function()
+			endInvisibility(player, character)
+		end)
+	end
+end
+
+local function onPlayerAdded(player: Player)
+	player:SetAttribute(Config.CooldownAttribute, 0)
+	player.CharacterAdded:Connect(function(character)
+		onCharacterAdded(player, character)
+	end)
+	if player.Character then
+		task.spawn(onCharacterAdded, player, player.Character)
+	end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in Players:GetPlayers() do
+	onPlayerAdded(player)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	lastRequest[player] = nil
+	tokens[player] = nil
+end)
+
+----------------------------------------------------------------------
+-- 12. ServerScriptService > Script "LaserServer"
+----------------------------------------------------------------------
+
+-- Script: ServerScriptService > LaserServer
+-- Сервер ведёт таймеры лазеров, принимает прицел от игрока и наносит урон.
+-- Лучи и искры рисует каждый клиент по атрибутам персонажа.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("LaserConfig"))
+
+local function getRemote(name: string, className: string)
+	local remote = ReplicatedStorage:FindFirstChild(name)
+	if not remote then
+		remote = Instance.new(className)
+		remote.Name = name
+		remote.Parent = ReplicatedStorage
+	end
+	return remote
+end
+
+local remote = getRemote(Config.RemoteName, "RemoteEvent")
+local aimRemote = getRemote(Config.AimRemoteName, "UnreliableRemoteEvent")
+
+local lastRequest: { [Player]: number } = {}
+local tokens: { [Player]: number } = {}
+local firing: { [Player]: Model } = {} -- кто сейчас стреляет
+
+local function now(): number
+	return workspace:GetServerTimeNow()
+end
+
+local function stopLaser(player: Player, character: Model)
+	firing[player] = nil
+	if character:GetAttribute(Config.ActiveAttribute) ~= true then
+		return
+	end
+	character:SetAttribute(Config.ActiveAttribute, false)
+	character:SetAttribute(Config.UntilAttribute, 0)
+	player:SetAttribute(Config.CooldownAttribute, now() + Config.Cooldown)
+end
+
+local function startLaser(player: Player, character: Model)
+	local head = character:FindFirstChild("Head")
+	if not head then
+		return
+	end
+	local token = (tokens[player] or 0) + 1
+	tokens[player] = token
+
+	character:SetAttribute(Config.AimAttribute, head.Position + head.CFrame.LookVector * Config.Range)
+	character:SetAttribute(Config.UntilAttribute, now() + Config.Duration)
+	character:SetAttribute(Config.ActiveAttribute, true)
+	firing[player] = character
+
+	task.delay(Config.Duration, function()
+		if tokens[player] == token and character.Parent then
+			stopLaser(player, character)
+		end
+	end)
+end
+
+remote.OnServerEvent:Connect(function(player: Player)
+	local t = os.clock()
+	if lastRequest[player] and t - lastRequest[player] < 0.25 then
+		return
+	end
+	lastRequest[player] = t
+
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	if character:GetAttribute(Config.ActiveAttribute) == true then
+		if Config.CanCancelEarly then
+			stopLaser(player, character)
+		end
+		return
+	end
+
+	if now() < (player:GetAttribute(Config.CooldownAttribute) or 0) then
+		return
+	end
+
+	startLaser(player, character)
+end)
+
+aimRemote.OnServerEvent:Connect(function(player: Player, point: any)
+	local character = firing[player]
+	if not character or typeof(point) ~= "Vector3" or point ~= point then
+		return -- не стреляет, мусор или NaN
+	end
+	local head = character:FindFirstChild("Head")
+	if not head then
+		return
+	end
+	-- Ограничиваем дальность, чтобы нельзя было «бить» через всю карту
+	local offset = point - head.Position
+	if offset.Magnitude > Config.Range then
+		point = head.Position + offset.Unit * Config.Range
+	end
+	character:SetAttribute(Config.AimAttribute, point)
+end)
+
+local function isFriendly(attacker: Player, victimModel: Model): boolean
+	if Config.FriendlyFire then
+		return false
+	end
+	local victim = Players:GetPlayerFromCharacter(victimModel)
+	return victim ~= nil
+		and not attacker.Neutral
+		and not victim.Neutral
+		and attacker.Team ~= nil
+		and attacker.Team == victim.Team
+end
+
+local accumulator = 0
+RunService.Heartbeat:Connect(function(dt)
+	accumulator += dt
+	if accumulator < Config.DamageInterval then
+		return
+	end
+	local interval = accumulator
+	accumulator = 0
+
+	for player, character in pairs(firing) do
+		local head = character:FindFirstChild("Head")
+		local aim = character:GetAttribute(Config.AimAttribute)
+		if head and typeof(aim) == "Vector3" then
+			local direction = aim - head.Position
+			if direction.Magnitude > 0.01 then
+				local params = RaycastParams.new()
+				params.FilterType = Enum.RaycastFilterType.Exclude
+				params.FilterDescendantsInstances = { character }
+				local result = workspace:Raycast(head.Position, direction.Unit * Config.Range, params)
+				if result then
+					local model = result.Instance:FindFirstAncestorWhichIsA("Model")
+					local humanoid = model and model:FindFirstChildOfClass("Humanoid")
+					if humanoid and humanoid.Health > 0 and not isFriendly(player, model) then
+						humanoid:TakeDamage(Config.DamagePerSecond * interval)
+					end
+				end
+			end
+		end
+	end
+end)
+
+local function onCharacterAdded(player: Player, character: Model)
+	character:SetAttribute(Config.ActiveAttribute, false)
+	character:SetAttribute(Config.UntilAttribute, 0)
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if humanoid then
+		humanoid.Died:Connect(function()
+			stopLaser(player, character)
+		end)
+	end
+end
+
+local function onPlayerAdded(player: Player)
+	player:SetAttribute(Config.CooldownAttribute, 0)
+	player.CharacterAdded:Connect(function(character)
+		firing[player] = nil
+		onCharacterAdded(player, character)
+	end)
+	if player.Character then
+		task.spawn(onCharacterAdded, player, player.Character)
+	end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in Players:GetPlayers() do
+	onPlayerAdded(player)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	lastRequest[player] = nil
+	tokens[player] = nil
+	firing[player] = nil
+end)
+
+----------------------------------------------------------------------
+-- 13. ServerScriptService > Script "FlightServer"
+----------------------------------------------------------------------
+
+-- Script: ServerScriptService > FlightServer
+-- Сервер ведёт таймеры полёта. Саму физику полёта считает клиент игрока
+-- (персонаж принадлежит ему), анимации рисует каждый клиент.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("FlightConfig"))
+local AbilityRegistry = require(script.Parent:WaitForChild("AbilityRegistry"))
+
+local remote = ReplicatedStorage:FindFirstChild(Config.RemoteName)
+if not remote then
+	remote = Instance.new("RemoteEvent")
+	remote.Name = Config.RemoteName
+	remote.Parent = ReplicatedStorage
+end
+
+local lastRequest: { [Player]: number } = {}
+local tokens: { [Player]: number } = {}
+
+local function now(): number
+	return workspace:GetServerTimeNow()
+end
+
+local function stopFlight(player: Player, character: Model)
+	if character:GetAttribute(Config.ActiveAttribute) ~= true then
+		return
+	end
+	character:SetAttribute(Config.ActiveAttribute, false)
+	character:SetAttribute(Config.UntilAttribute, 0)
+	player:SetAttribute(Config.CooldownAttribute, now() + Config.Cooldown)
+end
+
+local function startFlight(player: Player, character: Model)
+	AbilityRegistry.Stop("Cube", player, character)
+	AbilityRegistry.ForcePoseStand(character)
+
+	local token = (tokens[player] or 0) + 1
+	tokens[player] = token
+	character:SetAttribute(Config.UntilAttribute, now() + Config.Duration)
+	character:SetAttribute(Config.ActiveAttribute, true)
+
+	task.delay(Config.Duration, function()
+		if tokens[player] == token and character.Parent then
+			stopFlight(player, character)
+		end
+	end)
+end
+
+AbilityRegistry.RegisterStopper("Flight", stopFlight)
+
+remote.OnServerEvent:Connect(function(player: Player)
+	local t = os.clock()
+	if lastRequest[player] and t - lastRequest[player] < 0.25 then
+		return
+	end
+	lastRequest[player] = t
+
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	if character:GetAttribute(Config.ActiveAttribute) == true then
+		if Config.CanCancelEarly then
+			stopFlight(player, character)
+		end
+		return
+	end
+
+	if humanoid.Sit or now() < (player:GetAttribute(Config.CooldownAttribute) or 0) then
+		return
+	end
+
+	startFlight(player, character)
+end)
+
+local function onCharacterAdded(player: Player, character: Model)
+	character:SetAttribute(Config.ActiveAttribute, false)
+	character:SetAttribute(Config.UntilAttribute, 0)
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if humanoid then
+		humanoid.Died:Connect(function()
+			stopFlight(player, character)
+		end)
+	end
+end
+
+local function onPlayerAdded(player: Player)
+	player:SetAttribute(Config.CooldownAttribute, 0)
+	player.CharacterAdded:Connect(function(character)
+		onCharacterAdded(player, character)
+	end)
+	if player.Character then
+		task.spawn(onCharacterAdded, player, player.Character)
+	end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in Players:GetPlayers() do
+	onPlayerAdded(player)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	lastRequest[player] = nil
+	tokens[player] = nil
+end)
+
+----------------------------------------------------------------------
+-- 14. ServerScriptService > Script "CubeServer"
+----------------------------------------------------------------------
+
+-- Script: ServerScriptService > CubeServer
+-- Превращение в куб. Сервер создаёт сам куб (его видят все), с лицом и
+-- светящимися рёбрами, и меняет скорость/прыжок. Тело прячут клиенты,
+-- а подскоки, сплющивание и сальто куба тоже рисуются на клиентах.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("CubeConfig"))
+local AbilityRegistry = require(script.Parent:WaitForChild("AbilityRegistry"))
+
+local remote = ReplicatedStorage:FindFirstChild(Config.RemoteName)
+if not remote then
+	remote = Instance.new("RemoteEvent")
+	remote.Name = Config.RemoteName
+	remote.Parent = ReplicatedStorage
+end
+
+local lastRequest: { [Player]: number } = {}
+local tokens: { [Player]: number } = {}
+
+local SAVED_SPEED = "CubeSavedWalkSpeed"
+local SAVED_JUMP = "CubeSavedJumpPower"
+local SAVED_HEIGHT = "CubeSavedJumpHeight"
+
+local function now(): number
+	return workspace:GetServerTimeNow()
+end
+
+local function makeFace(cube: BasePart)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "Face"
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
+	gui.CanvasSize = Vector2.new(200, 200)
+	gui.Parent = cube
+
+	for i, x in { 0.32, 0.68 } do
+		local eye = Instance.new("Frame")
+		eye.Name = "Eye" .. i
+		eye.AnchorPoint = Vector2.new(0.5, 0.5)
+		eye.Position = UDim2.fromScale(x, 0.4)
+		eye.Size = UDim2.fromScale(0.13, 0.2)
+		eye.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+		eye.BorderSizePixel = 0
+		eye.Parent = gui
+		Instance.new("UICorner", eye).CornerRadius = UDim.new(0.5, 0)
+
+		local shine = Instance.new("Frame")
+		shine.Position = UDim2.fromScale(0.2, 0.15)
+		shine.Size = UDim2.fromScale(0.35, 0.3)
+		shine.BackgroundColor3 = Color3.new(1, 1, 1)
+		shine.BorderSizePixel = 0
+		shine.Parent = eye
+		Instance.new("UICorner", shine).CornerRadius = UDim.new(0.5, 0)
+	end
+
+	local mouth = Instance.new("Frame")
+	mouth.Name = "Mouth"
+	mouth.AnchorPoint = Vector2.new(0.5, 0.5)
+	mouth.Position = UDim2.fromScale(0.5, 0.66)
+	mouth.Size = UDim2.fromScale(0.2, 0.06)
+	mouth.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+	mouth.BorderSizePixel = 0
+	mouth.Parent = gui
+	Instance.new("UICorner", mouth).CornerRadius = UDim.new(0.5, 0)
+end
+
+local function createCube(character: Model, humanoid: Humanoid, hrp: BasePart): BasePart
+	local legLength = humanoid.RigType == Enum.HumanoidRigType.R15 and humanoid.HipHeight or 2
+	local scale = legLength / 2
+	local size = Config.Size * scale
+	local groundY = -(hrp.Size.Y / 2 + legLength) -- уровень земли относительно центра HumanoidRootPart
+	local offsetY = groundY + size / 2
+
+	local cube = Instance.new("Part")
+	cube.Name = Config.PartName
+	cube.Size = Vector3.new(size, size, size)
+	cube.Color = Config.Colors[math.random(1, #Config.Colors)]
+	cube.Material = Enum.Material.SmoothPlastic
+	cube.TopSurface = Enum.SurfaceType.Smooth
+	cube.BottomSurface = Enum.SurfaceType.Smooth
+	cube.CanCollide = false
+	cube.CanTouch = false
+	cube.Massless = true
+	cube.CFrame = hrp.CFrame * CFrame.new(0, offsetY, 0)
+	cube:SetAttribute("BaseSize", size)
+	cube:SetAttribute("OffsetY", offsetY)
+
+	local weld = Instance.new("Weld")
+	weld.Name = "CubeWeld"
+	weld.Part0 = hrp
+	weld.Part1 = cube
+	weld.C0 = CFrame.new(0, offsetY, 0)
+	weld.Parent = cube
+
+	local edges = Instance.new("SelectionBox")
+	edges.Name = "Edges"
+	edges.Adornee = cube
+	edges.LineThickness = Config.EdgeThickness * scale
+	edges.Color3 = Config.EdgeColor
+	edges.SurfaceTransparency = 1
+	edges.Parent = cube
+
+	local glow = Instance.new("PointLight")
+	glow.Color = cube.Color
+	glow.Range = 10 * scale
+	glow.Brightness = 1.2
+	glow.Parent = cube
+
+	makeFace(cube)
+	cube.Parent = character
+	return cube
+end
+
+local function stopCube(player: Player, character: Model)
+	if character:GetAttribute(Config.ActiveAttribute) ~= true then
+		return
+	end
+	character:SetAttribute(Config.ActiveAttribute, false)
+	character:SetAttribute(Config.UntilAttribute, 0)
+	player:SetAttribute(Config.CooldownAttribute, now() + Config.Cooldown)
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid and humanoid:GetAttribute(SAVED_SPEED) ~= nil then
+		humanoid.WalkSpeed = humanoid:GetAttribute(SAVED_SPEED)
+		humanoid.JumpPower = humanoid:GetAttribute(SAVED_JUMP)
+		humanoid.JumpHeight = humanoid:GetAttribute(SAVED_HEIGHT)
+		humanoid:SetAttribute(SAVED_SPEED, nil)
+		humanoid:SetAttribute(SAVED_JUMP, nil)
+		humanoid:SetAttribute(SAVED_HEIGHT, nil)
+	end
+
+	-- Даём клиентам анимировать сжатие куба, потом убираем его
+	local cube = character:FindFirstChild(Config.PartName)
+	if cube then
+		task.delay(Config.PopOutTime, function()
+			if character:GetAttribute(Config.ActiveAttribute) ~= true then
+				cube:Destroy()
+			end
+		end)
+	end
+end
+
+local function startCube(player: Player, character: Model, humanoid: Humanoid)
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not hrp then
+		return
+	end
+	AbilityRegistry.Stop("Invisibility", player, character)
+	AbilityRegistry.Stop("Flight", player, character)
+	AbilityRegistry.ForcePoseStand(character)
+
+	-- Старый куб (если ещё не успел исчезнуть) убираем сразу
+	local old = character:FindFirstChild(Config.PartName)
+	if old then
+		old:Destroy()
+	end
+	createCube(character, humanoid, hrp)
+
+	humanoid:SetAttribute(SAVED_SPEED, humanoid.WalkSpeed)
+	humanoid:SetAttribute(SAVED_JUMP, humanoid.JumpPower)
+	humanoid:SetAttribute(SAVED_HEIGHT, humanoid.JumpHeight)
+	humanoid.WalkSpeed = Config.WalkSpeed
+	humanoid.JumpPower = Config.JumpPower
+	humanoid.JumpHeight = Config.JumpPower * Config.JumpPower / (2 * workspace.Gravity)
+
+	local token = (tokens[player] or 0) + 1
+	tokens[player] = token
+	character:SetAttribute(Config.UntilAttribute, now() + Config.Duration)
+	character:SetAttribute(Config.ActiveAttribute, true)
+
+	task.delay(Config.Duration, function()
+		if tokens[player] == token and character.Parent then
+			stopCube(player, character)
+		end
+	end)
+end
+
+AbilityRegistry.RegisterStopper("Cube", stopCube)
+
+remote.OnServerEvent:Connect(function(player: Player)
+	local t = os.clock()
+	if lastRequest[player] and t - lastRequest[player] < 0.25 then
+		return
+	end
+	lastRequest[player] = t
+
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	if character:GetAttribute(Config.ActiveAttribute) == true then
+		if Config.CanCancelEarly then
+			stopCube(player, character)
+		end
+		return
+	end
+
+	if humanoid.Sit or now() < (player:GetAttribute(Config.CooldownAttribute) or 0) then
+		return
+	end
+
+	startCube(player, character, humanoid)
+end)
+
+local function onCharacterAdded(player: Player, character: Model)
+	character:SetAttribute(Config.ActiveAttribute, false)
+	character:SetAttribute(Config.UntilAttribute, 0)
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if humanoid then
+		humanoid.Died:Connect(function()
+			stopCube(player, character)
+		end)
+	end
+end
+
+local function onPlayerAdded(player: Player)
+	player:SetAttribute(Config.CooldownAttribute, 0)
+	player.CharacterAdded:Connect(function(character)
+		onCharacterAdded(player, character)
+	end)
+	if player.Character then
+		task.spawn(onCharacterAdded, player, player.Character)
+	end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in Players:GetPlayers() do
+	onPlayerAdded(player)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	lastRequest[player] = nil
+	tokens[player] = nil
+end)
+
+----------------------------------------------------------------------
+-- 15. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
+----------------------------------------------------------------------
+
+-- LocalScript: StarterPlayer > StarterPlayerScripts > PoseClient
+-- Клиент:
+--   1) ловит кнопки (клавиатура, геймпад, кнопки на телефоне) и шлёт запрос серверу;
+--   2) проигрывает процедурные анимации поз для ВСЕХ персонажей на сервере
+--      (поза берётся из атрибута персонажа, поэтому все видят, кто сидит/лежит).
+--
+-- Анимации сделаны кодом (через Motor6D.Transform), поэтому их не нужно
+-- загружать на Roblox и вставлять ID — работают сразу, для R15 и R6.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local PoseConfig = require(ReplicatedStorage:WaitForChild("PoseConfig"))
+local remote = ReplicatedStorage:WaitForChild(PoseConfig.RemoteName)
+
+local player = Players.LocalPlayer
+local ATTR = PoseConfig.AttributeName
+local IDENTITY = CFrame.identity
+
+-- Логические суставы -> {часть тела, имя Motor6D}
+local JOINTS = {
+	R15 = {
+		Root = { "LowerTorso", "Root" },
+		Waist = { "UpperTorso", "Waist" },
+		Neck = { "Head", "Neck" },
+		LeftShoulder = { "LeftUpperArm", "LeftShoulder" },
+		RightShoulder = { "RightUpperArm", "RightShoulder" },
+		LeftElbow = { "LeftLowerArm", "LeftElbow" },
+		RightElbow = { "RightLowerArm", "RightElbow" },
+		LeftHip = { "LeftUpperLeg", "LeftHip" },
+		RightHip = { "RightUpperLeg", "RightHip" },
+		LeftKnee = { "LeftLowerLeg", "LeftKnee" },
+		RightKnee = { "RightLowerLeg", "RightKnee" },
+		LeftAnkle = { "LeftFoot", "LeftAnkle" },
+		RightAnkle = { "RightFoot", "RightAnkle" },
+	},
+	R6 = {
+		Root = { "HumanoidRootPart", "RootJoint" },
+		Neck = { "Torso", "Neck" },
+		LeftShoulder = { "Torso", "Left Shoulder" },
+		RightShoulder = { "Torso", "Right Shoulder" },
+		LeftHip = { "Torso", "Left Hip" },
+		RightHip = { "Torso", "Right Hip" },
+	},
+}
+
+-- Состояния Humanoid, в которых позу принять нельзя / нужно сразу встать
+local BLOCKING_STATES = {
+	[Enum.HumanoidStateType.Freefall] = true,
+	[Enum.HumanoidStateType.Jumping] = true,
+	[Enum.HumanoidStateType.Seated] = true,
+	[Enum.HumanoidStateType.Swimming] = true,
+	[Enum.HumanoidStateType.Climbing] = true,
+	[Enum.HumanoidStateType.FallingDown] = true,
+	[Enum.HumanoidStateType.Ragdoll] = true,
+	[Enum.HumanoidStateType.PlatformStanding] = true,
+	[Enum.HumanoidStateType.Dead] = true,
+}
+
+local controllers = {} -- [character] = controller
+local warnedRig = {} -- [character] = true, чтобы не спамить в Output
+
+-- Сустав: старый Motor6D или новый AnimationConstraint (Avatar Joint Upgrade).
+-- У обоих есть C0 и Transform, поэтому математика одинаковая.
+local function isJoint(obj: Instance): boolean
+	return obj:IsA("Motor6D") or obj:IsA("AnimationConstraint")
+end
+
+local function debugPrint(...)
+	if PoseConfig.Debug then
+		print("[Pose]", ...)
+	end
+end
+local updateLabels -- объявлена ниже (подписи кнопок и подсказка)
+
+---------------------------------------------------------------------
+-- Математика поз
+---------------------------------------------------------------------
+
+local function angles(v: Vector3): CFrame
+	return CFrame.Angles(math.rad(v.X), math.rad(v.Y), math.rad(v.Z))
+end
+
+local function smoothstep(t: number): number
+	return t * t * (3 - 2 * t)
+end
+
+local function buildRig(character: Model)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not hrp then
+		return nil
+	end
+
+	local rigType = humanoid.RigType == Enum.HumanoidRigType.R15 and "R15" or "R6"
+	local motors = {}
+	for name, path in pairs(JOINTS[rigType]) do
+		local part = character:FindFirstChild(path[1])
+		local motor = part and part:FindFirstChild(path[2])
+		if motor and isJoint(motor) then
+			motors[name] = motor
+		end
+	end
+	if not motors.Root then
+		if not warnedRig[character] then
+			warnedRig[character] = true
+			local found = {}
+			for _, d in character:GetDescendants() do
+				if d:IsA("JointInstance") or d:IsA("Constraint") then
+					table.insert(found, d.ClassName .. " " .. d:GetFullName())
+				end
+			end
+			warn("[Pose] Не найден корневой сустав у", character.Name, rigType, "\nНайдены суставы:\n" .. table.concat(found, "\n"))
+		end
+		return nil
+	end
+	local count = 0
+	for _ in pairs(motors) do
+		count += 1
+	end
+	debugPrint(character.Name, rigType, "суставов найдено:", count, "тип:", motors.Root.ClassName)
+
+	local legLength
+	if rigType == "R15" then
+		legLength = humanoid.HipHeight
+	else
+		local leg = character:FindFirstChild("Left Leg")
+		legLength = leg and leg.Size.Y or 2
+	end
+	if legLength <= 0 then
+		legLength = 2
+	end
+
+	return {
+		rigType = rigType,
+		motors = motors,
+		hrpHalf = hrp.Size.Y / 2,
+		legLength = legLength,
+		scale = legLength / 2,
+	}
+end
+
+-- Кадры позы. Для обычных суставов — поворот (в пространстве родительской части),
+-- для Root — полное смещение тела в пространстве HumanoidRootPart.
+local function buildFrames(rig, state: string)
+	local frames = {}
+	local pose = PoseConfig.Poses[state]
+	if not pose then
+		return frames -- «Стоя» = все суставы в нуле, дальше работает обычный Animate
+	end
+
+	local overrides = pose[rig.rigType] or {}
+	local joints = pose.Joints or {}
+	for name in pairs(rig.motors) do
+		if name ~= "Root" then
+			local a = overrides[name] or joints[name]
+			if a then
+				frames[name] = angles(a)
+			end
+		end
+	end
+
+	local hipHeight = overrides.HipHeight or pose.HipHeight or 1
+	local rootAngles = overrides.Root or pose.Root or Vector3.zero
+	local shift = (overrides.Shift or pose.Shift or Vector3.zero) * rig.scale
+	local drop = Vector3.new(0, (hipHeight - 1) * rig.legLength, 0)
+	local pivot = Vector3.new(0, -rig.hrpHalf, 0) -- примерно уровень таза
+
+	frames.Root = CFrame.new(shift + drop) * CFrame.new(pivot) * angles(rootAngles) * CFrame.new(-pivot)
+	return frames
+end
+
+local function applyFrame(name: string, motor: any, frame: CFrame)
+	-- Переводим желаемый поворот в систему координат сустава (учитывает C0 у R6)
+	if name == "Root" then
+		local c0 = motor.C0
+		motor.Transform = c0:Inverse() * frame * c0
+	else
+		local q = motor.C0.Rotation
+		motor.Transform = q:Inverse() * frame * q
+	end
+end
+
+---------------------------------------------------------------------
+-- Контроллер одного персонажа
+---------------------------------------------------------------------
+
+local function ensureRig(ctrl)
+	local rig = ctrl.rig
+	if rig then
+		for _, motor in pairs(rig.motors) do
+			if not motor:IsDescendantOf(ctrl.character) then
+				rig = nil
+				break
+			end
+		end
+	end
+	if not rig then
+		rig = buildRig(ctrl.character)
+		ctrl.rig = rig
+		if rig then
+			ctrl.toFrames = buildFrames(rig, ctrl.state)
+		end
+	end
+	return rig
+end
+
+local function attributeState(ctrl): string
+	local s = ctrl.character:GetAttribute(ATTR)
+	return PoseConfig.IsValidState(s) and s or "Stand"
+end
+
+-- Для своего персонажа поза меняется мгновенно (предсказание),
+-- не дожидаясь ответа сервера.
+local function effectiveState(ctrl): string
+	local attr = attributeState(ctrl)
+	if ctrl.predicted then
+		if os.clock() < ctrl.predictExpire and attr ~= ctrl.predicted then
+			return ctrl.predicted
+		end
+		ctrl.predicted = nil
+	end
+	return attr
+end
+
+local function setState(ctrl, state: string)
+	if ctrl.state == state then
+		return
+	end
+	ctrl.fromState = ctrl.state
+	ctrl.state = state
+	ctrl.fromFrames = ctrl.active and table.clone(ctrl.current) or {}
+	ctrl.alpha = 0
+	ctrl.active = true
+	local rig = ensureRig(ctrl)
+	ctrl.toFrames = rig and buildFrames(rig, state) or {}
+	debugPrint(ctrl.character.Name, ctrl.fromState, "->", state, rig and "" or "(суставы не найдены!)")
+end
+
+local function breathOf(state: string): number
+	local pose = PoseConfig.Poses[state]
+	return pose and pose.Breath or 0
+end
+
+local function step(ctrl, dt: number, now: number)
+	local state = effectiveState(ctrl)
+	if state ~= ctrl.state then
+		setState(ctrl, state)
+		if ctrl.isLocal then
+			updateLabels()
+		end
+	end
+	if not ctrl.active then
+		return
+	end
+
+	local rig = ensureRig(ctrl)
+	if not rig then
+		return
+	end
+
+	ctrl.alpha = math.min(1, ctrl.alpha + dt / PoseConfig.TransitionTime)
+	local a = smoothstep(ctrl.alpha)
+
+	-- Лёгкое «дыхание», чтобы поза не выглядела замороженной
+	local breath = breathOf(ctrl.state) * a + breathOf(ctrl.fromState) * (1 - a)
+	local breathJoint = rig.motors.Waist and "Waist" or "Neck"
+	local breathCF = CFrame.Angles(math.rad(math.sin(now * 2.2 + ctrl.phase) * breath), 0, 0)
+
+	for name, motor in pairs(rig.motors) do
+		local frame = (ctrl.fromFrames[name] or IDENTITY):Lerp(ctrl.toFrames[name] or IDENTITY, a)
+		ctrl.current[name] = frame
+		if name == breathJoint and breath > 0 then
+			frame = frame * breathCF
+		end
+		applyFrame(name, motor, frame)
+	end
+
+	-- Камера опускается вместе с головой
+	if ctrl.isLocal then
+		local headRest = Vector3.new(0, 1.5 * rig.scale, 0)
+		local rootFrame = ctrl.current.Root or IDENTITY
+		ctrl.humanoid.CameraOffset = rootFrame * headRest - headRest
+	end
+
+	if ctrl.alpha >= 1 and ctrl.state == "Stand" then
+		-- Полностью встали — отдаём суставы обратно стандартным анимациям
+		ctrl.active = false
+		ctrl.current = {}
+		if ctrl.isLocal then
+			ctrl.humanoid.CameraOffset = Vector3.zero
+		end
+	end
+end
+
+local function removeController(character: Model)
+	local ctrl = controllers[character]
+	if not ctrl then
+		return
+	end
+	controllers[character] = nil
+	for _, conn in ctrl.connections do
+		conn:Disconnect()
+	end
+end
+
+local function addController(character: Model)
+	if controllers[character] then
+		return
+	end
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if not humanoid then
+		return
+	end
+
+	local ctrl = {
+		character = character,
+		humanoid = humanoid,
+		isLocal = Players:GetPlayerFromCharacter(character) == player,
+		rig = nil,
+		state = "Stand",
+		fromState = "Stand",
+		fromFrames = {},
+		toFrames = {},
+		current = {},
+		alpha = 1,
+		active = false,
+		phase = math.random() * math.pi * 2,
+		predicted = nil,
+		predictExpire = 0,
+		connections = {},
+	}
+	controllers[character] = ctrl
+
+	local function invalidateRig()
+		ctrl.rig = nil
+	end
+	table.insert(ctrl.connections, character.DescendantAdded:Connect(function(d)
+		if isJoint(d) then
+			invalidateRig()
+		end
+	end))
+	table.insert(ctrl.connections, humanoid:GetPropertyChangedSignal("HipHeight"):Connect(invalidateRig))
+	table.insert(ctrl.connections, humanoid.Died:Connect(function()
+		removeController(character)
+	end))
+	table.insert(ctrl.connections, character.AncestryChanged:Connect(function()
+		if not character:IsDescendantOf(workspace) then
+			removeController(character)
+		end
+	end))
+end
+
+local function watchPlayer(p: Player)
+	p.CharacterAdded:Connect(function(character)
+		task.spawn(addController, character)
+	end)
+	if p.Character then
+		task.spawn(addController, p.Character)
+	end
+end
+
+Players.PlayerAdded:Connect(watchPlayer)
+for _, p in Players:GetPlayers() do
+	watchPlayer(p)
+end
+
+RunService.PreSimulation:Connect(function(dt)
+	-- PreSimulation идёт ПОСЛЕ стандартных анимаций, поэтому наша поза их перекрывает
+	local now = os.clock()
+	for _, ctrl in pairs(controllers) do
+		step(ctrl, dt, now)
+	end
+end)
+
+---------------------------------------------------------------------
+-- Управление (только свой персонаж)
+---------------------------------------------------------------------
+
+local lastRequest = 0
+local hintLabel: TextLabel? = nil
+
+local function localController()
+	local character = player.Character
+	return character and controllers[character]
+end
+
+local function canStartPose(humanoid: Humanoid): boolean
+	return humanoid.Health > 0
+		and not humanoid.Sit
+		and humanoid.FloorMaterial ~= Enum.Material.Air
+		and not BLOCKING_STATES[humanoid:GetState()]
+end
+
+function updateLabels()
+	local ctrl = localController()
+	local state = ctrl and effectiveState(ctrl) or "Stand"
+	local down = PoseConfig.GetNextState(state, "Down")
+	local up = PoseConfig.GetNextState(state, "Up")
+	ContextActionService:SetTitle("PoseDown", down ~= state and PoseConfig.ActionNames[down] or "—")
+	ContextActionService:SetTitle("PoseUp", up ~= state and PoseConfig.ActionNames[up] or "—")
+
+	if hintLabel then
+		local downKey = PoseConfig.Keys.Down[1].Name
+		local upKey = PoseConfig.Keys.Up[1].Name
+		local parts = { PoseConfig.StateNames[state] or state }
+		if down ~= state then
+			table.insert(parts, string.format("[%s] %s", downKey, PoseConfig.ActionNames[down]))
+		end
+		if up ~= state then
+			table.insert(parts, string.format("[%s] %s", upKey, PoseConfig.ActionNames[up]))
+		end
+		hintLabel.Text = table.concat(parts, "   •   ")
+	end
+end
+
+local function request(direction: string, force: boolean?)
+	local ctrl = localController()
+	if not ctrl then
+		return
+	end
+	local now = os.clock()
+	if not force and now - lastRequest < PoseConfig.ClientCooldown then
+		return
+	end
+
+	local current = effectiveState(ctrl)
+	local nextState = PoseConfig.GetNextState(current, direction)
+	if nextState == current then
+		return
+	end
+	if current == "Stand" and not canStartPose(ctrl.humanoid) then
+		return
+	end
+	-- Во время полёта и в форме куба позы недоступны
+	if ctrl.character:GetAttribute("Flying") == true or ctrl.character:GetAttribute("CubeForm") == true then
+		return
+	end
+
+	lastRequest = now
+	ctrl.predicted = nextState
+	ctrl.predictExpire = now + PoseConfig.PredictionTimeout
+	remote:FireServer(direction)
+	updateLabels()
+end
+
+local function onAction(actionName: string, inputState: Enum.UserInputState)
+	if inputState ~= Enum.UserInputState.Begin then
+		return Enum.ContextActionResult.Pass
+	end
+	request(actionName == "PoseDown" and "Down" or "Up")
+	return Enum.ContextActionResult.Sink
+end
+
+ContextActionService:BindAction("PoseDown", onAction, true, table.unpack(PoseConfig.Keys.Down))
+ContextActionService:BindAction("PoseUp", onAction, true, table.unpack(PoseConfig.Keys.Up))
+ContextActionService:SetPosition("PoseDown", UDim2.new(1, -170, 1, -150))
+ContextActionService:SetPosition("PoseUp", UDim2.new(1, -170, 1, -210))
+
+-- Пробел в позе = встать
+UserInputService.JumpRequest:Connect(function()
+	if not PoseConfig.JumpToStand then
+		return
+	end
+	local ctrl = localController()
+	if ctrl and effectiveState(ctrl) ~= "Stand" then
+		request("Stand", true)
+	end
+end)
+
+-- Если персонажа столкнули / он упал / сел на Seat — выходим из позы
+local function hookLocalCharacter(character: Model)
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if not humanoid then
+		return
+	end
+	humanoid.StateChanged:Connect(function(_, newState)
+		if newState == Enum.HumanoidStateType.Dead then
+			return
+		end
+		local ctrl = controllers[character]
+		if ctrl and BLOCKING_STATES[newState] and effectiveState(ctrl) ~= "Stand" then
+			request("Stand", true)
+		end
+	end)
+	character:GetAttributeChangedSignal(ATTR):Connect(updateLabels)
+	updateLabels()
+end
+
+player.CharacterAdded:Connect(hookLocalCharacter)
+if player.Character then
+	task.spawn(hookLocalCharacter, player.Character)
+end
+
+-- Подсказка внизу экрана (только для клавиатуры)
+if PoseConfig.ShowHint and UserInputService.KeyboardEnabled then
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "PoseHint"
+	gui.ResetOnSpawn = false
+	gui.Parent = player:WaitForChild("PlayerGui")
+
+	local label = Instance.new("TextLabel")
+	label.AnchorPoint = Vector2.new(0.5, 1)
+	label.Position = UDim2.new(0.5, 0, 1, -12)
+	label.Size = UDim2.fromOffset(0, 30)
+	label.AutomaticSize = Enum.AutomaticSize.X
+	label.BackgroundColor3 = Color3.new(0, 0, 0)
+	label.BackgroundTransparency = 0.45
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.Font = Enum.Font.GothamMedium
+	label.TextSize = 15
+	label.Parent = gui
+
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0, 12)
+	padding.PaddingRight = UDim.new(0, 12)
+	padding.Parent = label
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = label
+
+	hintLabel = label
+	updateLabels()
+end
+
+----------------------------------------------------------------------
+-- 16. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
+----------------------------------------------------------------------
+
+-- LocalScript: StarterPlayer > StarterPlayerScripts > InvisibilityClient
+-- Клиент способности «Невидимость»:
+--   * себя видишь полупрозрачным «стеклом» с голубым оттенком и лёгкой синевой на экране;
+--   * другие невидимые игроки скрыты полностью (тело, ник, полоска здоровья, звуки);
+--   * при выходе из невидимости персонажа на 1,5 сек обводит красный контур;
+--   * анимации: исчезновение (руки крест-накрест и резкий взмах) и появление (силовая стойка),
+--     вспышки частиц;
+--   * кнопка с таймером кулдауна и полоской оставшейся невидимости.
+-- Этот же скрипт прячет тело персонажа, когда он превращается в куб (CubeConfig).
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local ContextActionService = game:GetService("ContextActionService")
+local Lighting = game:GetService("Lighting")
+local Debris = game:GetService("Debris")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("InvisibilityConfig"))
+local CubeConfig = require(ReplicatedStorage:WaitForChild("CubeConfig"))
+local RigAnimator = require(ReplicatedStorage:WaitForChild("RigAnimator"))
+local AbilityFx = require(ReplicatedStorage:WaitForChild("AbilityFx"))
+local remote = ReplicatedStorage:WaitForChild(Config.RemoteName)
+
+local CUBE_FADE_TIME = 0.15
+
+local player = Players.LocalPlayer
+local WHITE = Color3.new(1, 1, 1)
+
+local function serverNow(): number
+	return workspace:GetServerTimeNow()
+end
+
+---------------------------------------------------------------------
+-- Эффекты на персонажах
+---------------------------------------------------------------------
+
+local visuals = {} -- [character] = состояние эффекта
+
+local screenTint = Instance.new("ColorCorrectionEffect")
+screenTint.Name = "InvisibilityTint"
+screenTint.Enabled = false
+screenTint.Parent = Lighting
+
+local function isFadeable(inst: Instance): boolean
+	-- Сам куб и его лицо не трогаем
+	if inst.Name == CubeConfig.PartName or (inst.Parent and inst.Parent.Name == CubeConfig.PartName) then
+		return false
+	end
+	if inst:IsA("BasePart") then
+		return inst.Name ~= "HumanoidRootPart"
+	end
+	return inst:IsA("Decal") -- Texture тоже наследуется от Decal
+end
+
+local function capture(v, inst: Instance)
+	if v.saved[inst] or v.sounds[inst] then
+		return
+	end
+	if isFadeable(inst) then
+		local orig = { Transparency = (inst :: any).Transparency }
+		if inst:IsA("BasePart") then
+			orig.Material = inst.Material
+			orig.Color = inst.Color
+		end
+		v.saved[inst] = orig
+	elseif inst:IsA("Sound") and not v.isLocal and Config.HideSounds then
+		v.sounds[inst] = inst.Volume
+	end
+end
+
+local function restoreOne(v, inst: Instance)
+	local orig = v.saved[inst]
+	if orig then
+		v.saved[inst] = nil
+		local any = inst :: any
+		any.Transparency = orig.Transparency
+		if orig.Material then
+			any.Material = orig.Material
+			any.Color = orig.Color
+		end
+	end
+	local volume = v.sounds[inst]
+	if volume then
+		v.sounds[inst] = nil
+		local sound = inst :: Sound
+		sound.Volume = volume
+	end
+end
+
+-- a: 0 = обычный вид, 1 = полностью применён эффект.
+-- Куб: тело скрыто у всех. Невидимость: себе — стекло, другим — пусто.
+local function applyAlpha(v, a: number)
+	local glass = v.isLocal and v.invisible and not v.cube
+	for inst, orig in pairs(v.saved) do
+		local any = inst :: any
+		local goal = glass and math.max(orig.Transparency, Config.SelfTransparency) or 1
+		any.Transparency = orig.Transparency + (goal - orig.Transparency) * a
+		if orig.Material then
+			if glass and a > 0 then
+				any.Material = Config.SelfMaterial
+				any.Color = orig.Color:Lerp(Config.SelfTint, Config.SelfTintStrength * a)
+			else
+				any.Material = orig.Material
+				any.Color = orig.Color
+			end
+		end
+	end
+	local muted = v.invisible and not v.isLocal
+	for sound, volume in pairs(v.sounds) do
+		sound.Volume = muted and volume * (1 - a) or volume
+	end
+	if not v.isLocal and Config.HideName then
+		if v.invisible and a > 0 and v.savedDisplay == nil then
+			v.savedDisplay = v.humanoid.DisplayDistanceType
+			v.humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		elseif not v.invisible and v.savedDisplay ~= nil then
+			v.humanoid.DisplayDistanceType = v.savedDisplay
+			v.savedDisplay = nil
+		end
+	end
+	if v.isLocal then
+		local tint = glass and a or 0
+		screenTint.Enabled = tint > 0
+		screenTint.TintColor = WHITE:Lerp(Config.ScreenTint, tint)
+		screenTint.Saturation = Config.ScreenSaturation * tint
+	end
+end
+
+local function begin(v)
+	if v.begun then
+		return
+	end
+	v.begun = true
+	for _, d in v.character:GetDescendants() do
+		capture(v, d)
+	end
+end
+
+local function restoreAll(v)
+	for inst in pairs(v.saved) do
+		restoreOne(v, inst)
+	end
+	for sound in pairs(v.sounds) do
+		restoreOne(v, sound)
+	end
+	if v.savedDisplay then
+		v.humanoid.DisplayDistanceType = v.savedDisplay
+		v.savedDisplay = nil
+	end
+	if v.isLocal then
+		screenTint.Enabled = false
+	end
+	v.begun = false
+end
+
+---------------------------------------------------------------------
+-- Анимации исчезновения и появления
+---------------------------------------------------------------------
+
+-- Исчезновение, фаза 1: руки крест-накрест, лёгкое приседание
+local VANISH_CROSS = {
+	Waist = Vector3.new(-12, 0, 0),
+	Neck = Vector3.new(-12, 0, 0),
+	LeftShoulder = Vector3.new(75, 0, 38),
+	RightShoulder = Vector3.new(75, 0, -38),
+	LeftElbow = Vector3.new(95, 0, 0),
+	RightElbow = Vector3.new(95, 0, 0),
+	LeftHip = Vector3.new(15, 0, -4),
+	RightHip = Vector3.new(15, 0, 4),
+	LeftKnee = Vector3.new(-25, 0, 0),
+	RightKnee = Vector3.new(-25, 0, 0),
+}
+-- Фаза 2: резкий взмах руками в стороны
+local VANISH_FLING = {
+	Waist = Vector3.new(10, 0, 0),
+	Neck = Vector3.new(12, 0, 0),
+	LeftShoulder = Vector3.new(25, 0, -75),
+	RightShoulder = Vector3.new(25, 0, 75),
+	LeftElbow = Vector3.new(10, 0, 0),
+	RightElbow = Vector3.new(10, 0, 0),
+}
+-- Появление: силовая стойка, грудь вперёд, кулаки сжаты
+local APPEAR = {
+	Waist = Vector3.new(12, 0, 0),
+	Neck = Vector3.new(10, 0, 0),
+	LeftShoulder = Vector3.new(-10, 0, -30),
+	RightShoulder = Vector3.new(-10, 0, 30),
+	LeftElbow = Vector3.new(35, 0, 0),
+	RightElbow = Vector3.new(35, 0, 0),
+	LeftHip = Vector3.new(0, 0, -7),
+	RightHip = Vector3.new(0, 0, 7),
+}
+
+local VANISH_TIME = 0.65
+local APPEAR_TIME = 0.75
+
+local function vanishLayer()
+	local start = os.clock()
+	return {
+		Priority = 30,
+		Update = function(rig, _, now)
+			local elapsed = now - start
+			if elapsed >= VANISH_TIME then
+				return nil, 0, true
+			end
+			local p = elapsed / VANISH_TIME
+			local pose = RigAnimator.Blend(VANISH_CROSS, VANISH_FLING, RigAnimator.Smooth((p - 0.35) / 0.2))
+			local frames = RigAnimator.Frames(rig, pose)
+			local crouch = 1 - 0.08 * (1 - RigAnimator.Smooth((p - 0.35) / 0.2))
+			frames.Root = RigAnimator.RootFrame(rig, crouch)
+			return frames, RigAnimator.Envelope(elapsed, VANISH_TIME, 0.1, 0.2)
+		end,
+	}
+end
+
+local function appearLayer()
+	local start = os.clock()
+	return {
+		Priority = 30,
+		Update = function(rig, _, now)
+			local elapsed = now - start
+			if elapsed >= APPEAR_TIME then
+				return nil, 0, true
+			end
+			return RigAnimator.Frames(rig, APPEAR), RigAnimator.Envelope(elapsed, APPEAR_TIME, 0.12, 0.3)
+		end,
+	}
+end
+
+local function burstAt(character: Model, color: Color3)
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if hrp then
+		AbilityFx.Burst(hrp.Position, {
+			Color = ColorSequence.new(color, Color3.new(1, 1, 1)),
+			Count = 35,
+			Speed = NumberRange.new(6, 14),
+			Size = 0.6,
+			Lifetime = NumberRange.new(0.4, 0.9),
+			Drag = 4,
+			Acceleration = Vector3.new(0, 6, 0),
+			Light = 12,
+		})
+	end
+end
+
+local function flash(character: Model)
+	local h = Instance.new("Highlight")
+	h.Name = "InvisibilityFlash"
+	h.Adornee = character
+	h.FillColor = Config.FlashColor
+	h.OutlineColor = Config.FlashColor
+	h.FillTransparency = Config.FlashFillTransparency
+	h.OutlineTransparency = 0
+	h.DepthMode = Enum.HighlightDepthMode.Occluded
+	h.Parent = character
+
+	-- Сначала держится, потом плавно гаснет
+	local info = TweenInfo.new(
+		Config.FlashTime * 0.6,
+		Enum.EasingStyle.Quad,
+		Enum.EasingDirection.In,
+		0,
+		false,
+		Config.FlashTime * 0.4
+	)
+	TweenService:Create(h, info, { FillTransparency = 1, OutlineTransparency = 1 }):Play()
+	Debris:AddItem(h, Config.FlashTime + 0.1)
+end
+
+local function onAttributeChanged(v)
+	local invisible = v.character:GetAttribute(Config.ActiveAttribute) == true
+	local cube = v.character:GetAttribute(CubeConfig.ActiveAttribute) == true
+	local wasInvisible = v.invisible
+
+	v.invisible = invisible
+	v.cube = cube
+	v.fadeTime = cube and CUBE_FADE_TIME or Config.FadeTime
+
+	if invisible and not wasInvisible then
+		RigAnimator.SetLayer(v.character, "InvisibilityVanish", vanishLayer())
+		burstAt(v.character, Config.SelfTint)
+		if v.isLocal then
+			AbilityFx.Shake(0.015, 0.3)
+		end
+	elseif not invisible and wasInvisible and not cube then
+		flash(v.character)
+		RigAnimator.SetLayer(v.character, "InvisibilityAppear", appearLayer())
+		burstAt(v.character, Config.FlashColor)
+	end
+
+	local wanted = (invisible or cube) and 1 or 0
+	if wanted == 1 then
+		begin(v)
+	end
+	v.target = wanted
+	if v.begun then
+		applyAlpha(v, v.alpha)
+	end
+end
+
+local function removeVisual(character: Model)
+	local v = visuals[character]
+	if not v then
+		return
+	end
+	visuals[character] = nil
+	for _, conn in v.connections do
+		conn:Disconnect()
+	end
+	restoreAll(v)
+end
+
+local function addVisual(character: Model)
+	if visuals[character] then
+		return
+	end
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if not humanoid then
+		return
+	end
+
+	local v = {
+		character = character,
+		humanoid = humanoid,
+		isLocal = Players:GetPlayerFromCharacter(character) == player,
+		alpha = 0,
+		target = 0,
+		fadeTime = Config.FadeTime,
+		invisible = false,
+		cube = false,
+		begun = false,
+		saved = {},
+		sounds = {},
+		savedDisplay = nil,
+		connections = {},
+	}
+	visuals[character] = v
+
+	-- Новые части (аксессуары, взятый в руки инструмент) тоже прячем
+	table.insert(v.connections, character.DescendantAdded:Connect(function(d)
+		if v.begun then
+			capture(v, d)
+			applyAlpha(v, v.alpha)
+		end
+	end))
+	-- Убранный инструмент возвращаем в нормальный вид
+	table.insert(v.connections, character.DescendantRemoving:Connect(function(d)
+		restoreOne(v, d)
+	end))
+	table.insert(v.connections, character:GetAttributeChangedSignal(Config.ActiveAttribute):Connect(function()
+		onAttributeChanged(v)
+	end))
+	table.insert(v.connections, character:GetAttributeChangedSignal(CubeConfig.ActiveAttribute):Connect(function()
+		onAttributeChanged(v)
+	end))
+	table.insert(v.connections, character.AncestryChanged:Connect(function()
+		if not character:IsDescendantOf(workspace) then
+			removeVisual(character)
+		end
+	end))
+
+	onAttributeChanged(v)
+end
+
+local function watchPlayer(p: Player)
+	p.CharacterAdded:Connect(function(character)
+		task.spawn(addVisual, character)
+	end)
+	if p.Character then
+		task.spawn(addVisual, p.Character)
+	end
+end
+
+Players.PlayerAdded:Connect(watchPlayer)
+for _, p in Players:GetPlayers() do
+	watchPlayer(p)
+end
+
+---------------------------------------------------------------------
+-- Кнопка и таймеры
+---------------------------------------------------------------------
+
+local AbilityButton = require(ReplicatedStorage:WaitForChild("AbilityButton"))
+
+local lastRequest = 0
+
+local function request()
+	local t = os.clock()
+	if t - lastRequest < 0.25 then
+		return
+	end
+	lastRequest = t
+	remote:FireServer()
+end
+
+local button = AbilityButton.new({
+	Name = Config.ButtonText,
+	Icon = "👻",
+	KeyName = Config.Keys[1].Name,
+	Slot = Config.ButtonSlot,
+	Duration = Config.Duration,
+	Cooldown = Config.Cooldown,
+	ActiveColor = Config.ActiveColor,
+	OnActivate = request,
+})
+
+ContextActionService:BindAction("Invisibility", function(_, inputState)
+	if inputState == Enum.UserInputState.Begin then
+		request()
+		return Enum.ContextActionResult.Sink
+	end
+	return Enum.ContextActionResult.Pass
+end, false, table.unpack(Config.Keys))
+
+---------------------------------------------------------------------
+-- Кадровый цикл: плавность эффектов и таймеры
+---------------------------------------------------------------------
+
+RunService.Heartbeat:Connect(function(dt)
+	for _, v in pairs(visuals) do
+		local step = dt / v.fadeTime
+		if v.alpha ~= v.target then
+			if v.target > v.alpha then
+				v.alpha = math.min(v.target, v.alpha + step)
+			else
+				v.alpha = math.max(v.target, v.alpha - step)
+			end
+			applyAlpha(v, v.alpha)
+			if v.alpha == 0 and v.target == 0 then
+				restoreAll(v)
+			end
+		end
+	end
+
+	local now = serverNow()
+	local character = player.Character
+	local active = character ~= nil and character:GetAttribute(Config.ActiveAttribute) == true
+	local activeLeft = active and math.max(0, (character:GetAttribute(Config.UntilAttribute) or 0) - now) or nil
+	local cooldownLeft = math.max(0, (player:GetAttribute(Config.CooldownAttribute) or 0) - now)
+	button:Update(activeLeft, cooldownLeft)
+end)
+
+----------------------------------------------------------------------
+-- 17. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
+----------------------------------------------------------------------
+
+-- LocalScript: StarterPlayer > StarterPlayerScripts > LaserClient
+-- Клиент способности «Лазеры из глаз»:
+--   * рисует лучи из глаз у ВСЕХ стреляющих игроков (их видят все);
+--   * светящиеся глаза, искры и свет в точке попадания, «мерцание» луча;
+--   * свой прицел — мышка (на телефоне — центр экрана), персонаж разворачивается к цели;
+--   * анимация «силовой стойки», голова следит за целью, лёгкая отдача;
+--   * тряска камеры и раскалённые следы на поверхностях;
+--   * в форме куба лазеры бьют из глаз куба;
+--   * кнопка с таймером кулдауна и полоской оставшегося времени.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("LaserConfig"))
+local CubeConfig = require(ReplicatedStorage:WaitForChild("CubeConfig"))
+local AbilityButton = require(ReplicatedStorage:WaitForChild("AbilityButton"))
+local RigAnimator = require(ReplicatedStorage:WaitForChild("RigAnimator"))
+local AbilityFx = require(ReplicatedStorage:WaitForChild("AbilityFx"))
+local Debris = game:GetService("Debris")
+local remote = ReplicatedStorage:WaitForChild(Config.RemoteName)
+local aimRemote = ReplicatedStorage:WaitForChild(Config.AimRemoteName)
+
+local player = Players.LocalPlayer
+local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+local function serverNow(): number
+	return workspace:GetServerTimeNow()
+end
+
+---------------------------------------------------------------------
+-- Эффекты лучей
+---------------------------------------------------------------------
+
+local effects = {} -- [character] = эффект
+
+local function makeBeam(a0: Attachment, a1: Attachment, color: Color3, parent: Instance): Beam
+	local beam = Instance.new("Beam")
+	beam.Attachment0 = a0
+	beam.Attachment1 = a1
+	beam.Color = ColorSequence.new(color)
+	beam.LightEmission = 1
+	beam.LightInfluence = 0
+	beam.FaceCamera = true
+	beam.Segments = 1
+	beam.Width0 = 0
+	beam.Width1 = 0
+	beam.Transparency = NumberSequence.new(0)
+	beam.Parent = parent
+	return beam
+end
+
+local function createEffect(character: Model)
+	local head = character:FindFirstChild("Head")
+	if not head or not head:IsA("BasePart") then
+		return nil
+	end
+
+	local instances = {}
+	local function track(inst)
+		table.insert(instances, inst)
+		return inst
+	end
+
+	-- Глаза: чуть выше центра головы, на передней поверхности.
+	-- В форме куба — глаза на лице куба.
+	local cube = character:FindFirstChild(CubeConfig.PartName)
+	local host = head
+	local eyeX, eyeY, eyeZ
+	if cube and cube:IsA("BasePart") and character:GetAttribute(CubeConfig.ActiveAttribute) == true then
+		host = cube
+		local size = cube:GetAttribute("BaseSize") or cube.Size.Y
+		eyeX, eyeY, eyeZ = size * 0.18, size * 0.1, -size * 0.5
+	else
+		local size = head.Size
+		eyeX, eyeY, eyeZ = size.Y * 0.2, size.Y * 0.1, -size.Z * 0.5
+	end
+	local eyes = {}
+	for i, side in { -1, 1 } do
+		local eye = track(Instance.new("Attachment"))
+		eye.Name = "LaserEye" .. i
+		eye.Position = Vector3.new(eyeX * side, eyeY, eyeZ)
+		eye.Parent = host
+		local light = Instance.new("PointLight")
+		light.Color = Config.Color
+		light.Range = Config.EyeLightRange
+		light.Brightness = 0
+		light.Parent = eye
+		eyes[i] = { attachment = eye, light = light }
+	end
+
+	-- Точка попадания: невидимая локальная деталь со светом и искрами
+	local target = track(Instance.new("Part"))
+	target.Name = "LaserImpact"
+	target.Anchored = true
+	target.CanCollide = false
+	target.CanQuery = false
+	target.CanTouch = false
+	target.Transparency = 1
+	target.Size = Vector3.new(0.2, 0.2, 0.2)
+	target.CFrame = head.CFrame
+	target.Parent = workspace
+
+	local hit = Instance.new("Attachment")
+	hit.Parent = target
+
+	local impactLight = Instance.new("PointLight")
+	impactLight.Color = Config.Color
+	impactLight.Range = Config.ImpactLightRange
+	impactLight.Brightness = 0
+	impactLight.Parent = hit
+
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.Color = ColorSequence.new(Config.SparkColor, Config.Color)
+	sparks.LightEmission = 1
+	sparks.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.35),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	sparks.Lifetime = NumberRange.new(0.15, 0.4)
+	sparks.Speed = NumberRange.new(8, 16)
+	sparks.SpreadAngle = Vector2.new(180, 180)
+	sparks.Acceleration = Vector3.new(0, -30, 0)
+	sparks.Rate = 80
+	sparks.Drag = 2
+	sparks.Enabled = false
+	sparks.Parent = hit
+
+	local beams = {}
+	for _, eye in eyes do
+		table.insert(beams, { beam = track(makeBeam(eye.attachment, hit, Config.Color, head)), width = Config.OuterWidth })
+		table.insert(beams, { beam = track(makeBeam(eye.attachment, hit, Config.CoreColor, head)), width = Config.CoreWidth })
+	end
+
+	local sound
+	if Config.SoundId ~= "" then
+		sound = track(Instance.new("Sound"))
+		sound.SoundId = Config.SoundId
+		sound.Volume = Config.SoundVolume
+		sound.Looped = true
+		sound.Parent = head
+		sound:Play()
+	end
+
+	return {
+		character = character,
+		head = head,
+		eyes = eyes,
+		beams = beams,
+		target = target,
+		impactLight = impactLight,
+		sparks = sparks,
+		sound = sound,
+		instances = instances,
+		power = 0,
+		aim = character:GetAttribute(Config.AimAttribute),
+		seed = math.random() * 100,
+	}
+end
+
+local function destroyEffect(character: Model)
+	local fx = effects[character]
+	if not fx then
+		return
+	end
+	effects[character] = nil
+	for _, inst in fx.instances do
+		inst:Destroy()
+	end
+end
+
+---------------------------------------------------------------------
+-- Анимация стрельбы
+---------------------------------------------------------------------
+
+-- Силовая стойка: кулаки у пояса, ноги шире, корпус слегка назад от отдачи
+local STANCE = {
+	Waist = Vector3.new(8, 0, 0),
+	LeftShoulder = Vector3.new(-15, 0, -25),
+	RightShoulder = Vector3.new(-15, 0, 25),
+	LeftElbow = Vector3.new(75, 0, 0),
+	RightElbow = Vector3.new(75, 0, 0),
+	LeftHip = Vector3.new(0, 0, -9),
+	RightHip = Vector3.new(0, 0, 9),
+}
+
+local function laserLayer(character: Model, fx)
+	return {
+		Priority = 20,
+		Update = function(rig, _, now)
+			if effects[character] ~= fx then
+				return nil, 0, true
+			end
+			local power = fx.power
+			if power <= 0 then
+				return nil, 0
+			end
+			local flying = character:GetAttribute("Flying") == true
+			local pose = flying and {} or table.clone(STANCE)
+
+			-- Голова смотрит на цель (по высоте), лёгкая дрожь от мощности луча
+			local pitch = 0
+			if fx.aim and not flying then
+				local dir = fx.aim - fx.head.Position
+				if dir.Magnitude > 0.1 then
+					pitch = math.clamp(math.deg(math.asin(math.clamp(dir.Unit.Y, -1, 1))), -40, 50)
+				end
+			end
+			local jitter = math.noise(now * 30, fx.seed) * 3
+			pose.Neck = Vector3.new(pitch + jitter, math.noise(now * 30, fx.seed + 5) * 2, 0)
+			pose.Waist = (pose.Waist or Vector3.zero) + Vector3.new(math.noise(now * 22, fx.seed + 9) * 2, 0, 0)
+			return RigAnimator.Frames(rig, pose), power * 0.9
+		end,
+	}
+end
+
+-- Раскалённые следы в месте попадания: светятся и остывают
+local scorches = {}
+local MAX_SCORCHES = 60
+
+local function addScorch(position: Vector3, normal: Vector3)
+	local mark = Instance.new("Part")
+	mark.Name = "LaserScorch"
+	mark.Shape = Enum.PartType.Cylinder
+	mark.Anchored = true
+	mark.CanCollide = false
+	mark.CanQuery = false
+	mark.CanTouch = false
+	mark.CastShadow = false
+	mark.Material = Enum.Material.Neon
+	mark.Color = Config.SparkColor
+	local d = 0.5 + math.random() * 0.4
+	mark.Size = Vector3.new(0.05, d, d)
+	-- Ось цилиндра — X, разворачиваем её по нормали поверхности
+	mark.CFrame = CFrame.lookAt(position + normal * 0.03, position + normal * 2) * CFrame.Angles(0, math.rad(90), 0)
+	mark.Parent = workspace
+	table.insert(scorches, { part = mark, born = os.clock() })
+	if #scorches > MAX_SCORCHES then
+		table.remove(scorches, 1).part:Destroy()
+	end
+	Debris:AddItem(mark, 4)
+end
+
+local function updateScorches(now: number)
+	for i = #scorches, 1, -1 do
+		local s = scorches[i]
+		local age = now - s.born
+		if not s.part.Parent or age > 4 then
+			table.remove(scorches, i)
+		else
+			-- Остывает: оранжевый → тёмный → исчезает
+			local cool = math.clamp(age / 1.2, 0, 1)
+			s.part.Color = Config.SparkColor:Lerp(Color3.fromRGB(25, 15, 10), cool)
+			if cool >= 1 then
+				s.part.Material = Enum.Material.SmoothPlastic
+			end
+			s.part.Transparency = math.clamp((age - 2.5) / 1.5, 0, 1)
+		end
+	end
+end
+
+---------------------------------------------------------------------
+-- Прицел своего персонажа
+---------------------------------------------------------------------
+
+local aimParams = RaycastParams.new()
+aimParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function getLocalAim(character: Model): Vector3
+	local camera = workspace.CurrentCamera
+	local screenPoint
+	if isTouch then
+		screenPoint = camera.ViewportSize / 2
+	else
+		screenPoint = UserInputService:GetMouseLocation()
+	end
+	local ray = camera:ViewportPointToRay(screenPoint.X, screenPoint.Y)
+	aimParams.FilterDescendantsInstances = { character }
+	local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, aimParams)
+	return result and result.Position or ray.Origin + ray.Direction * 1000
+end
+
+local savedAutoRotate: boolean? = nil
+local sendTimer = 0
+
+local function turnToward(character: Model, aim: Vector3, dt: number)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not hrp or humanoid.Sit or character:GetAttribute("Flying") == true then
+		return
+	end
+	if savedAutoRotate == nil then
+		savedAutoRotate = humanoid.AutoRotate
+		humanoid.AutoRotate = false
+	end
+	local pos = hrp.Position
+	local flat = Vector3.new(aim.X - pos.X, 0, aim.Z - pos.Z)
+	if flat.Magnitude < 0.5 then
+		return
+	end
+	local goal = CFrame.lookAt(pos, pos + flat)
+	local t = math.min(1, dt * 14)
+	hrp.CFrame = CFrame.new(pos) * hrp.CFrame.Rotation:Lerp(goal.Rotation, t)
+end
+
+local function releaseTurn(character: Model?)
+	if savedAutoRotate == nil then
+		return
+	end
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.AutoRotate = savedAutoRotate
+	end
+	savedAutoRotate = nil
+end
+
+---------------------------------------------------------------------
+-- Кнопка и управление
+---------------------------------------------------------------------
+
+local lastRequest = 0
+
+local function request()
+	local t = os.clock()
+	if t - lastRequest < 0.25 then
+		return
+	end
+	lastRequest = t
+	remote:FireServer()
+end
+
+local button = AbilityButton.new({
+	Name = Config.ButtonText,
+	Icon = Config.ButtonIcon,
+	KeyName = Config.Keys[1].Name,
+	Slot = Config.ButtonSlot,
+	Duration = Config.Duration,
+	Cooldown = Config.Cooldown,
+	ActiveColor = Config.ActiveColor,
+	OnActivate = request,
+})
+
+ContextActionService:BindAction("LaserEyes", function(_, inputState)
+	if inputState == Enum.UserInputState.Begin then
+		request()
+		return Enum.ContextActionResult.Sink
+	end
+	return Enum.ContextActionResult.Pass
+end, false, table.unpack(Config.Keys))
+
+---------------------------------------------------------------------
+-- Кадровый цикл
+---------------------------------------------------------------------
+
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+RunService.RenderStepped:Connect(function(dt)
+	local t = os.clock()
+	local myCharacter = player.Character
+	local myActive = myCharacter ~= nil and myCharacter:GetAttribute(Config.ActiveAttribute) == true
+	local myAim = myActive and getLocalAim(myCharacter) or nil
+
+	-- Свой персонаж: шлём прицел и разворачиваемся к цели
+	if myActive and myAim then
+		sendTimer -= dt
+		if sendTimer <= 0 then
+			sendTimer = 1 / Config.AimSendRate
+			aimRemote:FireServer(myAim)
+		end
+		if Config.TurnToAim then
+			turnToward(myCharacter, myAim, dt)
+		end
+	else
+		sendTimer = 0
+		releaseTurn(myCharacter)
+	end
+
+	-- Появились новые стреляющие — создаём им эффект
+	for _, p in Players:GetPlayers() do
+		local character = p.Character
+		if character and not effects[character] and character:GetAttribute(Config.ActiveAttribute) == true then
+			local fx = createEffect(character)
+			effects[character] = fx
+			if fx then
+				RigAnimator.SetLayer(character, "Laser", laserLayer(character, fx))
+				local eyes = (fx.eyes[1].attachment.WorldPosition + fx.eyes[2].attachment.WorldPosition) / 2
+				AbilityFx.Burst(eyes, {
+					Color = Config.Color,
+					Count = 16,
+					Speed = NumberRange.new(4, 9),
+					Size = 0.4,
+					Lifetime = NumberRange.new(0.15, 0.3),
+					Light = 8,
+				})
+			end
+		end
+	end
+
+	for character, fx in pairs(effects) do
+		if not character.Parent or not fx.head.Parent then
+			destroyEffect(character)
+			continue
+		end
+
+		local active = character:GetAttribute(Config.ActiveAttribute) == true
+		local step = dt / Config.ChargeTime
+		fx.power = active and math.min(1, fx.power + step) or math.max(0, fx.power - step)
+		if fx.power <= 0 and not active then
+			destroyEffect(character)
+			continue
+		end
+
+		-- Цель: своя — сразу из мышки, чужая — плавно догоняет данные сервера
+		local aim
+		if character == myCharacter and myAim then
+			aim = myAim
+			fx.aim = myAim
+		else
+			local serverAim = character:GetAttribute(Config.AimAttribute)
+			if typeof(serverAim) == "Vector3" then
+				fx.aim = fx.aim and fx.aim:Lerp(serverAim, 1 - math.exp(-15 * dt)) or serverAim
+			end
+			aim = fx.aim
+		end
+		if not aim then
+			continue
+		end
+
+		local origin = (fx.eyes[1].attachment.WorldPosition + fx.eyes[2].attachment.WorldPosition) / 2
+		local direction = aim - origin
+		if direction.Magnitude < 0.01 then
+			continue
+		end
+		rayParams.FilterDescendantsInstances = { character, fx.target }
+		local result = workspace:Raycast(origin, direction.Unit * Config.Range, rayParams)
+		local endPoint = result and result.Position or origin + direction.Unit * Config.Range
+
+		fx.target.CFrame = CFrame.new(endPoint)
+
+		-- Следы на поверхностях (не на персонажах)
+		if result and fx.power > 0.5 and t >= (fx.nextScorch or 0) then
+			fx.nextScorch = t + 0.07
+			local model = result.Instance:FindFirstAncestorWhichIsA("Model")
+			if not (model and model:FindFirstChildOfClass("Humanoid")) then
+				addScorch(result.Position, result.Normal)
+			end
+		end
+		if character == myCharacter and fx.power > 0.5 then
+			AbilityFx.Shake(0.006, 0.08)
+		end
+		fx.sparks.Enabled = result ~= nil and fx.power > 0.5
+		fx.impactLight.Brightness = result and 4 * fx.power or 0
+
+		-- Мерцание толщины луча
+		local flicker = 1 + 0.25 * math.noise(t * 25, fx.seed)
+		for _, b in fx.beams do
+			local w = b.width * fx.power * flicker
+			b.beam.Width0 = w
+			b.beam.Width1 = w
+		end
+		for _, eye in fx.eyes do
+			eye.light.Brightness = 3 * fx.power
+		end
+	end
+
+	updateScorches(t)
+
+	-- Таймеры на кнопке
+	local now = serverNow()
+	local activeLeft = myActive and math.max(0, (myCharacter:GetAttribute(Config.UntilAttribute) or 0) - now) or nil
+	local cooldownLeft = math.max(0, (player:GetAttribute(Config.CooldownAttribute) or 0) - now)
+	button:Update(activeLeft, cooldownLeft)
+end)
+
+----------------------------------------------------------------------
+-- 18. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
+----------------------------------------------------------------------
+
+-- LocalScript: StarterPlayer > StarterPlayerScripts > FlightClient
+-- Клиент способности «Полёт»:
+--   * физика полёта своего персонажа: инерция, разгон, наклон по направлению,
+--     крен в поворотах, рывок при взлёте;
+--   * анимации для всех летящих: зависание с покачиванием ↔ «супергеройский» полёт,
+--     следы от рук и ног на скорости, пыль при взлёте;
+--   * «звуковой удар» при выходе на максимальную скорость, расширение обзора;
+--   * супергеройское приземление (на одно колено) после полёта.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("FlightConfig"))
+local RigAnimator = require(ReplicatedStorage:WaitForChild("RigAnimator"))
+local AbilityFx = require(ReplicatedStorage:WaitForChild("AbilityFx"))
+local AbilityButton = require(ReplicatedStorage:WaitForChild("AbilityButton"))
+local remote = ReplicatedStorage:WaitForChild(Config.RemoteName)
+
+local player = Players.LocalPlayer
+
+---------------------------------------------------------------------
+-- Позы полёта (градусы, как в PoseConfig)
+---------------------------------------------------------------------
+
+-- Зависание: ноги свободно свисают, руки чуть в стороны
+local HOVER = {
+	Waist = Vector3.new(0, 0, 0),
+	Neck = Vector3.new(0, 0, 0),
+	LeftShoulder = Vector3.new(5, 0, -22),
+	RightShoulder = Vector3.new(5, 0, 22),
+	LeftElbow = Vector3.new(18, 0, 0),
+	RightElbow = Vector3.new(18, 0, 0),
+	LeftHip = Vector3.new(12, 0, -4),
+	RightHip = Vector3.new(-6, 0, 4),
+	LeftKnee = Vector3.new(-30, 0, 0),
+	RightKnee = Vector3.new(-14, 0, 0),
+	LeftAnkle = Vector3.new(-25, 0, 0),
+	RightAnkle = Vector3.new(-25, 0, 0),
+}
+
+-- Полёт: тело горизонтально (наклоняет физика), правая рука вперёд, ноги вытянуты
+local FLY = {
+	Waist = Vector3.new(10, 0, 0),
+	Neck = Vector3.new(55, 0, 0), -- голова смотрит вперёд, а не в землю
+	LeftShoulder = Vector3.new(-12, 0, -8),
+	RightShoulder = Vector3.new(172, 0, 6),
+	LeftElbow = Vector3.new(12, 0, 0),
+	RightElbow = Vector3.new(0, 0, 0),
+	LeftHip = Vector3.new(-4, 0, -3),
+	RightHip = Vector3.new(-10, 0, 3),
+	LeftKnee = Vector3.new(-6, 0, 0),
+	RightKnee = Vector3.new(-28, 0, 0),
+	LeftAnkle = Vector3.new(-45, 0, 0),
+	RightAnkle = Vector3.new(-45, 0, 0),
+}
+
+-- Супергеройское приземление: на одно колено, кулак в землю
+local LANDING = {
+	HipHeight = 0.5,
+	Root = Vector3.new(-15, 0, 0),
+	Waist = Vector3.new(-15, 0, 0),
+	Neck = Vector3.new(12, 0, 0),
+	RightHip = Vector3.new(95, 0, 8),
+	RightKnee = Vector3.new(-95, 0, 0),
+	LeftHip = Vector3.new(-15, 0, -8),
+	LeftKnee = Vector3.new(-110, 0, 0),
+	LeftAnkle = Vector3.new(-30, 0, 0),
+	RightShoulder = Vector3.new(55, 0, 12),
+	RightElbow = Vector3.new(10, 0, 0),
+	LeftShoulder = Vector3.new(-35, 0, -30),
+	LeftElbow = Vector3.new(25, 0, 0),
+	R6 = {
+		HipHeight = 0.6,
+		RightHip = Vector3.new(80, 0, 8),
+		LeftHip = Vector3.new(-30, 0, -8),
+	},
+}
+local LANDING_TIME = 0.8
+
+local function flightLayer(character: Model)
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	local weight = 0
+	return {
+		Priority = 10,
+		Update = function(rig, dt, now)
+			local flying = character:GetAttribute(Config.ActiveAttribute) == true
+			weight = AbilityFx.Approach(weight, flying and 1 or 0, dt / 0.3)
+			if not flying and weight <= 0 then
+				return nil, 0, true
+			end
+			local vel = hrp and hrp.AssemblyLinearVelocity or Vector3.zero
+			local s = RigAnimator.Smooth(vel.Magnitude / Config.Speed)
+			local pose = RigAnimator.Blend(HOVER, FLY, s)
+
+			-- Живость: на месте ноги покачиваются, на скорости дрожат от ветра
+			local calm = 1 - s
+			local sway = math.sin(now * 1.6)
+			pose.LeftHip += Vector3.new(sway * 7 * calm + math.sin(now * 17) * 2.5 * s, 0, 0)
+			pose.RightHip += Vector3.new(-sway * 7 * calm + math.sin(now * 15 + 1) * 2.5 * s, 0, 0)
+			pose.LeftShoulder += Vector3.new(0, 0, math.sin(now * 1.3) * 5 * calm)
+			pose.RightShoulder += Vector3.new(math.sin(now * 13) * 2 * s, 0, -math.sin(now * 1.3) * 5 * calm)
+
+			local frames = RigAnimator.Frames(rig, pose)
+			frames.Root = CFrame.new(0, math.sin(now * 2.2) * 0.25 * rig.scale * calm, 0)
+			return frames, weight
+		end,
+	}
+end
+
+local function landingLayer(character: Model)
+	local start = os.clock()
+	return {
+		Priority = 15,
+		Update = function(rig, _, now)
+			local elapsed = now - start
+			if elapsed >= LANDING_TIME then
+				return nil, 0, true
+			end
+			local frames = RigAnimator.Frames(rig, LANDING)
+			local overrides = rig.rigType == "R6" and LANDING.R6 or {}
+			frames.Root = RigAnimator.RootFrame(rig, overrides.HipHeight or LANDING.HipHeight, LANDING.Root)
+			return frames, RigAnimator.Envelope(elapsed, LANDING_TIME, 0.06, 0.3)
+		end,
+	}
+end
+
+---------------------------------------------------------------------
+-- Следы (trails) от рук и ног
+---------------------------------------------------------------------
+
+local TRAIL_PARTS = {
+	R15 = { "LeftHand", "RightHand", "LeftFoot", "RightFoot" },
+	R6 = { "Left Arm", "Right Arm", "Left Leg", "Right Leg" },
+}
+
+local function createTrails(character: Model)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return {}
+	end
+	local isR15 = humanoid.RigType == Enum.HumanoidRigType.R15
+	local trails = {}
+	for _, partName in TRAIL_PARTS[isR15 and "R15" or "R6"] do
+		local part = character:FindFirstChild(partName)
+		if part and part:IsA("BasePart") then
+			local y = isR15 and 0 or -part.Size.Y / 2
+			local a0 = Instance.new("Attachment")
+			a0.Name = "FlightTrail0"
+			a0.Position = Vector3.new(0.12, y, 0)
+			a0.Parent = part
+			local a1 = Instance.new("Attachment")
+			a1.Name = "FlightTrail1"
+			a1.Position = Vector3.new(-0.12, y, 0)
+			a1.Parent = part
+
+			local trail = Instance.new("Trail")
+			trail.Attachment0 = a0
+			trail.Attachment1 = a1
+			trail.Color = ColorSequence.new(Config.TrailColor)
+			trail.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0.35),
+				NumberSequenceKeypoint.new(1, 1),
+			})
+			trail.WidthScale = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(1, 0),
+			})
+			trail.Lifetime = 0.35
+			trail.LightEmission = 0.6
+			trail.FaceCamera = true
+			trail.MinLength = 0.05
+			trail.Enabled = false
+			trail.Parent = part
+			table.insert(trails, { trail = trail, a0 = a0, a1 = a1 })
+		end
+	end
+	return trails
+end
+
+local function destroyTrails(trails)
+	for _, t in trails do
+		t.trail.Enabled = false
+		Debris:AddItem(t.trail, 0.5)
+		Debris:AddItem(t.a0, 0.5)
+		Debris:AddItem(t.a1, 0.5)
+	end
+end
+
+---------------------------------------------------------------------
+-- Физика своего полёта
+---------------------------------------------------------------------
+
+local controls = nil
+local function getMoveVector(humanoid: Humanoid): Vector3
+	if controls == nil then
+		local ok, module = pcall(function()
+			return require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule", 5))
+		end)
+		controls = (ok and module) and module:GetControls() or false
+	end
+	if controls then
+		return controls:GetMoveVector()
+	end
+	-- Запасной вариант: направление ходьбы в мире переводим в пространство камеры
+	local camera = workspace.CurrentCamera
+	return camera.CFrame:VectorToObjectSpace(humanoid.MoveDirection)
+end
+
+local function anyKeyDown(keys): boolean
+	for _, key in keys do
+		if UserInputService:IsKeyDown(key) then
+			return true
+		end
+	end
+	return false
+end
+
+local flight = nil -- состояние своего полёта
+
+local function startLocalFlight(character: Model)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not hrp then
+		return
+	end
+
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "FlightAttachment"
+	attachment.Parent = hrp
+
+	local look = Vector3.new(hrp.CFrame.LookVector.X, 0, hrp.CFrame.LookVector.Z)
+	look = look.Magnitude > 0.01 and look.Unit or Vector3.new(0, 0, -1)
+
+	local velocity = Instance.new("LinearVelocity")
+	velocity.Attachment0 = attachment
+	velocity.MaxForce = math.huge
+	velocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	velocity.RelativeTo = Enum.ActuatorRelativeTo.World
+	velocity.VectorVelocity = Vector3.new(0, Config.LaunchSpeed, 0)
+	velocity.Parent = hrp
+
+	local align = Instance.new("AlignOrientation")
+	align.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	align.Attachment0 = attachment
+	align.MaxTorque = math.huge
+	align.Responsiveness = Config.TurnResponsiveness
+	align.CFrame = CFrame.lookAt(Vector3.zero, look)
+	align.Parent = hrp
+
+	humanoid.PlatformStand = true
+
+	flight = {
+		character = character,
+		humanoid = humanoid,
+		hrp = hrp,
+		attachment = attachment,
+		velocity = velocity,
+		align = align,
+		vel = Vector3.new(0, Config.LaunchSpeed, 0),
+		momentum = 0,
+		roll = 0,
+		lastLook = look,
+		baseFov = workspace.CurrentCamera.FieldOfView,
+		boomed = false,
+	}
+	AbilityFx.Shake(0.025, 0.4)
+end
+
+local function stopLocalFlight()
+	local f = flight
+	if not f then
+		return
+	end
+	flight = nil
+	f.velocity:Destroy()
+	f.align:Destroy()
+	f.attachment:Destroy()
+	if f.humanoid.Parent then
+		f.humanoid.PlatformStand = false
+		f.humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+	end
+	TweenService:Create(workspace.CurrentCamera, TweenInfo.new(0.6, Enum.EasingStyle.Quad), {
+		FieldOfView = f.baseFov,
+	}):Play()
+end
+
+local function sonicBoom(f)
+	local camera = workspace.CurrentCamera
+	AbilityFx.Burst(f.hrp.Position, {
+		Color = Config.BoomColor,
+		Count = 50,
+		Speed = NumberRange.new(30, 45),
+		Size = 1.6,
+		Lifetime = NumberRange.new(0.25, 0.45),
+		LightEmission = 0.7,
+		Drag = 6,
+		Light = 16,
+	})
+	AbilityFx.Shake(0.04, 0.45)
+	camera.FieldOfView = math.min(110, camera.FieldOfView + 10) -- резкий «удар» обзора
+end
+
+local function updateLocalFlight(dt: number)
+	local f = flight
+	local camera = workspace.CurrentCamera
+	local move = getMoveVector(f.humanoid)
+
+	-- Направление: туда, куда смотрит камера, плюс вверх/вниз
+	local direction = Vector3.zero
+	if move.Magnitude > 0.05 then
+		direction = camera.CFrame.RightVector * move.X + camera.CFrame.LookVector * -move.Z
+	end
+	local vertical = 0
+	if anyKeyDown(Config.UpKeys) or f.humanoid.Jump then
+		vertical += 1
+	end
+	if anyKeyDown(Config.DownKeys) then
+		vertical -= 1
+	end
+	direction += Vector3.new(0, vertical, 0)
+	if direction.Magnitude > 1 then
+		direction = direction.Unit
+	end
+
+	-- Разгон, если долго лететь вперёд
+	if move.Magnitude > 0.5 then
+		f.momentum = math.min(1, f.momentum + dt / Config.BoostTime)
+	else
+		f.momentum = math.max(0, f.momentum - dt * 1.5)
+	end
+	local speed = Config.Speed + (Config.MaxSpeed - Config.Speed) * f.momentum
+	f.vel = f.vel:Lerp(direction * speed, 1 - math.exp(-Config.Acceleration * dt))
+	f.velocity.VectorVelocity = f.vel
+
+	-- Звуковой удар при выходе на максимум
+	if f.momentum >= 0.98 and not f.boomed then
+		f.boomed = true
+		sonicBoom(f)
+	elseif f.momentum < 0.5 then
+		f.boomed = false
+	end
+
+	-- Поворот тела: куда летим, наклон по скорости, крен в поворотах
+	local flat = Vector3.new(f.vel.X, 0, f.vel.Z)
+	local look
+	if flat.Magnitude > 3 then
+		look = flat.Unit
+	else
+		local cl = camera.CFrame.LookVector
+		local camFlat = Vector3.new(cl.X, 0, cl.Z)
+		look = camFlat.Magnitude > 0.01 and camFlat.Unit or f.lastLook
+	end
+	local yawRate = math.atan2(f.lastLook:Cross(look).Y, f.lastLook:Dot(look)) / math.max(dt, 1 / 240)
+	f.lastLook = look
+
+	local speedFrac = math.clamp(f.vel.Magnitude / Config.Speed, 0, 1)
+	local targetRoll = math.clamp(yawRate * Config.BankStrength, -math.rad(50), math.rad(50)) * speedFrac
+	f.roll += (targetRoll - f.roll) * (1 - math.exp(-6 * dt))
+
+	local elevation = 0
+	if f.vel.Magnitude > 1 then
+		elevation = math.asin(math.clamp(f.vel.Y / f.vel.Magnitude, -1, 1))
+	end
+	local pitch = math.clamp(-(math.pi / 2 - elevation) * speedFrac, -math.rad(Config.MaxPitch), 0)
+	f.align.CFrame = CFrame.lookAt(Vector3.zero, look) * CFrame.Angles(0, 0, f.roll) * CFrame.Angles(pitch, 0, 0)
+
+	-- Обзор шире на скорости, лёгкая тряска на максимуме
+	local fovTarget = f.baseFov + Config.FovBoost * math.clamp(f.vel.Magnitude / Config.MaxSpeed, 0, 1)
+	camera.FieldOfView += (fovTarget - camera.FieldOfView) * (1 - math.exp(-5 * dt))
+	if f.momentum > 0.9 then
+		AbilityFx.Shake(0.004, 0.05)
+	end
+end
+
+---------------------------------------------------------------------
+-- Все персонажи: анимации, следы, приземление
+---------------------------------------------------------------------
+
+local tracked = {} -- [character] = { flying, trails, landUntil, prevVy }
+
+RunService.RenderStepped:Connect(function(dt)
+	-- Свой полёт
+	local myCharacter = player.Character
+	local myFlying = myCharacter ~= nil and myCharacter:GetAttribute(Config.ActiveAttribute) == true
+	if myFlying and (not flight or flight.character ~= myCharacter) then
+		stopLocalFlight()
+		startLocalFlight(myCharacter)
+	elseif not myFlying and flight then
+		stopLocalFlight()
+	end
+	if flight then
+		if flight.hrp.Parent and flight.humanoid.Health > 0 then
+			updateLocalFlight(dt)
+		else
+			stopLocalFlight()
+		end
+	end
+
+	local now = os.clock()
+	for _, p in Players:GetPlayers() do
+		local character = p.Character
+		local hrp = character and character:FindFirstChild("HumanoidRootPart")
+		if not hrp then
+			continue
+		end
+		local state = tracked[character]
+		if not state then
+			state = { flying = false, trails = nil, landUntil = 0, prevVy = 0 }
+			tracked[character] = state
+		end
+
+		local flying = character:GetAttribute(Config.ActiveAttribute) == true
+		local vel = hrp.AssemblyLinearVelocity
+
+		if flying and not state.flying then
+			-- Взлёт
+			state.flying = true
+			state.trails = createTrails(character)
+			RigAnimator.SetLayer(character, "Flight", flightLayer(character))
+			AbilityFx.Dust(character, 30)
+		elseif not flying and state.flying then
+			-- Конец полёта: ждём приземления
+			state.flying = false
+			destroyTrails(state.trails or {})
+			state.trails = nil
+			state.landUntil = now + 5
+		end
+
+		if state.trails then
+			local enabled = vel.Magnitude > Config.Speed * 0.6
+			for _, t in state.trails do
+				t.trail.Enabled = enabled
+			end
+		end
+
+		-- Супергеройское приземление: резко падали и остановились
+		if now < state.landUntil and state.prevVy < -Config.LandingMinFallSpeed and vel.Y > -4 then
+			state.landUntil = 0
+			RigAnimator.SetLayer(character, "FlightLanding", landingLayer(character))
+			AbilityFx.Dust(character, 40)
+			AbilityFx.Burst(hrp.Position - Vector3.new(0, 2.5, 0), {
+				Color = Config.BoomColor,
+				Count = 20,
+				Speed = NumberRange.new(18, 26),
+				Size = 0.8,
+				Lifetime = NumberRange.new(0.2, 0.35),
+				Spread = Vector2.new(90, 90),
+			})
+			if character == myCharacter then
+				AbilityFx.Shake(0.06, 0.5)
+			end
+		end
+		state.prevVy = vel.Y
+	end
+
+	for character in pairs(tracked) do
+		if not character.Parent then
+			tracked[character] = nil
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- Кнопка
+---------------------------------------------------------------------
+
+AbilityButton.Create({
+	Name = Config.ButtonText,
+	Icon = Config.ButtonIcon,
+	Slot = Config.ButtonSlot,
+	Duration = Config.Duration,
+	Cooldown = Config.Cooldown,
+	ActiveColor = Config.ActiveColor,
+	Remote = remote,
+	Keys = Config.Keys,
+	ActionName = "Flight",
+	ActiveAttribute = Config.ActiveAttribute,
+	UntilAttribute = Config.UntilAttribute,
+	CooldownAttribute = Config.CooldownAttribute,
+})
+
+----------------------------------------------------------------------
+-- 19. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
+----------------------------------------------------------------------
+
+-- LocalScript: StarterPlayer > StarterPlayerScripts > CubeClient
+-- Анимации куба (у всех игроков на экране):
+--   * куб «выпрыгивает» с пружинкой и облаком частиц, при выходе сжимается;
+--   * при ходьбе подскакивает, при касании земли сплющивается, наклоняется вперёд;
+--   * в прыжке вытягивается и делает сальто, при приземлении — «шлёп» и пыль;
+--   * на месте «дышит», глаза моргают.
+-- Тело персонажа в форме куба прячет InvisibilityClient.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("CubeConfig"))
+local AbilityFx = require(ReplicatedStorage:WaitForChild("AbilityFx"))
+local AbilityButton = require(ReplicatedStorage:WaitForChild("AbilityButton"))
+local remote = ReplicatedStorage:WaitForChild(Config.RemoteName)
+
+local player = Players.LocalPlayer
+local cubes = {} -- [cube part] = состояние
+
+local function poof(position: Vector3, color: Color3)
+	AbilityFx.Burst(position, {
+		Color = ColorSequence.new(color, Color3.new(1, 1, 1)),
+		Count = 45,
+		Speed = NumberRange.new(10, 22),
+		Size = 1.1,
+		Lifetime = NumberRange.new(0.35, 0.7),
+		LightEmission = 0.4,
+		Drag = 5,
+		Light = 14,
+	})
+end
+
+local function newState(character: Model, cube: BasePart)
+	local now = os.clock()
+	return {
+		character = character,
+		cube = cube,
+		weld = cube:FindFirstChild("CubeWeld"),
+		hrp = character:FindFirstChild("HumanoidRootPart"),
+		base = cube:GetAttribute("BaseSize") or cube.Size.Y,
+		offsetY = cube:GetAttribute("OffsetY") or 0,
+		start = now,
+		endedAt = nil,
+		hopPhase = 0,
+		impact = 0,
+		prevVy = 0,
+		flipStart = nil,
+		blinkAt = now + 1 + math.random() * 2,
+		blinkUntil = 0,
+		eyes = {},
+	}
+end
+
+local function findEyes(state)
+	local face = state.cube:FindFirstChild("Face")
+	if face then
+		for _, name in { "Eye1", "Eye2" } do
+			local eye = face:FindFirstChild(name)
+			if eye then
+				table.insert(state.eyes, eye)
+			end
+		end
+	end
+end
+
+local function updateCube(state, dt: number, now: number)
+	local cube, weld, hrp = state.cube, state.weld, state.hrp
+	if not weld or not hrp then
+		return
+	end
+	local active = state.character:GetAttribute(Config.ActiveAttribute) == true
+
+	-- Появление / исчезновение
+	if not active and not state.endedAt then
+		state.endedAt = now
+		poof(cube.Position, cube.Color)
+		if state.character == player.Character then
+			AbilityFx.Shake(0.03, 0.3)
+		end
+	end
+	local pop
+	if state.endedAt then
+		pop = math.max(0, 1 - AbilityFx.BackIn((now - state.endedAt) / Config.PopOutTime))
+	else
+		pop = AbilityFx.ElasticOut((now - state.start) / Config.PopTime)
+	end
+
+	local vel = hrp.AssemblyLinearVelocity
+	local vy = vel.Y
+	local flatSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
+	local moving = math.clamp(flatSpeed / 16, 0, 1)
+	local grounded = math.abs(vy) < 3
+
+	-- Подскоки при ходьбе
+	local hop, contact = 0, 0
+	if grounded and moving > 0.1 then
+		state.hopPhase += dt * Config.HopRate * (0.6 + 0.4 * moving)
+		local s = math.abs(math.sin(state.hopPhase * math.pi))
+		hop = s * Config.HopHeight * moving * (state.base / Config.Size)
+		contact = (1 - s) ^ 6 * moving
+	else
+		state.hopPhase = 0
+	end
+
+	-- Приземление: сплющивание и пыль
+	if state.prevVy < -15 and vy > -3 then
+		state.impact = math.clamp(-state.prevVy / 60, 0.15, 0.4)
+		AbilityFx.Dust(state.character, 18)
+	end
+	state.impact *= math.exp(-9 * dt)
+
+	-- Прыжок: сальто вперёд
+	if state.prevVy < 5 and vy > 25 and not state.flipStart then
+		state.flipStart = now
+	end
+	local flip = 0
+	if state.flipStart then
+		local t = (now - state.flipStart) / 0.55
+		if t >= 1 then
+			state.flipStart = nil
+		else
+			flip = -2 * math.pi * (t * t * (3 - 2 * t))
+		end
+	end
+	state.prevVy = vy
+
+	-- Растяжение в воздухе, «дыхание» на месте
+	local stretch = grounded and 0 or math.clamp(math.abs(vy) / 90, 0, 0.22)
+	local breath = math.sin(now * 3) * 0.03 * (1 - moving)
+	local scaleY = math.max(0.4, 1 - 0.16 * contact - state.impact + stretch + breath)
+	local scaleXZ = 1 + 0.5 * (1 - scaleY)
+
+	local size = math.max(0.05, state.base * pop)
+	local height = size * scaleY
+	cube.Size = Vector3.new(size * scaleXZ, height, size * scaleXZ)
+
+	-- Нижняя грань остаётся на земле
+	local groundY = state.offsetY - state.base / 2
+	local tilt = -math.rad(12) * moving
+	weld.C0 = CFrame.new(0, groundY + height / 2 + hop, 0) * CFrame.Angles(tilt + flip, 0, 0)
+
+	-- Моргание
+	if now > state.blinkAt then
+		state.blinkUntil = now + 0.12
+		state.blinkAt = now + 2 + math.random() * 3
+	end
+	local eyeHeight = now < state.blinkUntil and 0.03 or 0.2
+	for _, eye in state.eyes do
+		eye.Size = UDim2.fromScale(0.13, eyeHeight)
+	end
+end
+
+RunService.RenderStepped:Connect(function(dt)
+	local now = os.clock()
+	for _, p in Players:GetPlayers() do
+		local character = p.Character
+		local cube = character and character:FindFirstChild(Config.PartName)
+		if cube and cube:IsA("BasePart") and not cubes[cube] then
+			local state = newState(character, cube)
+			findEyes(state)
+			cubes[cube] = state
+			if character:GetAttribute(Config.ActiveAttribute) == true then
+				poof(cube.Position, cube.Color)
+				if character == player.Character then
+					AbilityFx.Shake(0.035, 0.35)
+				end
+			end
+		end
+	end
+
+	for cube, state in pairs(cubes) do
+		if not cube.Parent then
+			cubes[cube] = nil
+		else
+			updateCube(state, dt, now)
+		end
+	end
+end)
+
+AbilityButton.Create({
+	Name = Config.ButtonText,
+	Icon = Config.ButtonIcon,
+	Slot = Config.ButtonSlot,
+	Duration = Config.Duration,
+	Cooldown = Config.Cooldown,
+	ActiveColor = Config.ActiveColor,
+	Remote = remote,
+	Keys = Config.Keys,
+	ActionName = "CubeForm",
+	ActiveAttribute = Config.ActiveAttribute,
+	UntilAttribute = Config.UntilAttribute,
+	CooldownAttribute = Config.CooldownAttribute,
+})
