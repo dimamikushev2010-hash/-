@@ -14,6 +14,7 @@ local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local NPCConfig = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local CityConfig = require(ReplicatedStorage:WaitForChild("CityConfig"))
 local VehicleConfig = require(ReplicatedStorage:WaitForChild("VehicleConfig"))
 local Sounds = require(ReplicatedStorage:WaitForChild("SoundConfig"))
 local remote = ReplicatedStorage:WaitForChild("PhoneRemote")
@@ -43,6 +44,10 @@ local APPS = {
 	{ id = "messages", name = "Сообщения", icon = "💬", colors = { Color3.fromRGB(90, 220, 110), Color3.fromRGB(30, 160, 70) } },
 	{ id = "weather", name = "Погода", icon = "☀️", colors = { Color3.fromRGB(110, 190, 255), Color3.fromRGB(40, 110, 220) } },
 	{ id = "quests", name = "Задания", icon = "📋", colors = { Color3.fromRGB(250, 120, 160), Color3.fromRGB(190, 60, 120) } },
+	{ id = "work", name = "Работа", icon = "📦", colors = { Color3.fromRGB(210, 150, 90), Color3.fromRGB(140, 85, 40) } },
+	{ id = "shop", name = "Магазин", icon = "🛍️", colors = { Color3.fromRGB(200, 110, 255), Color3.fromRGB(120, 50, 190) } },
+	{ id = "awards", name = "Награды", icon = "🏆", colors = { Color3.fromRGB(255, 215, 90), Color3.fromRGB(210, 140, 20) } },
+	{ id = "camera", name = "Камера", icon = "📷", colors = { Color3.fromRGB(90, 95, 110), Color3.fromRGB(30, 32, 40) } },
 	{ id = "settings", name = "Настройки", icon = "⚙️", colors = { Color3.fromRGB(160, 165, 180), Color3.fromRGB(90, 95, 110) } },
 }
 
@@ -269,6 +274,7 @@ local appScale = new("UIScale", {}, appLayer)
 local isOpen, locked = false, true
 local currentApp = nil
 local data = { places = {}, policeTypes = {}, tickets = {}, busStops = {}, friends = {}, taxiPrice = VehicleConfig.TaxiPrice }
+local city = { stats = {}, done = {}, owned = {}, equipped = {} } -- работа, магазин, достижения
 local chats = {} -- [имя] = { messages = { {mine, text} }, unread = 0, typingUntil = 0 }
 local openChat = nil
 local notifications = {}
@@ -276,7 +282,7 @@ local taxiStatus = nil
 local policeStep, policeType = 1, nil
 local policeAnswer = nil
 local wallpaperIndex = 1
-local renderApp, renderLock, renderHomeBadges -- объявлены ниже
+local renderApp, renderLock, renderHomeBadges, closePhone -- объявлены ниже
 
 local function applyWallpaper()
 	local w = WALLPAPERS[wallpaperIndex]
@@ -429,6 +435,8 @@ function renderHomeBadges()
 	homeBadges.police.Text = tostring(active)
 	homeBadges.taxi.Visible = taxiStatus ~= nil and not taxiStatus.done
 	homeBadges.taxi.Text = "!"
+	homeBadges.work.Visible = player:GetAttribute("JobStage") ~= nil
+	homeBadges.work.Text = "!"
 end
 
 ---------------------------------------------------------------------
@@ -483,6 +491,14 @@ end)
 homeBar.Activated:Connect(goHome)
 
 function openApp(id: string)
+	if id == "camera" then
+		-- Камера — это фоторежим на весь экран (CityLifeClient)
+		closePhone()
+		task.delay(0.25, function()
+			player:SetAttribute("PhotoMode", true)
+		end)
+		return
+	end
 	currentApp = id
 	openChat = nil
 	for _, app in APPS do
@@ -492,6 +508,8 @@ function openApp(id: string)
 	end
 	if id == "messages" then
 		remote:FireServer("Friends")
+	elseif id == "shop" or id == "awards" or id == "work" then
+		remote:FireServer("City")
 	end
 	appLayer.Visible = true
 	appScale.Scale = 0.4
@@ -1013,6 +1031,124 @@ local function renderSettings()
 	end
 end
 
+---------------------------------------------------------------------
+-- 📦 Работа, 🛍 Магазин, 🏆 Награды
+---------------------------------------------------------------------
+
+local function coinsText(): string
+	local stats = player:FindFirstChild("leaderstats")
+	local coins = stats and stats:FindFirstChild(NPCConfig.CurrencyName)
+	return coins and tostring(coins.Value) or "0"
+end
+
+local function renderWork()
+	list(content, 10)
+	local stage = player:GetAttribute("JobStage")
+	local top = card(content, nil, 0)
+	list(top, 6)
+	text(top, "📦 Курьер города", 17, WHITE, true)
+	if not stage then
+		text(top, "Забери посылку и отнеси её жителю. Получатель подсвечен, к нему ведёт золотой луч.", 13, Color3.fromRGB(200, 210, 230), false, { Size = UDim2.new(1, 0, 0, 52) })
+		text(top, string.format("Награда: %d–%d 🪙, за %d с — ещё +%d ⚡", CityConfig.Job.Reward.Min, CityConfig.Job.Reward.Max, CityConfig.Job.FastTime, CityConfig.Job.FastBonus), 13, Color3.fromRGB(255, 220, 120), false, { Size = UDim2.new(1, 0, 0, 36) })
+		button(content, "Взять заказ", { LayoutOrder = 1, BackgroundColor3 = Color3.fromRGB(60, 200, 100), BackgroundTransparency = 0.2, Font = Enum.Font.GothamBold }, function()
+			remote:FireServer("Job")
+		end)
+	else
+		text(top, player:GetAttribute("JobText") or "", 15, WHITE, true, { Size = UDim2.new(1, 0, 0, 40) })
+		local ends = player:GetAttribute("JobEnds")
+		local left = ends and math.max(0, ends - workspace:GetServerTimeNow()) or 0
+		statusChip(top, string.format("⏱ %d:%02d", math.floor(left / 60), math.floor(left % 60)), left < 30 and Color3.fromRGB(255, 100, 90) or Color3.fromRGB(255, 190, 60))
+		text(top, stage == "pickup" and "Шаг 1 из 2: забери посылку (кнопка у коробки)" or "Шаг 2 из 2: подойди к получателю", 13, Color3.fromRGB(200, 210, 230), false, { Size = UDim2.new(1, 0, 0, 34) })
+		button(content, "Отменить заказ", { LayoutOrder = 1, BackgroundColor3 = Color3.fromRGB(240, 80, 80), BackgroundTransparency = 0.4 }, function()
+			remote:FireServer("Job")
+		end)
+	end
+	local stats = card(content, nil, 2)
+	list(stats, 4)
+	text(stats, "📊 Статистика", 15, WHITE, true)
+	text(stats, "Доставлено посылок: " .. math.floor(city.stats.Delivery or 0), 14, Color3.fromRGB(210, 215, 235), false)
+	text(stats, "🪙 " .. coinsText() .. " " .. NPCConfig.CurrencyName, 14, Color3.fromRGB(255, 215, 90), true)
+end
+
+local function contains(list: { string }, value: string): boolean
+	for _, v in list do
+		if v == value then
+			return true
+		end
+	end
+	return false
+end
+
+local function renderShop()
+	list(content, 10)
+	local top = card(content, nil, 0)
+	text(top, "🪙 " .. coinsText() .. " " .. NPCConfig.CurrencyName, 20, Color3.fromRGB(255, 215, 90), true)
+	local g = new("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 1 }, content)
+	new("UIGridLayout", { CellSize = UDim2.new(0.5, -5, 0, 132), CellPadding = UDim2.fromOffset(10, 10), SortOrder = Enum.SortOrder.LayoutOrder }, g)
+	for i, item in CityConfig.Shop do
+		local owned = contains(city.owned, item.Id)
+		local worn = contains(city.equipped, item.Id)
+		local cell = new("Frame", { BackgroundColor3 = WHITE, BackgroundTransparency = worn and 0.75 or 0.88, LayoutOrder = i }, g)
+		corner(cell, 14)
+		if worn then
+			new("UIStroke", { Color = Color3.fromRGB(120, 230, 140), Thickness = 2 }, cell)
+		end
+		text(cell, item.Icon, 34, WHITE, true, { Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 40), TextXAlignment = Enum.TextXAlignment.Center })
+		text(cell, item.Name, 13, WHITE, true, { Position = UDim2.fromOffset(4, 52), Size = UDim2.new(1, -8, 0, 32), TextXAlignment = Enum.TextXAlignment.Center })
+		local label = worn and "Снять" or owned and "Надеть" or (item.Price .. " 🪙")
+		local color = worn and Color3.fromRGB(240, 90, 90) or owned and Color3.fromRGB(60, 200, 100) or Color3.fromRGB(255, 190, 50)
+		button(cell, label, { Position = UDim2.new(0, 8, 1, -40), Size = UDim2.new(1, -16, 0, 32), BackgroundColor3 = color, BackgroundTransparency = 0.25, TextSize = 13, Font = Enum.Font.GothamBold }, function()
+			remote:FireServer(owned and "Equip" or "Buy", item.Id)
+		end)
+	end
+	text(content, "Вещи остаются у тебя навсегда. В одном месте (голова, лицо...) — одна вещь.", 12, Color3.fromRGB(160, 170, 195), false, { LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 34) })
+end
+
+local function renderAwards()
+	list(content, 8)
+	local doneCount = 0
+	for _, a in CityConfig.Achievements do
+		if contains(city.done, a.Id) then
+			doneCount += 1
+		end
+	end
+	local top = card(content, nil, 0)
+	list(top, 6)
+	text(top, string.format("🏆 Получено: %d из %d", doneCount, #CityConfig.Achievements), 17, WHITE, true)
+	bar(top, "", doneCount / math.max(1, #CityConfig.Achievements), Color3.fromRGB(255, 200, 60), 2)
+	-- Сначала незавершённые, ближайшие к цели
+	local order = {}
+	for i, a in CityConfig.Achievements do
+		local done = contains(city.done, a.Id)
+		local progress = math.clamp((city.stats[a.Stat] or 0) / a.Goal, 0, 1)
+		table.insert(order, { a = a, done = done, progress = progress, i = i })
+	end
+	table.sort(order, function(x, y)
+		if x.done ~= y.done then
+			return not x.done
+		end
+		if x.progress ~= y.progress then
+			return x.progress > y.progress
+		end
+		return x.i < y.i
+	end)
+	for n, o in order do
+		local a = o.a
+		local row = card(content, 74, n)
+		row.BackgroundTransparency = o.done and 0.8 or 0.9
+		text(row, a.Icon, 30, WHITE, true, { Size = UDim2.fromOffset(40, 50), TextXAlignment = Enum.TextXAlignment.Center, TextTransparency = o.done and 0 or 0.35 })
+		text(row, a.Name .. (o.done and "  ✓" or ""), 14, o.done and Color3.fromRGB(255, 215, 90) or WHITE, true, { Position = UDim2.fromOffset(48, 0), Size = UDim2.new(1, -100, 0, 18) })
+		text(row, a.Desc, 12, Color3.fromRGB(180, 190, 215), false, { Position = UDim2.fromOffset(48, 18), Size = UDim2.new(1, -48, 0, 16), TextTruncate = Enum.TextTruncate.AtEnd })
+		text(row, "+" .. a.Reward .. " 🪙", 12, Color3.fromRGB(255, 215, 90), true, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(60, 18), TextXAlignment = Enum.TextXAlignment.Right })
+		if not o.done then
+			local back = new("Frame", { Position = UDim2.fromOffset(48, 40), Size = UDim2.new(1, -48, 0, 6), BackgroundColor3 = Color3.fromRGB(60, 65, 80) }, row)
+			corner(back, 3)
+			local fill = new("Frame", { Size = UDim2.fromScale(o.progress, 1), BackgroundColor3 = Color3.fromRGB(255, 190, 60) }, back)
+			corner(fill, 3)
+		end
+	end
+end
+
 local RENDERERS = {
 	map = renderMap,
 	taxi = renderTaxi,
@@ -1022,6 +1158,9 @@ local RENDERERS = {
 	weather = renderWeather,
 	quests = renderQuests,
 	settings = renderSettings,
+	work = renderWork,
+	shop = renderShop,
+	awards = renderAwards,
 }
 
 function renderApp()
@@ -1089,7 +1228,7 @@ local function openPhone()
 	TweenService:Create(phone, SLIDE, { Position = UDim2.new(1, -24, 0.5, 0) }):Play()
 end
 
-local function closePhone()
+function closePhone()
 	if not isOpen then
 		return
 	end
@@ -1126,12 +1265,33 @@ end, false, Enum.KeyCode.P, Enum.KeyCode.ButtonSelect)
 remote.OnClientEvent:Connect(function(action, payload)
 	if action == "Data" then
 		for k, v in pairs(payload) do
-			data[k] = v
+			if k == "city" then
+				city = v
+			else
+				data[k] = v
+			end
 		end
 		renderHomeBadges()
 		if currentApp and currentApp ~= "map" then
 			renderApp()
 		end
+	elseif action == "City" then
+		city = payload
+		if currentApp == "shop" or currentApp == "awards" or currentApp == "work" then
+			renderApp()
+		end
+	elseif action == "Job" then
+		if payload.text then
+			notify("📦", "Работа", payload.text)
+		elseif payload.ready then
+			notify("📦", "Работа", "Есть новые заказы!")
+		end
+		renderHomeBadges()
+		if currentApp == "work" then
+			renderApp()
+		end
+	elseif action == "Achievement" then
+		notify(payload.icon, "Достижение", payload.name .. "  +" .. payload.reward .. " 🪙")
 	elseif action == "Friends" then
 		data.friends = payload
 		if currentApp == "messages" or currentApp == "quests" then
@@ -1202,7 +1362,7 @@ RunService.RenderStepped:Connect(function(dt)
 	slowTimer -= dt
 	if slowTimer <= 0 then
 		slowTimer = 1.5
-		if currentApp == "bus" or currentApp == "weather" then
+		if currentApp == "bus" or currentApp == "weather" or currentApp == "work" then
 			renderApp()
 		end
 	end

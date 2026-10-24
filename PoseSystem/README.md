@@ -209,12 +209,28 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 | 💬 Сообщения | Знакомые жители сами пишут тебе (`NPCConfig.Phone`). Отвечай быстрыми ответами — растёт дружба |
 | ☀️ Погода | Погода сейчас: дождь, облака, туман и совет |
 | 📋 Задания | Текущее задание, монеты, друзья |
+| 📦 Работа | Курьер: забери посылку и отнеси жителю |
+| 🛍 Магазин | Аксессуары за монеты |
+| 🏆 Награды | Достижения и прогресс |
+| 📷 Камера | Фоторежим |
 | ⚙️ Настройки | Обои, часы на экране, капли дождя, звуки телефона |
 
 - Новые сообщения и статусы приходят уведомлениями: сверху экрана телефона или рядом с кнопкой 📱 (с красным счётчиком).
 - Полоска внизу экрана — «домой», стрелка ‹ — назад.
 - Звуки: `SoundConfig.Phone` — `Notify`, `Tap`, `Unlock`, `Send`.
 - Файлы: `PhoneServer` (Script, ServerScriptService), `PhoneClient` (LocalScript, StarterPlayerScripts).
+
+## Жизнь в городе 📦🛍🏆📷
+
+Новые механики работают через телефон и на уже расставленных метках (настройки — `CityConfig`):
+
+- **📦 Работа курьером.** «Работа» → «Взять заказ». Забери коробку на месте «Почта» (**E**) и отнеси жителю: он подсвечен, к нему ведёт золотой луч, сверху таймер. Персонаж несёт коробку двумя руками. Награда — монеты, за скорость бонус, плюс дружба с получателем.
+- **🛍 Магазин.** Кепка, цилиндр, корона, очки, нимб, шарик на верёвочке, радужный след, искры, сердечки. Вещи прячутся при невидимости и в форме куба.
+- **🏆 Награды.** 17 достижений с монетами: полёт, невидимость, лазеры, куб, прогулки, такси, автобус, полиция, друзья, задания, доставки, покупки, фото, ночь.
+- **📷 Камера.** Фоторежим: фильтры, зум, селфи, скрытие интерфейса. Жители рядом позируют.
+- **💾 Сохранение.** Монеты, вещи и достижения сохраняются (в опубликованной игре; в Studio — включи API Services).
+
+Файлы: `CityConfig` (ModuleScript, ReplicatedStorage), `CityLifeServer` (Script, ServerScriptService), `CityLifeClient` (LocalScript, StarterPlayerScripts).
 
 ## Все клавиши
 
@@ -232,10 +248,10 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 
 | Где | Тип | Имена |
 |---|---|---|
-| ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `NPCConfig`, `VehicleConfig`, `SoundConfig`, `WeatherConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
+| ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `NPCConfig`, `VehicleConfig`, `SoundConfig`, `WeatherConfig`, `CityConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
 | ServerScriptService | ModuleScript | `AbilityRegistry`, `NPCRegistry`, `VehicleDefaults` |
-| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCServer`, `NPCDoors`, `NPCDemo`, `DayNightServer`, `TrafficServer`, `WeatherServer`, `PhoneServer` |
-| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient`, `VehicleClient`, `PoliceDeskClient`, `WeatherClient`, `PhoneClient` |
+| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCServer`, `NPCDoors`, `NPCDemo`, `DayNightServer`, `TrafficServer`, `WeatherServer`, `PhoneServer`, `CityLifeServer` |
+| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient`, `VehicleClient`, `PoliceDeskClient`, `WeatherClient`, `PhoneClient`, `CityLifeClient` |
 
 - `RigAnimator` — общий движок анимаций способностей. Он смешивает анимации разных способностей и не мешает системе поз.
 - `AbilityFx` — частицы, пыль и тряска камеры.

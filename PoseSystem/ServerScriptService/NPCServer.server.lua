@@ -478,6 +478,9 @@ local function addFriendship(npc, player: Player, amount: number)
 			if player.Parent then
 				addCoins(player, Config.FriendGift)
 				toast(player, "❤️ " .. npc.name .. " теперь твой друг!")
+				if Registry.playerEvent then
+					Registry.playerEvent(player, "Friend")
+				end
 			end
 		end)
 	end
@@ -603,6 +606,9 @@ local function finishQuest(npc, player: Player, quest): number
 	npc.anim.emote("Cheer")
 	sfx(npc, "Cheer")
 	offerQuestLater(npc, Config.QuestCooldown)
+	if Registry.playerEvent then
+		Registry.playerEvent(player, "Quest")
+	end
 	return reward
 end
 
@@ -2389,6 +2395,10 @@ Registry.findResident = function(zone: string?, near: Vector3, radius: number)
 	return best
 end
 Registry.say = say
+Registry.toast = toast
+Registry.addCoins = addCoins
+Registry.getCoins = getCoins
+Registry.addFriendship = addFriendship
 Registry.setMood = setMood
 Registry.setPose = setPose
 Registry.face = face

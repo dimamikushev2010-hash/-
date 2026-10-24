@@ -4,7 +4,7 @@
 -- Проще всего: открыть PoseSystem.rbxlx, там всё уже расставлено.
 -- Как расставить точки для жителей — NPC_SETUP.md, транспорт и звуки — VEHICLE_SETUP.md.
 
--- СПИСОК (37 скриптов):
+-- СПИСОК (40 скриптов):
 --    1. ReplicatedStorage > ModuleScript "PoseConfig"
 --    2. ReplicatedStorage > ModuleScript "InvisibilityConfig"
 --    3. ReplicatedStorage > ModuleScript "LaserConfig"
@@ -14,34 +14,37 @@
 --    7. ReplicatedStorage > ModuleScript "VehicleConfig"
 --    8. ReplicatedStorage > ModuleScript "SoundConfig"
 --    9. ReplicatedStorage > ModuleScript "WeatherConfig"
---   10. ReplicatedStorage > ModuleScript "AbilityButton"
---   11. ReplicatedStorage > ModuleScript "RigAnimator"
---   12. ReplicatedStorage > ModuleScript "AbilityFx"
---   13. ServerScriptService > ModuleScript "AbilityRegistry"
---   14. ServerScriptService > ModuleScript "NPCRegistry"
---   15. ServerScriptService > ModuleScript "VehicleDefaults"
---   16. ServerScriptService > Script "PoseServer"
---   17. ServerScriptService > Script "InvisibilityServer"
---   18. ServerScriptService > Script "LaserServer"
---   19. ServerScriptService > Script "FlightServer"
---   20. ServerScriptService > Script "CubeServer"
---   21. ServerScriptService > Script "NPCDemo"
---   22. ServerScriptService > Script "NPCServer"
---   23. ServerScriptService > Script "NPCDoors"
---   24. ServerScriptService > Script "DayNightServer"
---   25. ServerScriptService > Script "TrafficServer"
---   26. ServerScriptService > Script "WeatherServer"
---   27. ServerScriptService > Script "PhoneServer"
---   28. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
---   29. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
---   30. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
---   31. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
---   32. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
---   33. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
---   34. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
---   35. StarterPlayer → StarterPlayerScripts > LocalScript "PoliceDeskClient"
---   36. StarterPlayer → StarterPlayerScripts > LocalScript "WeatherClient"
---   37. StarterPlayer → StarterPlayerScripts > LocalScript "PhoneClient"
+--   10. ReplicatedStorage > ModuleScript "CityConfig"
+--   11. ReplicatedStorage > ModuleScript "AbilityButton"
+--   12. ReplicatedStorage > ModuleScript "RigAnimator"
+--   13. ReplicatedStorage > ModuleScript "AbilityFx"
+--   14. ServerScriptService > ModuleScript "AbilityRegistry"
+--   15. ServerScriptService > ModuleScript "NPCRegistry"
+--   16. ServerScriptService > ModuleScript "VehicleDefaults"
+--   17. ServerScriptService > Script "PoseServer"
+--   18. ServerScriptService > Script "InvisibilityServer"
+--   19. ServerScriptService > Script "LaserServer"
+--   20. ServerScriptService > Script "FlightServer"
+--   21. ServerScriptService > Script "CubeServer"
+--   22. ServerScriptService > Script "NPCDemo"
+--   23. ServerScriptService > Script "NPCServer"
+--   24. ServerScriptService > Script "NPCDoors"
+--   25. ServerScriptService > Script "DayNightServer"
+--   26. ServerScriptService > Script "TrafficServer"
+--   27. ServerScriptService > Script "WeatherServer"
+--   28. ServerScriptService > Script "PhoneServer"
+--   29. ServerScriptService > Script "CityLifeServer"
+--   30. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
+--   31. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
+--   32. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
+--   33. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
+--   34. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
+--   35. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
+--   36. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
+--   37. StarterPlayer → StarterPlayerScripts > LocalScript "PoliceDeskClient"
+--   38. StarterPlayer → StarterPlayerScripts > LocalScript "WeatherClient"
+--   39. StarterPlayer → StarterPlayerScripts > LocalScript "PhoneClient"
+--   40. StarterPlayer → StarterPlayerScripts > LocalScript "CityLifeClient"
 
 
 ----------------------------------------------------------------------
@@ -992,6 +995,7 @@ SoundConfig.Phone = {
 	Tap = { Id = "rbxasset://sounds/clickfast.wav", Volume = 0.25 }, -- нажатие
 	Unlock = { Id = "", Volume = 0.4 }, -- разблокировка
 	Send = { Id = "", Volume = 0.4 }, -- отправка сообщения
+	Shutter = { Id = "", Volume = 0.5 }, -- щелчок затвора камеры (если пусто — звук нажатия)
 }
 
 -- Голоса жителей: у каждого своя высота (случайная в этом диапазоне).
@@ -1045,7 +1049,108 @@ WeatherConfig.RainDrops = 900 -- капель в секунду при силь�
 return WeatherConfig
 
 ----------------------------------------------------------------------
--- 10. ReplicatedStorage > ModuleScript "AbilityButton"
+-- 10. ReplicatedStorage > ModuleScript "CityConfig"
+----------------------------------------------------------------------
+
+-- ModuleScript: ReplicatedStorage > CityConfig
+-- Новые механики города. Работают на уже расставленных метках, новых меток не нужно.
+--   📦 Курьер      — забери посылку и отнеси жителю (телефон → «Работа»)
+--   🛍 Магазин     — аксессуары за монеты: шляпы, очки, корона, нимб, след, шарик...
+--   🏆 Достижения  — награды за полёт, такси, друзей, доставки и многое другое
+--   📷 Фоторежим   — камера телефона: фильтры, зум, селфи; жители позируют
+--   💾 Сохранение  — монеты, покупки и достижения сохраняются (в опубликованной игре)
+
+local CityConfig = {}
+
+---------------------------------------------------------------------
+-- 📦 Курьер
+---------------------------------------------------------------------
+-- Где брать посылки: место из TrafficSystem > Places с таким названием.
+-- Если такого нет — случайное место из Places. Если Places пустая — посылка сразу в руках.
+CityConfig.Job = {
+	DepotName = "Почта",
+	Reward = NumberRange.new(8, 14), -- монет за доставку
+	FastBonus = 6, -- бонус, если успел за FastTime
+	FastTime = 60,
+	TimeLimit = 180, -- секунд на доставку, потом заказ отменяется
+	DeliverDistance = 8, -- как близко подойти к жителю
+	FriendPoints = 2, -- дружба с получателем
+	Cooldown = 4, -- пауза между заказами
+	Thanks = { "Ой, моя посылка! Спасибо!", "Наконец-то! Держи на чай 🪙", "Как быстро! Ты лучший курьер!", "Ура, я так ждал!" },
+	Items = { "📚 Книги", "🍕 Пицца", "🎁 Подарок", "👟 Кроссовки", "🧸 Игрушка", "💐 Цветы", "📱 Новый телефон", "🎂 Торт" },
+}
+
+---------------------------------------------------------------------
+-- 🛍 Магазин аксессуаров
+---------------------------------------------------------------------
+-- Kind: Hat (на голову), Face (на лицо), Halo (над головой), Trail (след), Aura (искры), Balloon (шарик)
+-- Slot: в одном слоте можно носить только одну вещь
+CityConfig.Shop = {
+	{ Id = "Cap", Name = "Кепка", Icon = "🧢", Price = 15, Kind = "Hat", Slot = "Head", Color = Color3.fromRGB(220, 50, 50) },
+	{ Id = "TopHat", Name = "Цилиндр", Icon = "🎩", Price = 30, Kind = "TopHat", Slot = "Head", Color = Color3.fromRGB(25, 25, 30) },
+	{ Id = "Crown", Name = "Корона", Icon = "👑", Price = 80, Kind = "Crown", Slot = "Head", Color = Color3.fromRGB(255, 200, 40) },
+	{ Id = "Glasses", Name = "Очки", Icon = "🕶️", Price = 20, Kind = "Face", Slot = "Face", Color = Color3.fromRGB(20, 20, 25) },
+	{ Id = "Halo", Name = "Нимб", Icon = "😇", Price = 60, Kind = "Halo", Slot = "Above", Color = Color3.fromRGB(255, 240, 150) },
+	{ Id = "Balloon", Name = "Шарик", Icon = "🎈", Price = 25, Kind = "Balloon", Slot = "Hand", Color = Color3.fromRGB(255, 80, 120) },
+	{ Id = "Trail", Name = "Радужный след", Icon = "🌈", Price = 50, Kind = "Trail", Slot = "Trail" },
+	{ Id = "Sparkles", Name = "Искры", Icon = "✨", Price = 40, Kind = "Aura", Slot = "Aura", Color = Color3.fromRGB(255, 230, 120) },
+	{ Id = "Hearts", Name = "Сердечки", Icon = "💖", Price = 45, Kind = "Aura", Slot = "Aura", Color = Color3.fromRGB(255, 90, 150) },
+}
+
+---------------------------------------------------------------------
+-- 🏆 Достижения
+---------------------------------------------------------------------
+-- Stat — что считаем, Goal — сколько нужно, Reward — монет
+-- Счётчики: Fly (секунды полёта), Invisible, Laser, Cube (сколько раз включил), Walk (стадов пешком),
+-- Taxi, Bus, Report, Arrest (по твоему заявлению задержали), Friend, Quest, Delivery, Buy, Photo, Night (минут ночью)
+CityConfig.Achievements = {
+	{ Id = "FirstFlight", Name = "Первый полёт", Icon = "🦅", Desc = "Пролетай 30 секунд", Stat = "Fly", Goal = 30, Reward = 10 },
+	{ Id = "Pilot", Name = "Пилот", Icon = "✈️", Desc = "Пролетай 5 минут", Stat = "Fly", Goal = 300, Reward = 40 },
+	{ Id = "Ghost", Name = "Призрак", Icon = "👻", Desc = "Стань невидимым 5 раз", Stat = "Invisible", Goal = 5, Reward = 15 },
+	{ Id = "LaserEyes", Name = "Лазерный взгляд", Icon = "🔴", Desc = "Используй лазеры 10 раз", Stat = "Laser", Goal = 10, Reward = 15 },
+	{ Id = "Cube", Name = "Кубизм", Icon = "🟥", Desc = "Превратись в куб 3 раза", Stat = "Cube", Goal = 3, Reward = 10 },
+	{ Id = "Walker", Name = "Путешественник", Icon = "🚶", Desc = "Пройди пешком 3000 стадов", Stat = "Walk", Goal = 3000, Reward = 20 },
+	{ Id = "Passenger", Name = "Пассажир", Icon = "🚕", Desc = "Прокатись на такси", Stat = "Taxi", Goal = 1, Reward = 10 },
+	{ Id = "BusFan", Name = "Любитель автобусов", Icon = "🚌", Desc = "Сядь в автобус 3 раза", Stat = "Bus", Goal = 3, Reward = 15 },
+	{ Id = "Citizen", Name = "Сознательный житель", Icon = "🚔", Desc = "Подай заявление в полицию", Stat = "Report", Goal = 1, Reward = 10 },
+	{ Id = "Detective", Name = "Детектив", Icon = "🕵️", Desc = "По твоему заявлению кого-то задержали", Stat = "Arrest", Goal = 1, Reward = 25 },
+	{ Id = "Friendly", Name = "Душа компании", Icon = "❤️", Desc = "Подружись с 3 жителями", Stat = "Friend", Goal = 3, Reward = 30 },
+	{ Id = "Helper", Name = "Помощник", Icon = "❗", Desc = "Выполни 5 заданий жителей", Stat = "Quest", Goal = 5, Reward = 30 },
+	{ Id = "Courier", Name = "Курьер", Icon = "📦", Desc = "Доставь 1 посылку", Stat = "Delivery", Goal = 1, Reward = 10 },
+	{ Id = "CourierPro", Name = "Лучший курьер", Icon = "🏅", Desc = "Доставь 15 посылок", Stat = "Delivery", Goal = 15, Reward = 60 },
+	{ Id = "Shopper", Name = "Модник", Icon = "🛍️", Desc = "Купи вещь в магазине", Stat = "Buy", Goal = 1, Reward = 5 },
+	{ Id = "Photographer", Name = "Фотограф", Icon = "📷", Desc = "Сделай 10 фото", Stat = "Photo", Goal = 10, Reward = 15 },
+	{ Id = "NightOwl", Name = "Сова", Icon = "🦉", Desc = "Проведи в игре 5 минут ночью", Stat = "Night", Goal = 5, Reward = 15 },
+}
+
+---------------------------------------------------------------------
+-- 📷 Фоторежим
+---------------------------------------------------------------------
+CityConfig.Photo = {
+	PoseRadius = 35, -- жители в этом радиусе позируют
+	PoseChance = 0.8,
+	Lines = { "Сыр!", "Я красиво получился?", "Ещё разок!", "Покажи потом!", "✌️" },
+	Filters = {
+		{ Name = "Обычный" },
+		{ Name = "Ч/Б", Saturation = -1, Contrast = 0.15 },
+		{ Name = "Тёплый", Tint = Color3.fromRGB(255, 225, 190), Saturation = 0.15 },
+		{ Name = "Холодный", Tint = Color3.fromRGB(190, 215, 255), Saturation = -0.1 },
+		{ Name = "Ретро", Tint = Color3.fromRGB(255, 220, 160), Saturation = -0.4, Contrast = 0.2, Brightness = 0.03 },
+		{ Name = "Яркий", Saturation = 0.6, Contrast = 0.2 },
+	},
+}
+
+---------------------------------------------------------------------
+-- 💾 Сохранение
+---------------------------------------------------------------------
+-- Работает в опубликованной игре. В Studio: Game Settings → Security → Enable Studio Access to API Services.
+CityConfig.SaveEnabled = true
+CityConfig.DataStoreName = "CityLife_v1"
+
+return CityConfig
+
+----------------------------------------------------------------------
+-- 11. ReplicatedStorage > ModuleScript "AbilityButton"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > AbilityButton
@@ -1325,7 +1430,7 @@ end
 return AbilityButton
 
 ----------------------------------------------------------------------
--- 11. ReplicatedStorage > ModuleScript "RigAnimator"
+-- 12. ReplicatedStorage > ModuleScript "RigAnimator"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > RigAnimator
@@ -1608,7 +1713,7 @@ end)
 return RigAnimator
 
 ----------------------------------------------------------------------
--- 12. ReplicatedStorage > ModuleScript "AbilityFx"
+-- 13. ReplicatedStorage > ModuleScript "AbilityFx"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > AbilityFx
@@ -1786,7 +1891,7 @@ end
 return AbilityFx
 
 ----------------------------------------------------------------------
--- 13. ServerScriptService > ModuleScript "AbilityRegistry"
+-- 14. ServerScriptService > ModuleScript "AbilityRegistry"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ServerScriptService > AbilityRegistry
@@ -1835,7 +1940,7 @@ end
 return AbilityRegistry
 
 ----------------------------------------------------------------------
--- 14. ServerScriptService > ModuleScript "NPCRegistry"
+-- 15. ServerScriptService > ModuleScript "NPCRegistry"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ServerScriptService > NPCRegistry
@@ -1863,7 +1968,7 @@ NPCRegistry.tryTrip = nil
 return NPCRegistry
 
 ----------------------------------------------------------------------
--- 15. ServerScriptService > ModuleScript "VehicleDefaults"
+-- 16. ServerScriptService > ModuleScript "VehicleDefaults"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ServerScriptService > VehicleDefaults
@@ -2041,7 +2146,7 @@ end
 return VehicleDefaults
 
 ----------------------------------------------------------------------
--- 16. ServerScriptService > Script "PoseServer"
+-- 17. ServerScriptService > Script "PoseServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > PoseServer
@@ -2184,7 +2289,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 17. ServerScriptService > Script "InvisibilityServer"
+-- 18. ServerScriptService > Script "InvisibilityServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > InvisibilityServer
@@ -2295,7 +2400,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 18. ServerScriptService > Script "LaserServer"
+-- 19. ServerScriptService > Script "LaserServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > LaserServer
@@ -2480,7 +2585,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 19. ServerScriptService > Script "FlightServer"
+-- 20. ServerScriptService > Script "FlightServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > FlightServer
@@ -2593,7 +2698,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 20. ServerScriptService > Script "CubeServer"
+-- 21. ServerScriptService > Script "CubeServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > CubeServer
@@ -2836,7 +2941,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 21. ServerScriptService > Script "NPCDemo"
+-- 22. ServerScriptService > Script "NPCDemo"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > NPCDemo
@@ -3274,7 +3379,7 @@ place("Северная улица", Vector3.new(5, 0.1, 22))
 traffic.Parent = workspace
 
 ----------------------------------------------------------------------
--- 22. ServerScriptService > Script "NPCServer"
+-- 23. ServerScriptService > Script "NPCServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > NPCServer
@@ -3757,6 +3862,9 @@ local function addFriendship(npc, player: Player, amount: number)
 			if player.Parent then
 				addCoins(player, Config.FriendGift)
 				toast(player, "❤️ " .. npc.name .. " теперь твой друг!")
+				if Registry.playerEvent then
+					Registry.playerEvent(player, "Friend")
+				end
 			end
 		end)
 	end
@@ -3882,6 +3990,9 @@ local function finishQuest(npc, player: Player, quest): number
 	npc.anim.emote("Cheer")
 	sfx(npc, "Cheer")
 	offerQuestLater(npc, Config.QuestCooldown)
+	if Registry.playerEvent then
+		Registry.playerEvent(player, "Quest")
+	end
 	return reward
 end
 
@@ -5668,6 +5779,10 @@ Registry.findResident = function(zone: string?, near: Vector3, radius: number)
 	return best
 end
 Registry.say = say
+Registry.toast = toast
+Registry.addCoins = addCoins
+Registry.getCoins = getCoins
+Registry.addFriendship = addFriendship
 Registry.setMood = setMood
 Registry.setPose = setPose
 Registry.face = face
@@ -5698,7 +5813,7 @@ for _, spawnPart in spawnList do
 end
 
 ----------------------------------------------------------------------
--- 23. ServerScriptService > Script "NPCDoors"
+-- 24. ServerScriptService > Script "NPCDoors"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > NPCDoors
@@ -5914,7 +6029,7 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 24. ServerScriptService > Script "DayNightServer"
+-- 25. ServerScriptService > Script "DayNightServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > DayNightServer
@@ -6041,7 +6156,7 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 25. ServerScriptService > Script "TrafficServer"
+-- 26. ServerScriptService > Script "TrafficServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > TrafficServer
@@ -7953,6 +8068,9 @@ local function handleCall(car, call)
 	end
 	if arrested and suspect and suspect.alive then
 		setTicket(ticket, "Задержанный доставлен в участок")
+		if ticket and ticket.player and Registry.playerEvent then
+			Registry.playerEvent(ticket.player, "Arrest")
+		end
 		task.wait(1)
 		unseatNPC(suspect)
 		if station.cell then
@@ -8116,6 +8234,9 @@ local function createReport(player: Player, typeIndex: any, placeIndex: any): st
 	if phone then
 		phone:FireClient(player, "Tickets", ticketList(player))
 	end
+	if Registry.playerEvent then
+		Registry.playerEvent(player, "Report")
+	end
 	return string.format("%s Номер заявления: %d.", pick(free and Config.ReportAccepted or Config.ReportBusy), ticket.id)
 end
 
@@ -8247,6 +8368,9 @@ local function playerTaxi(car, player: Player, placeIndex: number)
 	drive(car, { node = nearestNode(place.pos), curb = 5 })
 	unseatPlayer(player, car, 1)
 	toast(player, "Приехали! 🚕")
+	if Registry.playerEvent then
+		Registry.playerEvent(player, "Taxi")
+	end
 	playerTaxiBusy[player] = nil
 	taxiReturn(car)
 	car.prompt.Enabled = true
@@ -8303,6 +8427,9 @@ if Config.Count.Bus > 0 and #busStops >= 2 then
 				local seat = freeSeat(bus)
 				if seat then
 					task.spawn(seatPlayer, player, bus, seat)
+					if Registry.playerEvent then
+						Registry.playerEvent(player, "Bus")
+					end
 				else
 					toast(player, "Автобус полный 🚌")
 				end
@@ -8600,11 +8727,14 @@ function Registry.phoneTaxi(player: Player, placeIndex: any)
 	drive(taxi, { node = nearestNode(place.pos), curb = 5 })
 	unseatPlayer(player, taxi, 1)
 	status("Приехали! -" .. Config.TaxiPrice .. " 🪙", true)
+	if Registry.playerEvent then
+		Registry.playerEvent(player, "Taxi")
+	end
 	finish()
 end
 
 ----------------------------------------------------------------------
--- 26. ServerScriptService > Script "WeatherServer"
+-- 27. ServerScriptService > Script "WeatherServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > WeatherServer
@@ -8745,7 +8875,7 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 27. ServerScriptService > Script "PhoneServer"
+-- 28. ServerScriptService > Script "PhoneServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > PhoneServer
@@ -8754,6 +8884,7 @@ end)
 --   Taxi   — вызвать такси к себе
 --   Report — заявление в полицию
 --   Reply  — ответить знакомому жителю в сообщениях
+--   Job, Buy, Equip, Photo, City — работа курьером, магазин, фото, достижения (CityLifeServer)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8776,6 +8907,7 @@ remote.OnServerEvent:Connect(function(player: Player, action: any, a: any, b: an
 	if action == "Open" then
 		local data = Registry.phoneData and Registry.phoneData(player) or {}
 		data.friends = Registry.friendsOf and Registry.friendsOf(player) or {}
+		data.city = Registry.cityData and Registry.cityData(player) or nil
 		remote:FireClient(player, "Data", data)
 	elseif action == "Taxi" and Registry.phoneTaxi then
 		task.spawn(Registry.phoneTaxi, player, a)
@@ -8785,6 +8917,8 @@ remote.OnServerEvent:Connect(function(player: Player, action: any, a: any, b: an
 		Registry.phoneReply(player, a, b)
 	elseif action == "Friends" and Registry.friendsOf then
 		remote:FireClient(player, "Friends", Registry.friendsOf(player))
+	elseif type(action) == "string" and Registry.cityAction then
+		Registry.cityAction(player, action, a, b)
 	end
 end)
 
@@ -8793,7 +8927,963 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 28. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
+-- 29. ServerScriptService > Script "CityLifeServer"
+----------------------------------------------------------------------
+
+-- Script: ServerScriptService > CityLifeServer
+-- Новые механики города (настройки — ReplicatedStorage > CityConfig):
+--   📦 Курьер      — забрать посылку на «Почте» и отнести случайному жителю
+--   🛍 Магазин     — аксессуары за монеты (собираются из деталей прямо на персонаже)
+--   🏆 Достижения  — счётчики полёта, такси, друзей, доставок... с наградой
+--   📷 Фоторежим   — жители рядом позируют, когда игрок фотографирует
+--   💾 Сохранение  — монеты, покупки, достижения (DataStore)
+-- Работает через телефон (PhoneRemote) и на уже расставленных метках. Новых меток не нужно.
+
+local Players = game:GetService("Players")
+local DataStoreService = game:GetService("DataStoreService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("CityConfig"))
+local NPCConfig = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local VehicleConfig = require(ReplicatedStorage:WaitForChild("VehicleConfig"))
+local Registry = require(script.Parent:WaitForChild("NPCRegistry"))
+
+local rng = Random.new()
+local remote = ReplicatedStorage:WaitForChild("PhoneRemote")
+
+local function pick(list)
+	return list[rng:NextInteger(1, #list)]
+end
+
+local function toast(player: Player, text: string)
+	if Registry.toast then
+		Registry.toast(player, text)
+	end
+end
+
+local function wallet(player: Player): IntValue?
+	if Registry.getCoins then
+		return Registry.getCoins(player)
+	end
+	local stats = player:FindFirstChild("leaderstats")
+	return stats and stats:FindFirstChild(NPCConfig.CurrencyName) or nil
+end
+
+local function giveCoins(player: Player, amount: number)
+	if Registry.addCoins then
+		Registry.addCoins(player, amount)
+	else
+		local w = wallet(player)
+		if w then
+			w.Value += amount
+		end
+	end
+end
+
+local SHOP = {}
+for _, item in Config.Shop do
+	SHOP[item.Id] = item
+end
+
+---------------------------------------------------------------------
+-- Данные игрока и сохранение
+---------------------------------------------------------------------
+
+local profiles = {} -- [player] = { stats, done, owned, equipped, loaded }
+local store = nil
+if Config.SaveEnabled then
+	local ok, result = pcall(function()
+		return DataStoreService:GetDataStore(Config.DataStoreName)
+	end)
+	store = ok and result or nil
+end
+
+local function profileOf(player: Player)
+	local p = profiles[player]
+	if not p then
+		p = { stats = {}, done = {}, owned = {}, equipped = {}, loaded = false }
+		profiles[player] = p
+	end
+	return p
+end
+
+local function save(player: Player)
+	local p = profiles[player]
+	if not store or not p or not p.loaded then
+		return
+	end
+	local w = wallet(player)
+	local data = { coins = w and w.Value or 0, stats = p.stats, done = p.done, owned = p.owned, equipped = p.equipped }
+	local ok, err = pcall(function()
+		store:SetAsync("p_" .. player.UserId, data)
+	end)
+	if not ok then
+		warn("[CityLife] Не удалось сохранить", player.Name, err)
+	end
+end
+
+local function load(player: Player)
+	local p = profileOf(player)
+	if store then
+		local ok, data = pcall(function()
+			return store:GetAsync("p_" .. player.UserId)
+		end)
+		if ok and type(data) == "table" then
+			p.stats = data.stats or {}
+			p.done = data.done or {}
+			p.owned = data.owned or {}
+			p.equipped = data.equipped or {}
+			local w = wallet(player)
+			if w and type(data.coins) == "number" then
+				w.Value = data.coins
+			end
+		elseif not ok then
+			warn("[CityLife] Сохранения недоступны (в Studio включи API Services):", data)
+		end
+	end
+	p.loaded = true
+end
+
+---------------------------------------------------------------------
+-- Данные для телефона
+---------------------------------------------------------------------
+
+local function cityData(player: Player)
+	local p = profileOf(player)
+	local done = {}
+	for id in pairs(p.done) do
+		table.insert(done, id)
+	end
+	local owned = {}
+	for id in pairs(p.owned) do
+		table.insert(owned, id)
+	end
+	local equipped = {}
+	for _, id in pairs(p.equipped) do
+		table.insert(equipped, id)
+	end
+	return { stats = p.stats, done = done, owned = owned, equipped = equipped }
+end
+
+local pushQueued = {}
+local function push(player: Player)
+	if pushQueued[player] then
+		return
+	end
+	pushQueued[player] = true
+	task.delay(0.3, function()
+		pushQueued[player] = nil
+		if player.Parent then
+			remote:FireClient(player, "City", cityData(player))
+		end
+	end)
+end
+
+---------------------------------------------------------------------
+-- 🏆 Достижения
+---------------------------------------------------------------------
+
+local function addStat(player: Player, stat: string, amount: number?)
+	local p = profileOf(player)
+	local before = p.stats[stat] or 0
+	local after = before + (amount or 1)
+	p.stats[stat] = after
+	local changed = math.floor(before) ~= math.floor(after)
+	for _, a in Config.Achievements do
+		if a.Stat == stat and not p.done[a.Id] and after >= a.Goal then
+			p.done[a.Id] = true
+			changed = true
+			giveCoins(player, a.Reward)
+			remote:FireClient(player, "Achievement", { icon = a.Icon, name = a.Name, reward = a.Reward })
+		end
+	end
+	if changed then
+		push(player)
+	end
+end
+
+-- События от жителей и транспорта: Taxi, Bus, Report, Arrest, Friend, Quest
+Registry.playerEvent = function(player: Player, name: string)
+	if player and player.Parent then
+		addStat(player, name, 1)
+	end
+end
+
+-- Способности, прогулки и ночь — проверяем по атрибутам персонажа
+local ABILITY_FLAGS = { Invisible = "Invisible", LaserActive = "Laser", CubeForm = "Cube" }
+local tracking = {} -- [player] = { flags = {}, lastPos }
+
+task.spawn(function()
+	local STEP = 0.5
+	while true do
+		task.wait(STEP)
+		local night = workspace:GetAttribute("Period") == "Ночь"
+		for _, player in Players:GetPlayers() do
+			local t = tracking[player]
+			local character = player.Character
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			if t and humanoid and root and humanoid.Health > 0 then
+				if character:GetAttribute("Flying") == true then
+					addStat(player, "Fly", STEP)
+				end
+				for attribute, stat in pairs(ABILITY_FLAGS) do
+					local on = character:GetAttribute(attribute) == true
+					if on and not t.flags[attribute] then
+						addStat(player, stat, 1)
+					end
+					t.flags[attribute] = on
+				end
+				local pos = root.Position
+				if t.lastPos then
+					local moved = (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(t.lastPos.X, 0, t.lastPos.Z)).Magnitude
+					local walking = humanoid.SeatPart == nil and humanoid.FloorMaterial ~= Enum.Material.Air
+						and character:GetAttribute("Flying") ~= true and character:GetAttribute("CubeForm") ~= true
+					if walking and moved > 0.5 and moved < 25 then
+						addStat(player, "Walk", moved)
+					end
+				end
+				t.lastPos = pos
+				if night then
+					addStat(player, "Night", STEP / 60)
+				end
+			end
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- 🛍 Аксессуары
+---------------------------------------------------------------------
+
+local function decor(parent: Instance, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material?, shape: Enum.PartType?)
+	local p = Instance.new("Part")
+	p.Size = size
+	p.CFrame = cframe
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	if shape then
+		p.Shape = shape
+	end
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	p.Anchored = false
+	p.CastShadow = false
+	p:SetAttribute("BaseTransparency", p.Transparency)
+	p.Parent = parent
+	return p
+end
+
+local function weldTo(part: BasePart, to: BasePart)
+	local w = Instance.new("WeldConstraint")
+	w.Part0 = to
+	w.Part1 = part
+	w.Parent = part
+end
+
+local UPRIGHT = CFrame.Angles(0, 0, math.rad(90)) -- цилиндр стоя
+
+-- Видимая ширина головы: у R6 деталь 2×1×1, но выглядит как ~1.25
+local function headSize(head: BasePart): Vector3
+	local w = math.min(head.Size.X, head.Size.Z * 1.25)
+	return Vector3.new(w, head.Size.Y, w)
+end
+
+local BUILDERS = {}
+
+function BUILDERS.Hat(folder, character, item)
+	local head = character:FindFirstChild("Head") :: BasePart
+	local hs = headSize(head)
+	local top = head.CFrame * CFrame.new(0, hs.Y / 2, 0)
+	weldTo(decor(folder, Vector3.new(hs.X * 1.08, 0.42, hs.Z * 1.08), top * CFrame.new(0, 0.08, 0), item.Color), head)
+	weldTo(decor(folder, Vector3.new(hs.X * 0.95, 0.08, 0.75), top * CFrame.new(0, -0.08, -hs.Z / 2 - 0.3), item.Color:Lerp(Color3.new(1, 1, 1), 0.1)), head)
+	weldTo(decor(folder, Vector3.new(0.22, 0.22, 0.22), top * CFrame.new(0, 0.32, 0), Color3.new(1, 1, 1), nil, Enum.PartType.Ball), head)
+end
+
+function BUILDERS.TopHat(folder, character, item)
+	local head = character:FindFirstChild("Head") :: BasePart
+	local hs = headSize(head)
+	local top = head.CFrame * CFrame.new(0, hs.Y / 2, 0)
+	local w = hs.X
+	weldTo(decor(folder, Vector3.new(0.08, w * 1.6, w * 1.6), top * UPRIGHT, item.Color, nil, Enum.PartType.Cylinder), head)
+	weldTo(decor(folder, Vector3.new(1.1, w * 0.95, w * 0.95), top * CFrame.new(0, 0.58, 0) * UPRIGHT, item.Color, nil, Enum.PartType.Cylinder), head)
+	weldTo(decor(folder, Vector3.new(0.2, w * 0.97, w * 0.97), top * CFrame.new(0, 0.18, 0) * UPRIGHT, Color3.fromRGB(170, 30, 40), nil, Enum.PartType.Cylinder), head)
+end
+
+function BUILDERS.Crown(folder, character, item)
+	local head = character:FindFirstChild("Head") :: BasePart
+	local hs = headSize(head)
+	local top = head.CFrame * CFrame.new(0, hs.Y / 2 + 0.12, 0)
+	local r = hs.X * 0.5
+	weldTo(decor(folder, Vector3.new(0.28, r * 2.1, r * 2.1), top * UPRIGHT, item.Color, Enum.Material.Metal, Enum.PartType.Cylinder), head)
+	for i = 0, 5 do
+		local a = i / 6 * math.pi * 2
+		local spike = top * CFrame.Angles(0, a, 0) * CFrame.new(0, 0.3, -r * 0.92)
+		weldTo(decor(folder, Vector3.new(0.18, 0.36, 0.08), spike, item.Color, Enum.Material.Metal), head)
+		local gem = decor(folder, Vector3.new(0.13, 0.13, 0.13), spike * CFrame.new(0, -0.18, -0.06), i % 2 == 0 and Color3.fromRGB(220, 30, 60) or Color3.fromRGB(40, 120, 255), Enum.Material.Neon, Enum.PartType.Ball)
+		weldTo(gem, head)
+	end
+end
+
+function BUILDERS.Face(folder, character, item)
+	local head = character:FindFirstChild("Head") :: BasePart
+	local hs = headSize(head)
+	local front = head.CFrame * CFrame.new(0, hs.Y * 0.08, -hs.Z / 2 - 0.04)
+	local lensW = hs.X * 0.32
+	for _, side in { -1, 1 } do
+		local lens = decor(folder, Vector3.new(lensW, 0.26, 0.05), front * CFrame.new(side * lensW * 0.62, 0, 0), item.Color, Enum.Material.Glass)
+		lens.Reflectance = 0.3
+		weldTo(lens, head)
+	end
+	weldTo(decor(folder, Vector3.new(lensW * 0.4, 0.06, 0.05), front * CFrame.new(0, 0.06, 0), item.Color), head)
+end
+
+function BUILDERS.Halo(folder, character, item)
+	local head = character:FindFirstChild("Head") :: BasePart
+	local hs = headSize(head)
+	local center = head.CFrame * CFrame.new(0, hs.Y / 2 + 0.7, 0)
+	local r = hs.X * 0.55
+	for i = 0, 13 do
+		local a = i / 14 * math.pi * 2
+		local seg = decor(folder, Vector3.new(0.12, 0.08, r * 0.5), center * CFrame.Angles(0, a, 0) * CFrame.new(r, 0, 0), item.Color, Enum.Material.Neon)
+		weldTo(seg, head)
+	end
+	local glow = Instance.new("PointLight")
+	glow.Color = item.Color
+	glow.Brightness = 1.5
+	glow.Range = 8
+	glow.Parent = folder:FindFirstChildWhichIsA("BasePart")
+end
+
+function BUILDERS.Balloon(folder, character, item)
+	local hand = (character:FindFirstChild("RightHand") or character:FindFirstChild("Right Arm")) :: BasePart
+	if not hand then
+		return
+	end
+	local ball = decor(folder, Vector3.new(1.7, 1.9, 1.7), hand.CFrame * CFrame.new(0, 6, 0), item.Color, Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+	ball.Massless = false
+	ball.Reflectance = 0.15
+	ball.CustomPhysicalProperties = PhysicalProperties.new(0.05, 0, 0, 1, 1)
+	local a0 = Instance.new("Attachment")
+	a0.Position = Vector3.new(0, -hand.Size.Y / 2, 0)
+	a0.Parent = hand
+	local a1 = Instance.new("Attachment")
+	a1.Position = Vector3.new(0, -0.9, 0)
+	a1.Parent = ball
+	folder:SetAttribute("HandAttachment", true)
+	a0.Name = "BalloonAttachment"
+	local rope = Instance.new("RopeConstraint")
+	rope.Attachment0 = a0
+	rope.Attachment1 = a1
+	rope.Length = 5
+	rope.Visible = true
+	rope.Thickness = 0.04
+	rope.Color = BrickColor.new("Institutional white")
+	rope.Parent = ball
+	-- Подъёмная сила чуть больше веса
+	local lift = Instance.new("VectorForce")
+	lift.Attachment0 = a1
+	lift.RelativeTo = Enum.ActuatorRelativeTo.World
+	lift.Force = Vector3.new(0, ball:GetMass() * workspace.Gravity * 1.6, 0)
+	lift.Parent = ball
+	-- Немного сопротивления воздуха, чтобы шарик не болтался
+	local drag = Instance.new("LinearVelocity")
+	drag.Attachment0 = a1
+	drag.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	drag.VectorVelocity = Vector3.zero
+	drag.MaxForce = ball:GetMass() * workspace.Gravity * 0.6
+	drag.Parent = ball
+	local player = Players:GetPlayerFromCharacter(character)
+	if player then
+		pcall(function()
+			ball:SetNetworkOwner(player)
+		end)
+	end
+end
+
+function BUILDERS.Trail(folder, character)
+	local root = character:FindFirstChild("HumanoidRootPart") :: BasePart
+	local a0 = Instance.new("Attachment")
+	a0.Name = "CosmeticTrailTop"
+	a0.Position = Vector3.new(0, 0.9, 0.4)
+	a0.Parent = root
+	local a1 = Instance.new("Attachment")
+	a1.Name = "CosmeticTrailBottom"
+	a1.Position = Vector3.new(0, -1.6, 0.4)
+	a1.Parent = root
+	local trail = Instance.new("Trail")
+	trail.Attachment0 = a0
+	trail.Attachment1 = a1
+	trail.Lifetime = 0.7
+	trail.LightEmission = 0.6
+	trail.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 70, 70)),
+		ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 170, 40)),
+		ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 240, 60)),
+		ColorSequenceKeypoint.new(0.6, Color3.fromRGB(70, 220, 90)),
+		ColorSequenceKeypoint.new(0.8, Color3.fromRGB(60, 140, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(170, 80, 255)),
+	})
+	trail.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+	trail.Parent = folder
+end
+
+function BUILDERS.Aura(folder, character, item)
+	local root = character:FindFirstChild("HumanoidRootPart") :: BasePart
+	local a = Instance.new("Attachment")
+	a.Name = "CosmeticAura"
+	a.Parent = root
+	local e = Instance.new("ParticleEmitter")
+	e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	e.Color = ColorSequence.new(item.Color)
+	e.LightEmission = 0.7
+	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
+	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+	e.Lifetime = NumberRange.new(0.8, 1.4)
+	e.Rate = 14
+	e.Speed = NumberRange.new(1, 2.5)
+	e.SpreadAngle = Vector2.new(180, 180)
+	e.Acceleration = Vector3.new(0, 2, 0)
+	e.Parent = a
+	-- Эмиттер живёт в папке, чтобы его можно было найти и выключить
+	local ref = Instance.new("ObjectValue")
+	ref.Name = "AuraRef"
+	ref.Value = e
+	ref.Parent = folder
+end
+
+-- Спрятать аксессуары, пока персонаж невидим или в форме куба
+local function hiddenNow(character: Model): boolean
+	return character:GetAttribute("Invisible") == true or character:GetAttribute("CubeForm") == true
+end
+
+local function refreshVisibility(character: Model)
+	local folder = character:FindFirstChild("Cosmetics")
+	if not folder then
+		return
+	end
+	local hide = hiddenNow(character)
+	for _, d in folder:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Transparency = hide and 1 or (d:GetAttribute("BaseTransparency") or 0)
+		elseif d:IsA("Trail") or d:IsA("RopeConstraint") or d:IsA("PointLight") then
+			if d:IsA("RopeConstraint") then
+				d.Visible = not hide
+			else
+				d.Enabled = not hide
+			end
+		elseif d:IsA("ObjectValue") and d.Value and d.Value:IsA("ParticleEmitter") then
+			(d.Value :: ParticleEmitter).Enabled = not hide
+		end
+	end
+end
+
+local function clearCosmetics(character: Model)
+	local old = character:FindFirstChild("Cosmetics")
+	if old then
+		for _, d in old:GetDescendants() do
+			if d:IsA("ObjectValue") and d.Value then
+				local att = d.Value.Parent
+				d.Value:Destroy()
+				if att and att:IsA("Attachment") then
+					att:Destroy()
+				end
+			end
+		end
+		old:Destroy()
+	end
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if root then
+		for _, name in { "CosmeticTrailTop", "CosmeticTrailBottom", "CosmeticAura" } do
+			local a = root:FindFirstChild(name)
+			if a then
+				a:Destroy()
+			end
+		end
+	end
+	for _, d in character:GetDescendants() do
+		if d:IsA("Attachment") and d.Name == "BalloonAttachment" then
+			d:Destroy()
+		end
+	end
+end
+
+local function applyCosmetics(player: Player)
+	local character = player.Character
+	if not character or not character:FindFirstChild("Head") or not character:FindFirstChild("HumanoidRootPart") then
+		return
+	end
+	clearCosmetics(character)
+	local folder = Instance.new("Folder")
+	folder.Name = "Cosmetics"
+	folder.Parent = character
+	for _, id in pairs(profileOf(player).equipped) do
+		local item = SHOP[id]
+		local build = item and BUILDERS[item.Kind]
+		if build then
+			local ok, err = pcall(build, folder, character, item)
+			if not ok then
+				warn("[CityLife] Не удалось надеть", id, err)
+			end
+		end
+	end
+	refreshVisibility(character)
+end
+
+local function equip(player: Player, id: string)
+	local p = profileOf(player)
+	local item = SHOP[id]
+	if not item or not p.owned[id] then
+		return
+	end
+	if p.equipped[item.Slot] == id then
+		p.equipped[item.Slot] = nil
+	else
+		p.equipped[item.Slot] = id
+	end
+	applyCosmetics(player)
+	push(player)
+end
+
+local function buy(player: Player, id: string)
+	local p = profileOf(player)
+	local item = SHOP[id]
+	if not item then
+		return
+	end
+	if p.owned[id] then
+		equip(player, id)
+		return
+	end
+	local w = wallet(player)
+	if not w or w.Value < item.Price then
+		toast(player, "Не хватает монет 🪙")
+		remote:FireClient(player, "ShopResult", { ok = false })
+		return
+	end
+	w.Value -= item.Price
+	p.owned[id] = true
+	p.equipped[item.Slot] = id
+	toast(player, string.format("%s %s куплено! -%d 🪙", item.Icon, item.Name, item.Price))
+	remote:FireClient(player, "ShopResult", { ok = true, id = id })
+	applyCosmetics(player)
+	addStat(player, "Buy", 1)
+	push(player)
+end
+
+---------------------------------------------------------------------
+-- 📦 Курьер
+---------------------------------------------------------------------
+
+local jobs = {} -- [player] = { stage, crate, target, item, started }
+
+local function jobTargetValue(player: Player): ObjectValue
+	local v = player:FindFirstChild("JobTarget")
+	if not v then
+		v = Instance.new("ObjectValue")
+		v.Name = "JobTarget"
+		v.Parent = player
+	end
+	return v :: ObjectValue
+end
+
+local function setJobInfo(player: Player, stage: string?, text: string?, target: Instance?)
+	player:SetAttribute("JobStage", stage)
+	player:SetAttribute("JobText", text)
+	jobTargetValue(player).Value = target
+	local job = jobs[player]
+	player:SetAttribute("JobEnds", job and stage and (workspace:GetServerTimeNow() + Config.Job.TimeLimit - (os.clock() - job.started)) or nil)
+end
+
+local function removeBox(player: Player)
+	local character = player.Character
+	if character then
+		character:SetAttribute("CarryBox", nil)
+		local box = character:FindFirstChild("CourierBox")
+		if box then
+			box:Destroy()
+		end
+	end
+end
+
+local function giveBox(player: Player)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root or character:FindFirstChild("CourierBox") then
+		return
+	end
+	local box = decor(character, Vector3.new(1.7, 1.2, 1.3), root.CFrame * CFrame.new(0, 0.1, -1.25), Color3.fromRGB(190, 140, 85), Enum.Material.Cardboard)
+	box.Name = "CourierBox"
+	local tape = decor(box, Vector3.new(0.3, 1.22, 1.32), box.CFrame, Color3.fromRGB(150, 105, 60), Enum.Material.SmoothPlastic)
+	weldTo(tape, box)
+	weldTo(box, root)
+	character:SetAttribute("CarryBox", true)
+	refreshVisibility(character)
+end
+
+local function endJob(player: Player, message: string?)
+	local job = jobs[player]
+	if job and job.crate then
+		job.crate:Destroy()
+	end
+	jobs[player] = nil
+	removeBox(player)
+	setJobInfo(player, nil, nil, nil)
+	if message then
+		toast(player, message)
+	end
+	remote:FireClient(player, "Job", { active = false, text = message })
+end
+
+local function residentOk(npc): boolean
+	return npc.alive and not npc.officer and not npc.controlled and npc.model and npc.model.Parent ~= nil
+end
+
+local function chooseRecipient(player: Player, except)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local options = {}
+	for _, npc in pairs(Registry.npcs) do
+		if residentOk(npc) and npc ~= except then
+			local far = root and (npc.hrp.Position - root.Position).Magnitude or 100
+			table.insert(options, { npc = npc, weight = far > 40 and 3 or 1 })
+		end
+	end
+	if #options == 0 then
+		return nil
+	end
+	local total = 0
+	for _, o in options do
+		total += o.weight
+	end
+	local roll = rng:NextNumber() * total
+	for _, o in options do
+		roll -= o.weight
+		if roll <= 0 then
+			return o.npc
+		end
+	end
+	return options[1].npc
+end
+
+local function startDelivery(player: Player)
+	local job = jobs[player]
+	if not job then
+		return
+	end
+	local target = chooseRecipient(player, nil)
+	if not target then
+		endJob(player, "В городе пока никого нет — заказ отменён")
+		return
+	end
+	job.stage = "deliver"
+	job.target = target
+	giveBox(player)
+	setJobInfo(player, "deliver", string.format("Отнеси %s → %s", job.item, target.name), target.model)
+	toast(player, string.format("📦 Посылка для: %s", target.name))
+	remote:FireClient(player, "Job", { active = true, stage = "deliver", text = player:GetAttribute("JobText") })
+end
+
+local function placesList()
+	local root = workspace:FindFirstChild(VehicleConfig.MapFolder)
+	local folder = root and root:FindFirstChild("Places")
+	local list = {}
+	if folder then
+		for _, p in folder:GetDescendants() do
+			if p:IsA("BasePart") then
+				table.insert(list, p)
+			end
+		end
+	end
+	return list
+end
+
+local function groundAt(position: Vector3): Vector3
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local ignore = {}
+	for _, pl in Players:GetPlayers() do
+		if pl.Character then
+			table.insert(ignore, pl.Character)
+		end
+	end
+	params.FilterDescendantsInstances = ignore
+	local hit = workspace:Raycast(position + Vector3.new(0, 4, 0), Vector3.new(0, -30, 0), params)
+	return hit and hit.Position or position
+end
+
+local function startJob(player: Player)
+	if jobs[player] then
+		endJob(player, "Заказ отменён")
+		return
+	end
+	local job = { stage = "pickup", item = pick(Config.Job.Items), started = os.clock() }
+	jobs[player] = job
+	-- Где забрать
+	local list = placesList()
+	local depot = nil
+	for _, p in list do
+		if (p:GetAttribute("PlaceName") or p.Name) == Config.Job.DepotName then
+			depot = p
+		end
+	end
+	depot = depot or (#list > 0 and list[rng:NextInteger(1, #list)] or nil)
+	if not depot then
+		startDelivery(player)
+		return
+	end
+	local floor = groundAt(depot.Position)
+	local crate = Instance.new("Part")
+	crate.Name = "CourierPickup"
+	crate.Size = Vector3.new(2, 1.4, 1.6)
+	crate.CFrame = CFrame.new(floor + Vector3.new(0, 0.7, 0)) * CFrame.Angles(0, rng:NextNumber() * math.pi, 0)
+	crate.Anchored = true
+	crate.CanCollide = false
+	crate.Color = Color3.fromRGB(190, 140, 85)
+	crate.Material = Enum.Material.Cardboard
+	crate.Parent = workspace
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Взять посылку"
+	prompt.ObjectText = job.item
+	prompt.HoldDuration = 0.4
+	prompt.RequiresLineOfSight = false
+	prompt.MaxActivationDistance = 10
+	prompt.Parent = crate
+	prompt.Triggered:Connect(function(who)
+		if who == player and jobs[player] == job and job.stage == "pickup" then
+			crate:Destroy()
+			job.crate = nil
+			startDelivery(player)
+		end
+	end)
+	job.crate = crate
+	local placeName = depot:GetAttribute("PlaceName") or depot.Name
+	setJobInfo(player, "pickup", string.format("Забери посылку: %s", placeName), crate)
+	toast(player, "📦 Новый заказ! Забери посылку: " .. placeName)
+	remote:FireClient(player, "Job", { active = true, stage = "pickup", text = player:GetAttribute("JobText") })
+end
+
+local function deliver(player: Player, job)
+	local npc = job.target
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root and Registry.face then
+		task.spawn(Registry.face, npc, root.Position - npc.hrp.Position, 2)
+	end
+	if Registry.say then
+		Registry.say(npc, pick(Config.Job.Thanks))
+	end
+	if Registry.emote then
+		Registry.emote(npc, "Cheer")
+	end
+	if Registry.sfx then
+		Registry.sfx(npc, "Cheer")
+	end
+	if Registry.setMood then
+		Registry.setMood(npc, "Happy", 4)
+	end
+	local took = os.clock() - job.started
+	local reward = rng:NextInteger(Config.Job.Reward.Min, Config.Job.Reward.Max)
+	local fast = took <= Config.Job.FastTime
+	if fast then
+		reward += Config.Job.FastBonus
+	end
+	giveCoins(player, reward)
+	if Registry.addFriendship then
+		Registry.addFriendship(npc, player, Config.Job.FriendPoints)
+	end
+	endJob(player, string.format("✅ Доставлено за %d с%s", math.floor(took), fast and " — быстро! ⚡" or ""))
+	addStat(player, "Delivery", 1)
+	task.delay(Config.Job.Cooldown, function()
+		if player.Parent then
+			remote:FireClient(player, "Job", { active = false, ready = true })
+		end
+	end)
+end
+
+task.spawn(function()
+	while true do
+		task.wait(0.3)
+		for player, job in pairs(jobs) do
+			if not player.Parent then
+				jobs[player] = nil
+				continue
+			end
+			if os.clock() - job.started > Config.Job.TimeLimit then
+				endJob(player, "⌛ Время вышло — заказ отменён")
+				continue
+			end
+			if job.stage == "deliver" then
+				local npc = job.target
+				if not npc or not residentOk(npc) then
+					-- Получатель пропал — посылку ждёт другой
+					local nextOne = chooseRecipient(player, npc)
+					if nextOne then
+						job.target = nextOne
+						setJobInfo(player, "deliver", string.format("Отнеси %s → %s", job.item, nextOne.name), nextOne.model)
+						toast(player, "📦 Новый получатель: " .. nextOne.name)
+					else
+						endJob(player, "Получатель пропал — заказ отменён")
+					end
+					continue
+				end
+				local character = player.Character
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				if root then
+					if not character:FindFirstChild("CourierBox") then
+						giveBox(player) -- после возрождения
+					end
+					if (root.Position - npc.hrp.Position).Magnitude <= Config.Job.DeliverDistance and not npc.inVehicle then
+						deliver(player, job)
+					end
+				end
+			end
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- 📷 Фото: жители позируют
+---------------------------------------------------------------------
+
+local lastPhoto = {}
+local POSES = { "Wave", "Cheer", "Point", "Laugh" }
+
+local function photo(player: Player)
+	local now = os.clock()
+	if now - (lastPhoto[player] or 0) < 1 then
+		return
+	end
+	lastPhoto[player] = now
+	addStat(player, "Photo", 1)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return
+	end
+	local posed = 0
+	for _, npc in pairs(Registry.npcs) do
+		if posed >= 4 then
+			break
+		end
+		if residentOk(npc) and not npc.inVehicle and not npc.talkingTo and npc.lock == nil
+			and (npc.hrp.Position - root.Position).Magnitude <= Config.Photo.PoseRadius and rng:NextNumber() < Config.Photo.PoseChance then
+			posed += 1
+			task.spawn(function()
+				task.wait(rng:NextNumber(0, 0.4))
+				if Registry.face then
+					Registry.face(npc, root.Position - npc.hrp.Position, 1.5)
+				end
+				if Registry.emote then
+					Registry.emote(npc, pick(POSES))
+				end
+				if Registry.say and rng:NextNumber() < 0.6 then
+					Registry.say(npc, pick(Config.Photo.Lines), 2.5)
+				end
+			end)
+		end
+	end
+end
+
+---------------------------------------------------------------------
+-- Запросы телефона
+---------------------------------------------------------------------
+
+Registry.cityData = cityData
+Registry.cityAction = function(player: Player, action: string, a: any)
+	if action == "Job" then
+		startJob(player)
+	elseif action == "Buy" and type(a) == "string" then
+		buy(player, a)
+	elseif action == "Equip" and type(a) == "string" then
+		equip(player, a)
+	elseif action == "Photo" then
+		photo(player)
+	elseif action == "City" then
+		push(player)
+	end
+end
+
+---------------------------------------------------------------------
+-- Игроки
+---------------------------------------------------------------------
+
+local function onCharacter(player: Player, character: Model)
+	character:WaitForChild("HumanoidRootPart", 10)
+	character:WaitForChild("Head", 10)
+	task.wait(0.5)
+	if player.Character ~= character then
+		return
+	end
+	applyCosmetics(player)
+	for _, attribute in { "Invisible", "CubeForm" } do
+		character:GetAttributeChangedSignal(attribute):Connect(function()
+			task.defer(refreshVisibility, character)
+		end)
+	end
+	local tracker = tracking[player]
+	if tracker then
+		tracker.lastPos = nil
+	end
+end
+
+local function onPlayer(player: Player)
+	tracking[player] = { flags = {}, lastPos = nil }
+	task.spawn(function()
+		-- Ждём, пока жители создадут кошелёк, иначе загруженные монеты перезапишутся
+		local t = os.clock()
+		while not Registry.getCoins and os.clock() - t < 10 do
+			task.wait(0.2)
+		end
+		load(player)
+		if player.Character then
+			onCharacter(player, player.Character)
+		end
+		push(player)
+	end)
+	player.CharacterAdded:Connect(function(character)
+		onCharacter(player, character)
+	end)
+end
+
+for _, player in Players:GetPlayers() do
+	task.spawn(onPlayer, player)
+end
+Players.PlayerAdded:Connect(onPlayer)
+
+Players.PlayerRemoving:Connect(function(player)
+	local job = jobs[player]
+	if job and job.crate then
+		job.crate:Destroy()
+	end
+	jobs[player] = nil
+	save(player)
+	profiles[player] = nil
+	tracking[player] = nil
+	lastPhoto[player] = nil
+	pushQueued[player] = nil
+end)
+
+-- Автосохранение и сохранение при выключении сервера
+task.spawn(function()
+	while true do
+		task.wait(120)
+		for _, player in Players:GetPlayers() do
+			task.spawn(save, player)
+		end
+	end
+end)
+game:BindToClose(function()
+	for _, player in Players:GetPlayers() do
+		task.spawn(save, player)
+	end
+	task.wait(2)
+end)
+
+----------------------------------------------------------------------
+-- 30. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > PoseClient
@@ -9336,7 +10426,7 @@ if PoseConfig.ShowHint and UserInputService.KeyboardEnabled then
 end
 
 ----------------------------------------------------------------------
--- 29. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
+-- 31. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > InvisibilityClient
@@ -9783,7 +10873,7 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 30. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
+-- 32. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > LaserClient
@@ -10264,7 +11354,7 @@ RunService.RenderStepped:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 31. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
+-- 33. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > FlightClient
@@ -10753,7 +11843,7 @@ AbilityButton.Create({
 })
 
 ----------------------------------------------------------------------
--- 32. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
+-- 34. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > CubeClient
@@ -10952,7 +12042,7 @@ AbilityButton.Create({
 })
 
 ----------------------------------------------------------------------
--- 33. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
+-- 35. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > NPCClient
@@ -11861,7 +12951,7 @@ task.spawn(function()
 end)
 
 ----------------------------------------------------------------------
--- 34. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
+-- 36. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > VehicleClient
@@ -12271,7 +13361,7 @@ remote.OnClientEvent:Connect(function(action, model, names, price)
 end)
 
 ----------------------------------------------------------------------
--- 35. StarterPlayer → StarterPlayerScripts > LocalScript "PoliceDeskClient"
+-- 37. StarterPlayer → StarterPlayerScripts > LocalScript "PoliceDeskClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > PoliceDeskClient
@@ -12785,7 +13875,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 ----------------------------------------------------------------------
--- 36. StarterPlayer → StarterPlayerScripts > LocalScript "WeatherClient"
+-- 38. StarterPlayer → StarterPlayerScripts > LocalScript "WeatherClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > WeatherClient
@@ -13040,7 +14130,7 @@ RunService.RenderStepped:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 37. StarterPlayer → StarterPlayerScripts > LocalScript "PhoneClient"
+-- 39. StarterPlayer → StarterPlayerScripts > LocalScript "PhoneClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > PhoneClient
@@ -13059,6 +14149,7 @@ local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local NPCConfig = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local CityConfig = require(ReplicatedStorage:WaitForChild("CityConfig"))
 local VehicleConfig = require(ReplicatedStorage:WaitForChild("VehicleConfig"))
 local Sounds = require(ReplicatedStorage:WaitForChild("SoundConfig"))
 local remote = ReplicatedStorage:WaitForChild("PhoneRemote")
@@ -13088,6 +14179,10 @@ local APPS = {
 	{ id = "messages", name = "Сообщения", icon = "💬", colors = { Color3.fromRGB(90, 220, 110), Color3.fromRGB(30, 160, 70) } },
 	{ id = "weather", name = "Погода", icon = "☀️", colors = { Color3.fromRGB(110, 190, 255), Color3.fromRGB(40, 110, 220) } },
 	{ id = "quests", name = "Задания", icon = "📋", colors = { Color3.fromRGB(250, 120, 160), Color3.fromRGB(190, 60, 120) } },
+	{ id = "work", name = "Работа", icon = "📦", colors = { Color3.fromRGB(210, 150, 90), Color3.fromRGB(140, 85, 40) } },
+	{ id = "shop", name = "Магазин", icon = "🛍️", colors = { Color3.fromRGB(200, 110, 255), Color3.fromRGB(120, 50, 190) } },
+	{ id = "awards", name = "Награды", icon = "🏆", colors = { Color3.fromRGB(255, 215, 90), Color3.fromRGB(210, 140, 20) } },
+	{ id = "camera", name = "Камера", icon = "📷", colors = { Color3.fromRGB(90, 95, 110), Color3.fromRGB(30, 32, 40) } },
 	{ id = "settings", name = "Настройки", icon = "⚙️", colors = { Color3.fromRGB(160, 165, 180), Color3.fromRGB(90, 95, 110) } },
 }
 
@@ -13314,6 +14409,7 @@ local appScale = new("UIScale", {}, appLayer)
 local isOpen, locked = false, true
 local currentApp = nil
 local data = { places = {}, policeTypes = {}, tickets = {}, busStops = {}, friends = {}, taxiPrice = VehicleConfig.TaxiPrice }
+local city = { stats = {}, done = {}, owned = {}, equipped = {} } -- работа, магазин, достижения
 local chats = {} -- [имя] = { messages = { {mine, text} }, unread = 0, typingUntil = 0 }
 local openChat = nil
 local notifications = {}
@@ -13321,7 +14417,7 @@ local taxiStatus = nil
 local policeStep, policeType = 1, nil
 local policeAnswer = nil
 local wallpaperIndex = 1
-local renderApp, renderLock, renderHomeBadges -- объявлены ниже
+local renderApp, renderLock, renderHomeBadges, closePhone -- объявлены ниже
 
 local function applyWallpaper()
 	local w = WALLPAPERS[wallpaperIndex]
@@ -13474,6 +14570,8 @@ function renderHomeBadges()
 	homeBadges.police.Text = tostring(active)
 	homeBadges.taxi.Visible = taxiStatus ~= nil and not taxiStatus.done
 	homeBadges.taxi.Text = "!"
+	homeBadges.work.Visible = player:GetAttribute("JobStage") ~= nil
+	homeBadges.work.Text = "!"
 end
 
 ---------------------------------------------------------------------
@@ -13528,6 +14626,14 @@ end)
 homeBar.Activated:Connect(goHome)
 
 function openApp(id: string)
+	if id == "camera" then
+		-- Камера — это фоторежим на весь экран (CityLifeClient)
+		closePhone()
+		task.delay(0.25, function()
+			player:SetAttribute("PhotoMode", true)
+		end)
+		return
+	end
 	currentApp = id
 	openChat = nil
 	for _, app in APPS do
@@ -13537,6 +14643,8 @@ function openApp(id: string)
 	end
 	if id == "messages" then
 		remote:FireServer("Friends")
+	elseif id == "shop" or id == "awards" or id == "work" then
+		remote:FireServer("City")
 	end
 	appLayer.Visible = true
 	appScale.Scale = 0.4
@@ -14058,6 +15166,124 @@ local function renderSettings()
 	end
 end
 
+---------------------------------------------------------------------
+-- 📦 Работа, 🛍 Магазин, 🏆 Награды
+---------------------------------------------------------------------
+
+local function coinsText(): string
+	local stats = player:FindFirstChild("leaderstats")
+	local coins = stats and stats:FindFirstChild(NPCConfig.CurrencyName)
+	return coins and tostring(coins.Value) or "0"
+end
+
+local function renderWork()
+	list(content, 10)
+	local stage = player:GetAttribute("JobStage")
+	local top = card(content, nil, 0)
+	list(top, 6)
+	text(top, "📦 Курьер города", 17, WHITE, true)
+	if not stage then
+		text(top, "Забери посылку и отнеси её жителю. Получатель подсвечен, к нему ведёт золотой луч.", 13, Color3.fromRGB(200, 210, 230), false, { Size = UDim2.new(1, 0, 0, 52) })
+		text(top, string.format("Награда: %d–%d 🪙, за %d с — ещё +%d ⚡", CityConfig.Job.Reward.Min, CityConfig.Job.Reward.Max, CityConfig.Job.FastTime, CityConfig.Job.FastBonus), 13, Color3.fromRGB(255, 220, 120), false, { Size = UDim2.new(1, 0, 0, 36) })
+		button(content, "Взять заказ", { LayoutOrder = 1, BackgroundColor3 = Color3.fromRGB(60, 200, 100), BackgroundTransparency = 0.2, Font = Enum.Font.GothamBold }, function()
+			remote:FireServer("Job")
+		end)
+	else
+		text(top, player:GetAttribute("JobText") or "", 15, WHITE, true, { Size = UDim2.new(1, 0, 0, 40) })
+		local ends = player:GetAttribute("JobEnds")
+		local left = ends and math.max(0, ends - workspace:GetServerTimeNow()) or 0
+		statusChip(top, string.format("⏱ %d:%02d", math.floor(left / 60), math.floor(left % 60)), left < 30 and Color3.fromRGB(255, 100, 90) or Color3.fromRGB(255, 190, 60))
+		text(top, stage == "pickup" and "Шаг 1 из 2: забери посылку (кнопка у коробки)" or "Шаг 2 из 2: подойди к получателю", 13, Color3.fromRGB(200, 210, 230), false, { Size = UDim2.new(1, 0, 0, 34) })
+		button(content, "Отменить заказ", { LayoutOrder = 1, BackgroundColor3 = Color3.fromRGB(240, 80, 80), BackgroundTransparency = 0.4 }, function()
+			remote:FireServer("Job")
+		end)
+	end
+	local stats = card(content, nil, 2)
+	list(stats, 4)
+	text(stats, "📊 Статистика", 15, WHITE, true)
+	text(stats, "Доставлено посылок: " .. math.floor(city.stats.Delivery or 0), 14, Color3.fromRGB(210, 215, 235), false)
+	text(stats, "🪙 " .. coinsText() .. " " .. NPCConfig.CurrencyName, 14, Color3.fromRGB(255, 215, 90), true)
+end
+
+local function contains(list: { string }, value: string): boolean
+	for _, v in list do
+		if v == value then
+			return true
+		end
+	end
+	return false
+end
+
+local function renderShop()
+	list(content, 10)
+	local top = card(content, nil, 0)
+	text(top, "🪙 " .. coinsText() .. " " .. NPCConfig.CurrencyName, 20, Color3.fromRGB(255, 215, 90), true)
+	local g = new("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 1 }, content)
+	new("UIGridLayout", { CellSize = UDim2.new(0.5, -5, 0, 132), CellPadding = UDim2.fromOffset(10, 10), SortOrder = Enum.SortOrder.LayoutOrder }, g)
+	for i, item in CityConfig.Shop do
+		local owned = contains(city.owned, item.Id)
+		local worn = contains(city.equipped, item.Id)
+		local cell = new("Frame", { BackgroundColor3 = WHITE, BackgroundTransparency = worn and 0.75 or 0.88, LayoutOrder = i }, g)
+		corner(cell, 14)
+		if worn then
+			new("UIStroke", { Color = Color3.fromRGB(120, 230, 140), Thickness = 2 }, cell)
+		end
+		text(cell, item.Icon, 34, WHITE, true, { Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 40), TextXAlignment = Enum.TextXAlignment.Center })
+		text(cell, item.Name, 13, WHITE, true, { Position = UDim2.fromOffset(4, 52), Size = UDim2.new(1, -8, 0, 32), TextXAlignment = Enum.TextXAlignment.Center })
+		local label = worn and "Снять" or owned and "Надеть" or (item.Price .. " 🪙")
+		local color = worn and Color3.fromRGB(240, 90, 90) or owned and Color3.fromRGB(60, 200, 100) or Color3.fromRGB(255, 190, 50)
+		button(cell, label, { Position = UDim2.new(0, 8, 1, -40), Size = UDim2.new(1, -16, 0, 32), BackgroundColor3 = color, BackgroundTransparency = 0.25, TextSize = 13, Font = Enum.Font.GothamBold }, function()
+			remote:FireServer(owned and "Equip" or "Buy", item.Id)
+		end)
+	end
+	text(content, "Вещи остаются у тебя навсегда. В одном месте (голова, лицо...) — одна вещь.", 12, Color3.fromRGB(160, 170, 195), false, { LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 34) })
+end
+
+local function renderAwards()
+	list(content, 8)
+	local doneCount = 0
+	for _, a in CityConfig.Achievements do
+		if contains(city.done, a.Id) then
+			doneCount += 1
+		end
+	end
+	local top = card(content, nil, 0)
+	list(top, 6)
+	text(top, string.format("🏆 Получено: %d из %d", doneCount, #CityConfig.Achievements), 17, WHITE, true)
+	bar(top, "", doneCount / math.max(1, #CityConfig.Achievements), Color3.fromRGB(255, 200, 60), 2)
+	-- Сначала незавершённые, ближайшие к цели
+	local order = {}
+	for i, a in CityConfig.Achievements do
+		local done = contains(city.done, a.Id)
+		local progress = math.clamp((city.stats[a.Stat] or 0) / a.Goal, 0, 1)
+		table.insert(order, { a = a, done = done, progress = progress, i = i })
+	end
+	table.sort(order, function(x, y)
+		if x.done ~= y.done then
+			return not x.done
+		end
+		if x.progress ~= y.progress then
+			return x.progress > y.progress
+		end
+		return x.i < y.i
+	end)
+	for n, o in order do
+		local a = o.a
+		local row = card(content, 74, n)
+		row.BackgroundTransparency = o.done and 0.8 or 0.9
+		text(row, a.Icon, 30, WHITE, true, { Size = UDim2.fromOffset(40, 50), TextXAlignment = Enum.TextXAlignment.Center, TextTransparency = o.done and 0 or 0.35 })
+		text(row, a.Name .. (o.done and "  ✓" or ""), 14, o.done and Color3.fromRGB(255, 215, 90) or WHITE, true, { Position = UDim2.fromOffset(48, 0), Size = UDim2.new(1, -100, 0, 18) })
+		text(row, a.Desc, 12, Color3.fromRGB(180, 190, 215), false, { Position = UDim2.fromOffset(48, 18), Size = UDim2.new(1, -48, 0, 16), TextTruncate = Enum.TextTruncate.AtEnd })
+		text(row, "+" .. a.Reward .. " 🪙", 12, Color3.fromRGB(255, 215, 90), true, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(60, 18), TextXAlignment = Enum.TextXAlignment.Right })
+		if not o.done then
+			local back = new("Frame", { Position = UDim2.fromOffset(48, 40), Size = UDim2.new(1, -48, 0, 6), BackgroundColor3 = Color3.fromRGB(60, 65, 80) }, row)
+			corner(back, 3)
+			local fill = new("Frame", { Size = UDim2.fromScale(o.progress, 1), BackgroundColor3 = Color3.fromRGB(255, 190, 60) }, back)
+			corner(fill, 3)
+		end
+	end
+end
+
 local RENDERERS = {
 	map = renderMap,
 	taxi = renderTaxi,
@@ -14067,6 +15293,9 @@ local RENDERERS = {
 	weather = renderWeather,
 	quests = renderQuests,
 	settings = renderSettings,
+	work = renderWork,
+	shop = renderShop,
+	awards = renderAwards,
 }
 
 function renderApp()
@@ -14134,7 +15363,7 @@ local function openPhone()
 	TweenService:Create(phone, SLIDE, { Position = UDim2.new(1, -24, 0.5, 0) }):Play()
 end
 
-local function closePhone()
+function closePhone()
 	if not isOpen then
 		return
 	end
@@ -14171,12 +15400,33 @@ end, false, Enum.KeyCode.P, Enum.KeyCode.ButtonSelect)
 remote.OnClientEvent:Connect(function(action, payload)
 	if action == "Data" then
 		for k, v in pairs(payload) do
-			data[k] = v
+			if k == "city" then
+				city = v
+			else
+				data[k] = v
+			end
 		end
 		renderHomeBadges()
 		if currentApp and currentApp ~= "map" then
 			renderApp()
 		end
+	elseif action == "City" then
+		city = payload
+		if currentApp == "shop" or currentApp == "awards" or currentApp == "work" then
+			renderApp()
+		end
+	elseif action == "Job" then
+		if payload.text then
+			notify("📦", "Работа", payload.text)
+		elseif payload.ready then
+			notify("📦", "Работа", "Есть новые заказы!")
+		end
+		renderHomeBadges()
+		if currentApp == "work" then
+			renderApp()
+		end
+	elseif action == "Achievement" then
+		notify(payload.icon, "Достижение", payload.name .. "  +" .. payload.reward .. " 🪙")
 	elseif action == "Friends" then
 		data.friends = payload
 		if currentApp == "messages" or currentApp == "quests" then
@@ -14247,7 +15497,7 @@ RunService.RenderStepped:Connect(function(dt)
 	slowTimer -= dt
 	if slowTimer <= 0 then
 		slowTimer = 1.5
-		if currentApp == "bus" or currentApp == "weather" then
+		if currentApp == "bus" or currentApp == "weather" or currentApp == "work" then
 			renderApp()
 		end
 	end
@@ -14255,4 +15505,487 @@ end)
 
 workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
 	phoneScale.Scale = fitScale()
+end)
+
+----------------------------------------------------------------------
+-- 40. StarterPlayer → StarterPlayerScripts > LocalScript "CityLifeClient"
+----------------------------------------------------------------------
+
+-- LocalScript: StarterPlayer > StarterPlayerScripts > CityLifeClient
+-- Экранная часть новых механик (настройки — ReplicatedStorage > CityConfig):
+--   📦 курьер: подсветка цели, стрелка-луч, таймер; персонажи несут коробку двумя руками;
+--   🏆 большое золотое окно при новом достижении;
+--   📷 фоторежим (из телефона): видоискатель, фильтры, зум, селфи, вспышка — жители позируют.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("CityConfig"))
+local Sounds = require(ReplicatedStorage:WaitForChild("SoundConfig"))
+local RigAnimator = require(ReplicatedStorage:WaitForChild("RigAnimator"))
+local remote = ReplicatedStorage:WaitForChild("PhoneRemote")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local camera = workspace.CurrentCamera
+local WHITE = Color3.new(1, 1, 1)
+local GOLD = Color3.fromRGB(255, 205, 70)
+local POP = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+local function new(className: string, props, parent: Instance?)
+	local inst = Instance.new(className)
+	for k, v in pairs(props or {}) do
+		(inst :: any)[k] = v
+	end
+	if parent then
+		inst.Parent = parent
+	end
+	return inst
+end
+
+local function playSound(def)
+	if not def or def.Id == "" then
+		return
+	end
+	local s = new("Sound", { SoundId = def.Id, Volume = def.Volume or 0.4 }, workspace)
+	s:Play()
+	s.Ended:Once(function()
+		s:Destroy()
+	end)
+end
+
+local gui = new("ScreenGui", { Name = "CityLife", ResetOnSpawn = false, IgnoreGuiInset = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 5 }, playerGui)
+
+---------------------------------------------------------------------
+-- 📦 Коробка в руках (у всех персонажей с атрибутом CarryBox)
+---------------------------------------------------------------------
+
+local CARRY_POSE = {
+	LeftShoulder = Vector3.new(70, 0, 8),
+	RightShoulder = Vector3.new(70, 0, -8),
+	LeftElbow = Vector3.new(25, 0, 0),
+	RightElbow = Vector3.new(25, 0, 0),
+	R6 = {
+		LeftShoulder = Vector3.new(0, 0, -75),
+		RightShoulder = Vector3.new(0, 0, 75),
+	},
+}
+
+local function carryLayer(model: Model)
+	local weight = 0
+	return {
+		Priority = 30,
+		Update = function(rig, dt)
+			local on = model:GetAttribute("CarryBox") == true
+			weight = math.clamp(weight + (on and dt or -dt) * 5, 0, 1)
+			if not on and weight <= 0 then
+				return nil, 0, true
+			end
+			return RigAnimator.Frames(rig, CARRY_POSE), weight
+		end,
+	}
+end
+
+local function watchCharacter(character: Model)
+	local function check()
+		if character:GetAttribute("CarryBox") == true and not RigAnimator.HasLayer(character, "CarryBox") then
+			RigAnimator.SetLayer(character, "CarryBox", carryLayer(character))
+		end
+	end
+	character:GetAttributeChangedSignal("CarryBox"):Connect(check)
+	check()
+end
+local function watchPlayer(p: Player)
+	if p.Character then
+		watchCharacter(p.Character)
+	end
+	p.CharacterAdded:Connect(watchCharacter)
+end
+for _, p in Players:GetPlayers() do
+	watchPlayer(p)
+end
+Players.PlayerAdded:Connect(watchPlayer)
+
+---------------------------------------------------------------------
+-- 📦 Цель заказа: подсветка, значок, луч и карточка с таймером
+---------------------------------------------------------------------
+
+local jobCard = new("Frame", {
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 64),
+	Size = UDim2.fromOffset(300, 54),
+	BackgroundColor3 = Color3.fromRGB(25, 28, 40),
+	BackgroundTransparency = 0.1,
+	Visible = false,
+}, gui)
+new("UICorner", { CornerRadius = UDim.new(0, 14) }, jobCard)
+new("UIStroke", { Color = GOLD, Thickness = 1.5, Transparency = 0.3 }, jobCard)
+local jobText = new("TextLabel", { BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 22), Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = WHITE, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd }, jobCard)
+local jobInfo = new("TextLabel", { BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 28), Size = UDim2.new(1, -24, 0, 18), Font = Enum.Font.GothamMedium, TextSize = 13, TextColor3 = Color3.fromRGB(190, 200, 225), TextXAlignment = Enum.TextXAlignment.Left }, jobCard)
+
+local highlight = new("Highlight", { FillColor = GOLD, FillTransparency = 0.85, OutlineColor = GOLD, OutlineTransparency = 0, DepthMode = Enum.HighlightDepthMode.AlwaysOnTop, Enabled = false }, camera)
+local marker = new("BillboardGui", { Size = UDim2.fromOffset(60, 60), StudsOffset = Vector3.new(0, 4.2, 0), AlwaysOnTop = true, Enabled = false }, gui)
+local markerIcon = new("TextLabel", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Text = "📦", TextSize = 34, Font = Enum.Font.GothamBold }, marker)
+local beamFrom = new("Attachment", { Name = "JobBeamFrom" })
+local beamTo = new("Attachment", { Name = "JobBeamTo" })
+local beam = new("Beam", {
+	Attachment0 = beamFrom,
+	Attachment1 = beamTo,
+	Color = ColorSequence.new(GOLD),
+	Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(0.15, 0.4), NumberSequenceKeypoint.new(0.85, 0.4), NumberSequenceKeypoint.new(1, 0.9) }),
+	Width0 = 0.25,
+	Width1 = 0.25,
+	FaceCamera = true,
+	LightEmission = 0.8,
+	Segments = 20,
+	CurveSize0 = 6,
+	CurveSize1 = -2,
+	Enabled = false,
+}, workspace.Terrain)
+beamTo.Parent = workspace.Terrain
+
+local function jobTarget(): Instance?
+	local v = player:FindFirstChild("JobTarget")
+	return v and (v :: ObjectValue).Value or nil
+end
+
+local function targetPart(target: Instance?): BasePart?
+	if not target then
+		return nil
+	end
+	if target:IsA("BasePart") then
+		return target
+	end
+	if target:IsA("Model") then
+		return (target:FindFirstChild("HumanoidRootPart") or target.PrimaryPart) :: BasePart?
+	end
+	return nil
+end
+
+---------------------------------------------------------------------
+-- 🏆 Новое достижение
+---------------------------------------------------------------------
+
+local award = new("Frame", {
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, -140),
+	Size = UDim2.fromOffset(340, 96),
+	BackgroundColor3 = Color3.fromRGB(40, 32, 12),
+	ZIndex = 50,
+}, gui)
+new("UICorner", { CornerRadius = UDim.new(0, 20) }, award)
+new("UIStroke", { Color = GOLD, Thickness = 2.5 }, award)
+new("UIGradient", { Color = ColorSequence.new(Color3.fromRGB(255, 225, 140), Color3.fromRGB(200, 140, 30)), Rotation = 90, Transparency = NumberSequence.new(0.75) }, award)
+local awardIcon = new("TextLabel", { BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 12), Size = UDim2.fromOffset(72, 72), TextSize = 48, Font = Enum.Font.GothamBold, ZIndex = 51 }, award)
+local awardIconScale = new("UIScale", {}, awardIcon)
+new("TextLabel", { BackgroundTransparency = 1, Position = UDim2.fromOffset(92, 14), Size = UDim2.new(1, -104, 0, 18), Text = "🏆 НОВОЕ ДОСТИЖЕНИЕ", TextSize = 13, Font = Enum.Font.GothamBold, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 51 }, award)
+local awardName = new("TextLabel", { BackgroundTransparency = 1, Position = UDim2.fromOffset(92, 34), Size = UDim2.new(1, -104, 0, 26), TextSize = 22, Font = Enum.Font.GothamBold, TextColor3 = WHITE, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 51 }, award)
+local awardReward = new("TextLabel", { BackgroundTransparency = 1, Position = UDim2.fromOffset(92, 62), Size = UDim2.new(1, -104, 0, 18), TextSize = 15, Font = Enum.Font.GothamMedium, TextColor3 = Color3.fromRGB(255, 225, 150), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 51 }, award)
+
+local awardQueue, showingAward = {}, false
+local function showNextAward()
+	if showingAward or #awardQueue == 0 then
+		return
+	end
+	showingAward = true
+	local a = table.remove(awardQueue, 1)
+	awardIcon.Text, awardName.Text = a.icon, a.name
+	awardReward.Text = string.format("+%d 🪙", a.reward)
+	playSound(Sounds.Phone and Sounds.Phone.Notify)
+	TweenService:Create(award, POP, { Position = UDim2.new(0.5, 0, 0, 20) }):Play()
+	awardIconScale.Scale = 0.3
+	TweenService:Create(awardIconScale, TweenInfo.new(0.6, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	-- Конфетти
+	for _ = 1, 18 do
+		local c = new("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.15, 0.5),
+			Size = UDim2.fromOffset(7, 7),
+			Rotation = math.random(0, 90),
+			BackgroundColor3 = Color3.fromHSV(math.random(), 0.7, 1),
+			BorderSizePixel = 0,
+			ZIndex = 52,
+		}, award)
+		local angle = math.random() * math.pi * 2
+		local dist = math.random(40, 110)
+		local tween = TweenService:Create(c, TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = UDim2.new(0.15, math.cos(angle) * dist, 0.5, math.sin(angle) * dist),
+			Rotation = c.Rotation + 180,
+			BackgroundTransparency = 1,
+		})
+		tween:Play()
+		tween.Completed:Once(function()
+			c:Destroy()
+		end)
+	end
+	task.delay(3.6, function()
+		local hide = TweenService:Create(award, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Position = UDim2.new(0.5, 0, 0, -140) })
+		hide:Play()
+		hide.Completed:Wait()
+		showingAward = false
+		showNextAward()
+	end)
+end
+
+remote.OnClientEvent:Connect(function(action, payload)
+	if action == "Achievement" then
+		table.insert(awardQueue, payload)
+		showNextAward()
+	end
+end)
+
+---------------------------------------------------------------------
+-- 📷 Фоторежим (включается из телефона: атрибут игрока PhotoMode = true)
+---------------------------------------------------------------------
+
+local photoGui = new("ScreenGui", { Name = "PhotoMode", ResetOnSpawn = false, IgnoreGuiInset = true, Enabled = false, DisplayOrder = 20 }, playerGui)
+local frameLines = new("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1) }, photoGui)
+-- Уголки видоискателя
+for _, c in { { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } } do
+	local x, y = c[1], c[2]
+	local holder = new("Frame", { AnchorPoint = Vector2.new(x, y), Position = UDim2.new(x, x == 0 and 30 or -30, y, y == 0 and 30 or -30), Size = UDim2.fromOffset(46, 46), BackgroundTransparency = 1 }, frameLines)
+	new("Frame", { AnchorPoint = Vector2.new(x, y), Position = UDim2.fromScale(x, y), Size = UDim2.new(1, 0, 0, 4), BackgroundColor3 = WHITE, BorderSizePixel = 0 }, holder)
+	new("Frame", { AnchorPoint = Vector2.new(x, y), Position = UDim2.fromScale(x, y), Size = UDim2.new(0, 4, 1, 0), BackgroundColor3 = WHITE, BorderSizePixel = 0 }, holder)
+end
+-- Сетка третей
+for i = 1, 2 do
+	new("Frame", { Position = UDim2.fromScale(i / 3, 0), Size = UDim2.new(0, 1, 1, 0), BackgroundColor3 = WHITE, BackgroundTransparency = 0.8, BorderSizePixel = 0 }, frameLines)
+	new("Frame", { Position = UDim2.fromScale(0, i / 3), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = WHITE, BackgroundTransparency = 0.8, BorderSizePixel = 0 }, frameLines)
+end
+local rec = new("TextLabel", { Position = UDim2.fromOffset(44, 40), Size = UDim2.fromOffset(160, 24), BackgroundTransparency = 1, Text = "● ФОТО", TextColor3 = Color3.fromRGB(255, 80, 80), Font = Enum.Font.GothamBold, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left }, frameLines)
+
+local controls = new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -24), Size = UDim2.fromOffset(560, 150), BackgroundTransparency = 1 }, photoGui)
+new("UISizeConstraint", { MaxSize = Vector2.new(560, 150) }, controls)
+
+local function pill(parent: Instance, label: string, size: UDim2, position: UDim2, onClick)
+	local b = new("TextButton", { Size = size, Position = position, BackgroundColor3 = Color3.fromRGB(20, 22, 30), BackgroundTransparency = 0.3, Text = label, TextColor3 = WHITE, Font = Enum.Font.GothamBold, TextSize = 15, AutoButtonColor = true }, parent)
+	new("UICorner", { CornerRadius = UDim.new(1, 0) }, b)
+	b.Activated:Connect(onClick)
+	return b
+end
+
+local filterRow = new("ScrollingFrame", { Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, 0, 0, 40), BackgroundTransparency = 1, ScrollBarThickness = 0, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.X, ScrollingDirection = Enum.ScrollingDirection.X }, controls)
+new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8), HorizontalAlignment = Enum.HorizontalAlignment.Center }, filterRow)
+
+local shutter = new("TextButton", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, 0), Size = UDim2.fromOffset(84, 84), BackgroundColor3 = WHITE, Text = "", AutoButtonColor = false }, controls)
+new("UICorner", { CornerRadius = UDim.new(1, 0) }, shutter)
+new("UIStroke", { Color = Color3.fromRGB(200, 200, 210), Thickness = 5 }, shutter)
+local shutterScale = new("UIScale", {}, shutter)
+
+local flash = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BackgroundTransparency = 1, ZIndex = 100 }, photoGui)
+local zoomLabel = new("TextLabel", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -44, 0, 40), Size = UDim2.fromOffset(120, 24), BackgroundTransparency = 1, TextColor3 = WHITE, Font = Enum.Font.GothamBold, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Right }, frameLines)
+
+local photo = { on = false, fov = 70, baseFov = 70, filter = 1, selfie = false, selfieAngle = 0, hiddenGuis = {} }
+local grade = nil -- ColorCorrectionEffect фильтра
+
+local function applyFilter(index: number)
+	photo.filter = index
+	local f = Config.Photo.Filters[index]
+	if not grade then
+		grade = new("ColorCorrectionEffect", { Name = "PhotoFilter" }, Lighting)
+	end
+	grade.TintColor = f.Tint or WHITE
+	grade.Saturation = f.Saturation or 0
+	grade.Contrast = f.Contrast or 0
+	grade.Brightness = f.Brightness or 0
+	for _, b in filterRow:GetChildren() do
+		if b:IsA("TextButton") then
+			b.BackgroundColor3 = b.LayoutOrder == index and GOLD or Color3.fromRGB(20, 22, 30)
+			b.TextColor3 = b.LayoutOrder == index and Color3.fromRGB(30, 25, 10) or WHITE
+		end
+	end
+end
+
+for i, f in Config.Photo.Filters do
+	local b = pill(filterRow, f.Name, UDim2.fromOffset(0, 34), UDim2.new(), function()
+		applyFilter(i)
+	end)
+	b.AutomaticSize = Enum.AutomaticSize.X
+	b.LayoutOrder = i
+	new("UIPadding", { PaddingLeft = UDim.new(0, 14), PaddingRight = UDim.new(0, 14) }, b)
+end
+
+local function setZoom(fov: number)
+	photo.fov = math.clamp(fov, 20, 90)
+	zoomLabel.Text = string.format("🔍 %.1f×", photo.baseFov / photo.fov)
+end
+
+local exitPhoto -- объявлена ниже
+
+pill(controls, "✕", UDim2.fromOffset(52, 52), UDim2.new(0, 10, 1, -68), function()
+	exitPhoto()
+end)
+local selfieButton = pill(controls, "🤳 Селфи", UDim2.fromOffset(120, 44), UDim2.new(0, 72, 1, -64), function()
+	photo.selfie = not photo.selfie
+	photo.selfieAngle = 0
+end)
+pill(controls, "−", UDim2.fromOffset(44, 44), UDim2.new(1, -164, 1, -64), function()
+	setZoom(photo.fov + 10)
+end)
+pill(controls, "+", UDim2.fromOffset(44, 44), UDim2.new(1, -112, 1, -64), function()
+	setZoom(photo.fov - 10)
+end)
+local hideButton = pill(controls, "👁", UDim2.fromOffset(44, 44), UDim2.new(1, -56, 1, -64), function() end)
+
+local function takePhoto()
+	if not photo.on then
+		return
+	end
+	shutterScale.Scale = 0.85
+	TweenService:Create(shutterScale, POP, { Scale = 1 }):Play()
+	playSound(Sounds.Phone and (Sounds.Phone.Shutter and Sounds.Phone.Shutter.Id ~= "" and Sounds.Phone.Shutter or Sounds.Phone.Tap))
+	flash.BackgroundTransparency = 0
+	TweenService:Create(flash, TweenInfo.new(0.5), { BackgroundTransparency = 1 }):Play()
+	remote:FireServer("Photo")
+end
+shutter.Activated:Connect(takePhoto)
+
+-- Спрятать интерфейс на 3 секунды — чтобы сделать чистый скриншот
+hideButton.Activated:Connect(function()
+	controls.Visible = false
+	frameLines.Visible = false
+	task.delay(3, function()
+		if photo.on then
+			controls.Visible = true
+			frameLines.Visible = true
+		end
+	end)
+end)
+
+local function enterPhoto()
+	if photo.on then
+		return
+	end
+	photo.on = true
+	photo.baseFov = camera.FieldOfView
+	setZoom(photo.baseFov)
+	photo.selfie = false
+	photo.hiddenGuis = {}
+	for _, g in playerGui:GetChildren() do
+		if g:IsA("ScreenGui") and g ~= photoGui and g.Enabled then
+			g.Enabled = false
+			table.insert(photo.hiddenGuis, g)
+		end
+	end
+	photoGui.Enabled = true
+	controls.Visible = true
+	frameLines.Visible = true
+	applyFilter(photo.filter)
+	ContextActionService:BindActionAtPriority("PhotoShutter", function(_, state)
+		if state == Enum.UserInputState.Begin then
+			takePhoto()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, 3000, Enum.KeyCode.Return, Enum.KeyCode.ButtonR2)
+	ContextActionService:BindActionAtPriority("PhotoExit", function(_, state)
+		if state == Enum.UserInputState.Begin then
+			exitPhoto()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, 3000, Enum.KeyCode.P, Enum.KeyCode.Backspace, Enum.KeyCode.ButtonB)
+end
+
+function exitPhoto()
+	if not photo.on then
+		return
+	end
+	photo.on = false
+	player:SetAttribute("PhotoMode", false)
+	ContextActionService:UnbindAction("PhotoShutter")
+	ContextActionService:UnbindAction("PhotoExit")
+	photoGui.Enabled = false
+	for _, g in photo.hiddenGuis do
+		if g.Parent then
+			g.Enabled = true
+		end
+	end
+	photo.hiddenGuis = {}
+	if grade then
+		grade:Destroy()
+		grade = nil
+	end
+	camera.CameraType = Enum.CameraType.Custom
+	camera.FieldOfView = photo.baseFov
+end
+
+player:GetAttributeChangedSignal("PhotoMode"):Connect(function()
+	if player:GetAttribute("PhotoMode") == true then
+		enterPhoto()
+	else
+		exitPhoto()
+	end
+end)
+player.CharacterRemoving:Connect(exitPhoto)
+
+-- Селфи: поворот камеры вокруг лица — перетаскиванием мыши/пальца
+UserInputService.InputChanged:Connect(function(input, processed)
+	if photo.on and photo.selfie and not processed then
+		if input.UserInputType == Enum.UserInputType.MouseMovement and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+			or input.UserInputType == Enum.UserInputType.Touch then
+			photo.selfieAngle = math.clamp(photo.selfieAngle - input.Delta.X * 0.006, -1.4, 1.4)
+		end
+	end
+	if photo.on and input.UserInputType == Enum.UserInputType.MouseWheel then
+		setZoom(photo.fov - input.Position.Z * 4)
+	end
+end)
+
+---------------------------------------------------------------------
+-- Каждый кадр
+---------------------------------------------------------------------
+
+RunService.RenderStepped:Connect(function(dt)
+	local now = os.clock()
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+
+	-- Заказ курьера
+	local stage = player:GetAttribute("JobStage")
+	local target = targetPart(jobTarget())
+	local active = stage ~= nil and target ~= nil and root ~= nil and not photo.on
+	jobCard.Visible = stage ~= nil and not photo.on
+	highlight.Enabled = active
+	marker.Enabled = active
+	beam.Enabled = active
+	if stage then
+		jobText.Text = "📦 " .. (player:GetAttribute("JobText") or "")
+		local ends = player:GetAttribute("JobEnds")
+		local left = ends and math.max(0, ends - workspace:GetServerTimeNow()) or 0
+		local dist = (target and root) and math.floor((target.Position - root.Position).Magnitude) or 0
+		jobInfo.Text = string.format("⏱ %d:%02d   📍 %d стадов", math.floor(left / 60), math.floor(left % 60), dist)
+		jobInfo.TextColor3 = left < 30 and Color3.fromRGB(255, 120, 100) or Color3.fromRGB(190, 200, 225)
+	end
+	if active and target and root then
+		local model = target:FindFirstAncestorOfClass("Model")
+		highlight.Adornee = (model and model ~= workspace and model:FindFirstChildOfClass("Humanoid")) and model or target
+		marker.Adornee = target
+		marker.StudsOffset = Vector3.new(0, 4.2 + math.sin(now * 4) * 0.3, 0)
+		markerIcon.Text = stage == "pickup" and "📦" or "🎁"
+		beamFrom.Parent = root
+		beamFrom.Position = Vector3.new(0, -1.5, 0)
+		beamTo.WorldPosition = target.Position + Vector3.new(0, -1, 0)
+		beam.TextureSpeed = 1
+	end
+
+	-- Фоторежим
+	if photo.on then
+		rec.TextTransparency = (now % 1 < 0.5) and 0 or 0.6
+		camera.FieldOfView += (photo.fov - camera.FieldOfView) * math.min(1, dt * 10)
+		local head = character and character:FindFirstChild("Head") :: BasePart?
+		selfieButton.Text = photo.selfie and "🎥 Обычная" or "🤳 Селфи"
+		if photo.selfie and head and root then
+			camera.CameraType = Enum.CameraType.Scriptable
+			local look = root.CFrame.LookVector
+			local dir = (CFrame.Angles(0, photo.selfieAngle, 0) * Vector3.new(look.X, 0, look.Z)).Unit
+			local eye = head.Position + dir * 6 + Vector3.new(0, 0.8, 0)
+			camera.CFrame = CFrame.lookAt(eye, head.Position + Vector3.new(0, 0.2, 0))
+		elseif camera.CameraType ~= Enum.CameraType.Custom then
+			camera.CameraType = Enum.CameraType.Custom
+		end
+	end
 end)

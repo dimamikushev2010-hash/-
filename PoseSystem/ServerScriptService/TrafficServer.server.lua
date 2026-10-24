@@ -1907,6 +1907,9 @@ local function handleCall(car, call)
 	end
 	if arrested and suspect and suspect.alive then
 		setTicket(ticket, "Задержанный доставлен в участок")
+		if ticket and ticket.player and Registry.playerEvent then
+			Registry.playerEvent(ticket.player, "Arrest")
+		end
 		task.wait(1)
 		unseatNPC(suspect)
 		if station.cell then
@@ -2070,6 +2073,9 @@ local function createReport(player: Player, typeIndex: any, placeIndex: any): st
 	if phone then
 		phone:FireClient(player, "Tickets", ticketList(player))
 	end
+	if Registry.playerEvent then
+		Registry.playerEvent(player, "Report")
+	end
 	return string.format("%s Номер заявления: %d.", pick(free and Config.ReportAccepted or Config.ReportBusy), ticket.id)
 end
 
@@ -2201,6 +2207,9 @@ local function playerTaxi(car, player: Player, placeIndex: number)
 	drive(car, { node = nearestNode(place.pos), curb = 5 })
 	unseatPlayer(player, car, 1)
 	toast(player, "Приехали! 🚕")
+	if Registry.playerEvent then
+		Registry.playerEvent(player, "Taxi")
+	end
 	playerTaxiBusy[player] = nil
 	taxiReturn(car)
 	car.prompt.Enabled = true
@@ -2257,6 +2266,9 @@ if Config.Count.Bus > 0 and #busStops >= 2 then
 				local seat = freeSeat(bus)
 				if seat then
 					task.spawn(seatPlayer, player, bus, seat)
+					if Registry.playerEvent then
+						Registry.playerEvent(player, "Bus")
+					end
 				else
 					toast(player, "Автобус полный 🚌")
 				end
@@ -2554,5 +2566,8 @@ function Registry.phoneTaxi(player: Player, placeIndex: any)
 	drive(taxi, { node = nearestNode(place.pos), curb = 5 })
 	unseatPlayer(player, taxi, 1)
 	status("Приехали! -" .. Config.TaxiPrice .. " 🪙", true)
+	if Registry.playerEvent then
+		Registry.playerEvent(player, "Taxi")
+	end
 	finish()
 end

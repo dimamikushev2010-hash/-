@@ -4,6 +4,7 @@
 --   Taxi   — вызвать такси к себе
 --   Report — заявление в полицию
 --   Reply  — ответить знакомому жителю в сообщениях
+--   Job, Buy, Equip, Photo, City — работа курьером, магазин, фото, достижения (CityLifeServer)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -26,6 +27,7 @@ remote.OnServerEvent:Connect(function(player: Player, action: any, a: any, b: an
 	if action == "Open" then
 		local data = Registry.phoneData and Registry.phoneData(player) or {}
 		data.friends = Registry.friendsOf and Registry.friendsOf(player) or {}
+		data.city = Registry.cityData and Registry.cityData(player) or nil
 		remote:FireClient(player, "Data", data)
 	elseif action == "Taxi" and Registry.phoneTaxi then
 		task.spawn(Registry.phoneTaxi, player, a)
@@ -35,6 +37,8 @@ remote.OnServerEvent:Connect(function(player: Player, action: any, a: any, b: an
 		Registry.phoneReply(player, a, b)
 	elseif action == "Friends" and Registry.friendsOf then
 		remote:FireClient(player, "Friends", Registry.friendsOf(player))
+	elseif type(action) == "string" and Registry.cityAction then
+		Registry.cityAction(player, action, a, b)
 	end
 end)
 
