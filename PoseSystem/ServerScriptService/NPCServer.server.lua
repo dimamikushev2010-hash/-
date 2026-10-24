@@ -1804,7 +1804,7 @@ end
 -- opts.custom — без «мозга» (им управляет другой скрипт, например полиция)
 local function createNPC(spawnPart: BasePart?, opts)
 	opts = opts or {}
-	if total >= Config.MaxNPCs + (opts.custom and 6 or 0) then
+	if total >= Config.MaxNPCs + (opts.custom and 14 or 0) then
 		return nil
 	end
 	total += 1

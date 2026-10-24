@@ -12,12 +12,18 @@ VehicleConfig.HideMarkersInGame = true
 
 -- Сколько машин
 VehicleConfig.Count = {
-	Civilian = 5, -- гражданские (у каждой есть хозяин-житель)
+	Civilian = 5, -- гражданские (у каждой есть хозяин-житель, едут, когда ему далеко идти)
+	Cruising = 4, -- «поток»: машины со своими водителями, всё время катаются по городу
 	Taxi = 2,
 	Bus = 1,
 	Police = 2,
 }
-VehicleConfig.MaxVehicles = 12
+VehicleConfig.MaxVehicles = 16
+
+-- Поток машин
+VehicleConfig.CruiseMinDistance = 60 -- куда ехать: случайная точка дороги не ближе этого
+VehicleConfig.CruiseStopChance = 0.25 -- иногда останавливаются у тротуара
+VehicleConfig.CruiseStopTime = NumberRange.new(4, 10)
 
 -- Движение
 VehicleConfig.LaneOffset = 3 -- насколько правее центра дороги едет машина (правостороннее движение)

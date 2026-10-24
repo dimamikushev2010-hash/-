@@ -1353,12 +1353,18 @@ VehicleConfig.HideMarkersInGame = true
 
 -- Сколько машин
 VehicleConfig.Count = {
-	Civilian = 5, -- гражданские (у каждой есть хозяин-житель)
+	Civilian = 5, -- гражданские (у каждой есть хозяин-житель, едут, когда ему далеко идти)
+	Cruising = 4, -- «поток»: машины со своими водителями, всё время катаются по городу
 	Taxi = 2,
 	Bus = 1,
 	Police = 2,
 }
-VehicleConfig.MaxVehicles = 12
+VehicleConfig.MaxVehicles = 16
+
+-- Поток машин
+VehicleConfig.CruiseMinDistance = 60 -- куда ехать: случайная точка дороги не ближе этого
+VehicleConfig.CruiseStopChance = 0.25 -- иногда останавливаются у тротуара
+VehicleConfig.CruiseStopTime = NumberRange.new(4, 10)
 
 -- Движение
 VehicleConfig.LaneOffset = 3 -- насколько правее центра дороги едет машина (правостороннее движение)
@@ -4670,7 +4676,7 @@ end
 -- opts.custom — без «мозга» (им управляет другой скрипт, например полиция)
 local function createNPC(spawnPart: BasePart?, opts)
 	opts = opts or {}
-	if total >= Config.MaxNPCs + (opts.custom and 6 or 0) then
+	if total >= Config.MaxNPCs + (opts.custom and 14 or 0) then
 		return nil
 	end
 	total += 1
@@ -5191,6 +5197,7 @@ end)
 --   * держат дистанцию, пропускают друг друга на перекрёстках, стоят на красный свет;
 --   * тормозят и сигналят перед людьми;
 --   * гражданские: жители ездят на своих машинах (дом ↔ работа, магазин...);
+--   * поток: машины со своими водителями всё время катаются по городу;
 --   * такси: возит жителей и игроков (за монеты);
 --   * автобус: ходит по маршруту, на остановках люди выходят и заходят;
 --   * полиция: выезжает на вызовы с мигалками и сиреной, офицеры заходят в здание.
@@ -7004,6 +7011,100 @@ for i = 1, math.min(Config.Count.Police, #spots.Police) do
 	end
 end
 
+-- Поток машин: свои водители, катаются всё время
+local function cruiseDriver(car)
+	if not Registry.spawnCustom then
+		return nil
+	end
+	local pos = car.pos + car.look:Cross(Vector3.yAxis) * -(car.width / 2 + 2)
+	local driver = Registry.spawnCustom(CFrame.new(pos + Vector3.new(0, 3, 0)), {})
+	if driver then
+		driver.noSocial = true
+		driver.officer = true -- без разговоров и обычного «мозга»
+		if driver.prompt then
+			driver.prompt.Enabled = false
+		end
+		seatNPC(driver, car, car.driverSeat)
+	end
+	return driver
+end
+
+local function cruiseLoop(car)
+	local names = {}
+	for name, node in pairs(nodes) do
+		if next(node.links) then
+			table.insert(names, name)
+		end
+	end
+	car.state = "busy"
+	while car.model.Parent do
+		if not car.driver or not car.driver.alive or car.driver.inVehicle ~= car then
+			task.wait(car.driver and 15 or 0.5)
+			car.driver = cruiseDriver(car)
+			if not car.driver then
+				task.wait(5)
+				continue
+			end
+		end
+		-- Случайная точка подальше
+		local dest
+		for _ = 1, 10 do
+			local candidate = pick(names)
+			if (nodes[candidate].pos - car.pos).Magnitude > Config.CruiseMinDistance then
+				dest = candidate
+				break
+			end
+		end
+		dest = dest or pick(names)
+		local stop = rng:NextNumber() < Config.CruiseStopChance
+		drive(car, { node = dest, curb = stop and 5 or nil })
+		if stop then
+			task.wait(rng:NextNumber(Config.CruiseStopTime.Min, Config.CruiseStopTime.Max))
+		else
+			task.wait(0.2)
+		end
+	end
+end
+
+do
+	local list = {}
+	for name, node in pairs(nodes) do
+		if next(node.links) then
+			table.insert(list, name)
+		end
+	end
+	-- Ставим на разные точки, подальше друг от друга
+	local used = {}
+	for _ = 1, Config.Count.Cruising do
+		local best, bestDist = nil, -1
+		for _ = 1, 15 do
+			local candidate = pick(list)
+			local minDist = math.huge
+			for _, u in used do
+				minDist = math.min(minDist, (nodes[u].pos - nodes[candidate].pos).Magnitude)
+			end
+			if minDist > bestDist then
+				best, bestDist = candidate, minDist
+			end
+		end
+		if not best then
+			break
+		end
+		table.insert(used, best)
+		local car = spawnCar("Civilian", nil)
+		if car then
+			-- Смотрим вдоль дороги к соседней точке и встаём на правую полосу
+			local neighbor = next(nodes[best].links)
+			local dir = flat(nodes[neighbor].pos - nodes[best].pos).Unit
+			local lane = nodes[best].pos + dir:Cross(Vector3.yAxis) * Config.LaneOffset
+			placeCar(car, Vector3.new(lane.X, groundY(lane), lane.Z), dir)
+			car.onRoad = true
+			car.cruiser = true
+			task.spawn(cruiseLoop, car)
+		end
+	end
+end
+
 if #cars == 0 then
 	warn("[Traffic] Ни одной машины: добавь парковки (Workspace >", Config.MapFolder, "> Parking) с атрибутом Type")
 end
@@ -7018,7 +7119,7 @@ function Registry.assignCar(npc)
 	end
 	local best
 	for _, car in cars do
-		if car.kind == "Civilian" and not car.owner then
+		if car.kind == "Civilian" and not car.owner and not car.cruiser then
 			if not best or (car.homeSpot and car.homeSpot.zone == npc.homeZone) then
 				best = car
 			end
