@@ -72,6 +72,32 @@ PoseConfig.Debug = true -- писать в Output, что происходит (
 	R6        — переопределения для R6-персонажей (у них нет коленей и локтей)
 ]]
 PoseConfig.Poses = {
+	-- Сидя на стуле/скамейке (используют жители; таз ставит скрипт NPC прямо на сиденье)
+	Chair = {
+		HipHeight = 1,
+		Root = Vector3.new(-3, 0, 0),
+		Breath = 1.2,
+		WalkSpeed = 0,
+		Joints = {
+			Waist = Vector3.new(-4, 0, 0),
+			Neck = Vector3.new(-3, 0, 0),
+			LeftShoulder = Vector3.new(28, 0, -6),
+			RightShoulder = Vector3.new(28, 0, 6),
+			LeftElbow = Vector3.new(45, 0, 0),
+			RightElbow = Vector3.new(40, 0, 0),
+			LeftHip = Vector3.new(90, 0, -5),
+			RightHip = Vector3.new(87, 0, 5),
+			LeftKnee = Vector3.new(-88, 0, 0),
+			RightKnee = Vector3.new(-92, 0, 0),
+			LeftAnkle = Vector3.new(0, 0, 0),
+			RightAnkle = Vector3.new(0, 0, 0),
+		},
+		R6 = {
+			LeftShoulder = Vector3.new(35, 0, -4),
+			RightShoulder = Vector3.new(35, 0, 4),
+		},
+	},
+
 	Sit = {
 		HipHeight = 0.3,
 		Shift = Vector3.new(0, 0, 0),

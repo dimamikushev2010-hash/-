@@ -110,6 +110,32 @@ PoseConfig.Debug = true -- писать в Output, что происходит (
 	R6        — переопределения для R6-персонажей (у них нет коленей и локтей)
 ]]
 PoseConfig.Poses = {
+	-- Сидя на стуле/скамейке (используют жители; таз ставит скрипт NPC прямо на сиденье)
+	Chair = {
+		HipHeight = 1,
+		Root = Vector3.new(-3, 0, 0),
+		Breath = 1.2,
+		WalkSpeed = 0,
+		Joints = {
+			Waist = Vector3.new(-4, 0, 0),
+			Neck = Vector3.new(-3, 0, 0),
+			LeftShoulder = Vector3.new(28, 0, -6),
+			RightShoulder = Vector3.new(28, 0, 6),
+			LeftElbow = Vector3.new(45, 0, 0),
+			RightElbow = Vector3.new(40, 0, 0),
+			LeftHip = Vector3.new(90, 0, -5),
+			RightHip = Vector3.new(87, 0, 5),
+			LeftKnee = Vector3.new(-88, 0, 0),
+			RightKnee = Vector3.new(-92, 0, 0),
+			LeftAnkle = Vector3.new(0, 0, 0),
+			RightAnkle = Vector3.new(0, 0, 0),
+		},
+		R6 = {
+			LeftShoulder = Vector3.new(35, 0, -4),
+			RightShoulder = Vector3.new(35, 0, 4),
+		},
+	},
+
 	Sit = {
 		HipHeight = 0.3,
 		Shift = Vector3.new(0, 0, 0),
@@ -3063,7 +3089,149 @@ local function face(npc, direction: Vector3, time: number?)
 end
 
 -- Подняться из позы (сидя на стуле, на полу или лёжа)
+---------------------------------------------------------------------
+-- Стулья, диваны, скамейки (Seat)
+-- Жители садятся сами, без физики Seat: так они всегда смотрят от спинки,
+-- сидят ровно на сиденье и не занимают одно место вдвоём.
+---------------------------------------------------------------------
+
+local surfaceParams = RaycastParams.new()
+surfaceParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function ignoreList(extra: Instance?)
+	local list = { liveFolder }
+	for _, player in Players:GetPlayers() do
+		if player.Character then
+			table.insert(list, player.Character)
+		end
+	end
+	if extra then
+		table.insert(list, extra)
+	end
+	return list
+end
+
+-- Верх сиденья: если сам Seat невидимый (служебный), берём видимую подушку под ним
+local function seatTop(seat: BasePart): Vector3
+	local cf, size = seat.CFrame, seat.Size
+	local halfY = math.abs(cf.RightVector.Y) * size.X / 2 + math.abs(cf.UpVector.Y) * size.Y / 2 + math.abs(cf.LookVector.Y) * size.Z / 2
+	local top = seat.Position + Vector3.new(0, halfY, 0)
+	if seat.Transparency >= 0.9 then
+		surfaceParams.FilterDescendantsInstances = ignoreList(seat)
+		local hit = workspace:Raycast(top + Vector3.new(0, 0.1, 0), Vector3.new(0, -3, 0), surfaceParams)
+		if hit then
+			top = Vector3.new(top.X, hit.Position.Y, top.Z)
+		end
+	end
+	return top
+end
+
+-- Куда смотреть сидя: от спинки. Спинку ищем лучами на уровне спины,
+-- если её нет — по передней грани Seat.
+local function seatFacing(seat: BasePart, top: Vector3): Vector3
+	local cf = seat.CFrame
+	local dirs = { cf.LookVector, -cf.LookVector, cf.RightVector, -cf.RightVector }
+	surfaceParams.FilterDescendantsInstances = ignoreList(seat)
+	local origin = top + Vector3.new(0, 2.3, 0) -- выше столов, на уровне спинки
+	local best, bestDist = nil, math.huge
+	for _, d in dirs do
+		local flatDir = Vector3.new(d.X, 0, d.Z)
+		if flatDir.Magnitude > 0.1 then
+			local hit = workspace:Raycast(origin, flatDir.Unit * 2.5, surfaceParams)
+			if hit and hit.Distance < bestDist then
+				best, bestDist = flatDir.Unit, hit.Distance
+			end
+		end
+	end
+	if best then
+		return -best
+	end
+	local look = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+	return look.Magnitude > 0.1 and look.Unit or Vector3.new(0, 0, -1)
+end
+
+local function floorBelow(position: Vector3, ignore: Instance?): number
+	surfaceParams.FilterDescendantsInstances = ignoreList(ignore)
+	local hit = workspace:Raycast(position + Vector3.new(0, 2, 0), Vector3.new(0, -14, 0), surfaceParams)
+	return hit and hit.Position.Y or position.Y
+end
+
+-- Куда подойти, чтобы сесть: на пол перед сиденьем
+local function seatApproach(seat: BasePart): Vector3
+	local top = seatTop(seat)
+	local facing = seatFacing(seat, top)
+	local depth = math.max(seat.Size.X, seat.Size.Z) / 2
+	local front = top + facing * math.min(depth, 1.2) + facing * 1.4
+	return Vector3.new(front.X, floorBelow(front, seat), front.Z)
+end
+
+local function sitOnChair(npc, seat: BasePart): boolean
+	if seat.Occupant or seat:GetAttribute("NPCSeated") then
+		return false
+	end
+	local top = seatTop(seat)
+	local facing = seatFacing(seat, top)
+	local hrp = npc.hrp
+	local hrpHalf = hrp.Size.Y / 2
+	-- Таз ровно на сиденье, спиной к спинке
+	local position = top + Vector3.new(0, hrpHalf + 0.3, 0) - facing * 0.15
+	local target = CFrame.lookAt(position, position + facing)
+
+	seat:SetAttribute("NPCSeated", true)
+	seat.Disabled = true -- игрок не сядет «внутрь» жителя
+	npc.humanoid.PlatformStand = true
+	hrp.CFrame = target
+	local weld = Instance.new("Weld")
+	weld.Name = "NPCChairWeld"
+	weld.Part0 = seat
+	weld.Part1 = hrp
+	weld.C0 = seat.CFrame:ToObjectSpace(target)
+	weld.Parent = seat
+	npc.chair = { seat = seat, weld = weld, facing = facing, top = top }
+	setPose(npc, "Chair")
+	return true
+end
+
+local function leaveChair(npc)
+	local chair = npc.chair
+	if not chair then
+		return
+	end
+	npc.chair = nil
+	chair.weld:Destroy()
+	chair.seat:SetAttribute("NPCSeated", nil)
+	chair.seat.Disabled = false
+	if npc.alive then
+		setPose(npc, "Stand")
+		-- Встаём перед стулом
+		local front = chair.top + chair.facing * 1.6
+		local floorY = floorBelow(front, chair.seat)
+		local height = npc.humanoid.HipHeight + npc.hrp.Size.Y / 2
+		local position = Vector3.new(front.X, floorY + height, front.Z)
+		npc.hrp.CFrame = CFrame.lookAt(position, position + chair.facing)
+		npc.humanoid.PlatformStand = false
+		task.wait(0.35)
+	end
+end
+
+-- Точка (или место рядом) уже занята другим жителем или игроком?
+local function spotTaken(point): boolean
+	local part = point.part
+	if part:IsA("Seat") and (part.Occupant or part:GetAttribute("NPCSeated")) then
+		return true
+	end
+	for _, other in pairs(points) do
+		if other ~= point and other.occupants > 0 and (other.part.Position - part.Position).Magnitude < 1.6 then
+			return true
+		end
+	end
+	return false
+end
+
 local function standUp(npc)
+	if npc.chair then
+		leaveChair(npc)
+	end
 	if npc.humanoid.Sit then
 		npc.humanoid.Sit = false
 		npc.humanoid.Jump = true
@@ -3097,6 +3265,8 @@ end
 ---------------------------------------------------------------------
 
 local react -- объявлена ниже
+
+local snapToPoint -- объявлена ниже
 
 local function freeForChat(npc, now: number): boolean
 	return npc.alive
@@ -3333,8 +3503,12 @@ local function walkTo(npc, target: Vector3): boolean
 		if reachedAll then
 			return true
 		end
+		-- Почти дошли (точка на кровати/диване, куда не залезть) — считаем, что пришли
+		if (flat(target - hrp.Position)).Magnitude < 4 then
+			return true
+		end
 	end
-	return false
+	return (flat(target - hrp.Position)).Magnitude < 4
 end
 
 ---------------------------------------------------------------------
@@ -3354,7 +3528,7 @@ local function choosePoint(npc)
 		for _, point in pairs(points) do
 			if point ~= npc.point and point.occupants < point.capacity and point.part.Parent
 				and point.activity ~= "Work" and point.activity ~= "Patrol"
-				and not (point.part:IsA("Seat") and point.part.Occupant) and filter(point) then
+				and not spotTaken(point) and filter(point) then
 				-- Ближние точки чуть вероятнее
 				local dist = (point.part.Position - npc.hrp.Position).Magnitude
 				local weight = 1 / (1 + dist / 80)
@@ -3392,21 +3566,41 @@ local function choosePoint(npc)
 	return candidates[#candidates].point
 end
 
+-- Встать точно на точку (например, на кровать) и повернуться, как она смотрит
+function snapToPoint(npc, part: BasePart)
+	local hrp = npc.hrp
+	local top = part.Position + Vector3.new(0, part.Size.Y / 2, 0)
+	if (flat(top - hrp.Position)).Magnitude > 4.5 then
+		face(npc, part.CFrame.LookVector)
+		return
+	end
+	local look = flat(part.CFrame.LookVector)
+	local position = top + Vector3.new(0, npc.humanoid.HipHeight + hrp.Size.Y / 2 + 0.05, 0)
+	hrp.CFrame = CFrame.lookAt(position, position + (look.Magnitude > 0.1 and look.Unit or hrp.CFrame.LookVector))
+end
+
+-- Куда идти к точке: к стулу — на пол перед ним
+local function approachPosition(point): Vector3
+	if point.part:IsA("Seat") then
+		return seatApproach(point.part)
+	end
+	return point.part.Position
+end
+
 local function doActivity(npc, point)
 	local part = point.part
 	local activity = point.activity
 	local range = Config.ActivityTime[activity] or Config.ActivityTime.Idle
 	local duration = randomIn(range)
 
-	if activity == "Sit" and part:IsA("Seat") then
-		if part.Occupant then
+	if part:IsA("Seat") then
+		if not sitOnChair(npc, part) then
 			return
 		end
-		part:Sit(npc.humanoid)
 		pause(npc, duration)
 		standUp(npc)
 	elseif activity == "Sit" or activity == "Lie" then
-		face(npc, part.CFrame.LookVector)
+		snapToPoint(npc, part)
 		npc.humanoid.WalkSpeed = 0
 		setPose(npc, activity)
 		pause(npc, duration)
@@ -3468,7 +3662,7 @@ local function sleepPoint(npc)
 	for _, wanted in { "Lie", "Sit", "Idle" } do
 		for _, p in pairs(points) do
 			if p.zone == npc.homeZone and p.activity == wanted and p.occupants < p.capacity
-				and not (p.part:IsA("Seat") and p.part.Occupant) then
+				and not spotTaken(p) then
 				return p
 			end
 		end
@@ -3487,15 +3681,20 @@ local function goSleep(npc): boolean
 	end
 	point.occupants += 1
 	npc.point = point
-	local arrived = walkTo(npc, point.part.Position)
+	local arrived = walkTo(npc, approachPosition(point))
 	if arrived and not shouldStop(npc) then
 		npc.zone = npc.homeZone
 		npc.sleeping = true
 		setMood(npc, "Sleep")
 		if point.part:IsA("Seat") then
-			point.part:Sit(npc.humanoid)
+			if not sitOnChair(npc, point.part) then
+				npc.sleeping = false
+				setMood(npc, nil)
+				point.occupants = math.max(0, point.occupants - 1)
+				return false
+			end
 		else
-			face(npc, point.part.CFrame.LookVector)
+			snapToPoint(npc, point.part)
 			npc.humanoid.WalkSpeed = 0
 			setPose(npc, point.activity == "Lie" and "Lie" or "Sit")
 		end
@@ -3675,7 +3874,7 @@ local function brain(npc)
 		end
 		point.occupants += 1
 		npc.point = point
-		local arrived = walkTo(npc, point.part.Position)
+		local arrived = walkTo(npc, approachPosition(point))
 		if arrived and not shouldStop(npc) then
 			if point.zone ~= nil then
 				npc.zone = point.zone
@@ -3975,6 +4174,12 @@ local function onDied(npc)
 	if npc.following then
 		stopFollow(npc, false)
 	end
+	if npc.chair then
+		npc.chair.weld:Destroy()
+		npc.chair.seat:SetAttribute("NPCSeated", nil)
+		npc.chair.seat.Disabled = false
+		npc.chair = nil
+	end
 	if npc.job then
 		npc.job.worker = nil
 	end
@@ -4075,6 +4280,8 @@ function spawnNPC(spawnPart: BasePart)
 	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.DisplayWhenDamaged
 	local speed = randomIn(Config.WalkSpeed)
 	humanoid.WalkSpeed = speed
+	-- Сиденья не «затягивают» проходящих мимо жителей: садятся они только сами
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
 
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") then
