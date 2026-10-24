@@ -368,6 +368,16 @@ for _, p in Players:GetPlayers() do
 	watchPlayer(p)
 end
 
+-- Жители города (NPC) тоже умеют сидеть и лежать: их поза — тот же атрибут Pose
+local CollectionService = game:GetService("CollectionService")
+local NPC_TAG = "NPC"
+for _, npc in CollectionService:GetTagged(NPC_TAG) do
+	task.spawn(addController, npc)
+end
+CollectionService:GetInstanceAddedSignal(NPC_TAG):Connect(function(npc)
+	task.spawn(addController, npc)
+end)
+
 RunService.PreSimulation:Connect(function(dt)
 	-- PreSimulation идёт ПОСЛЕ стандартных анимаций, поэтому наша поза их перекрывает
 	local now = os.clock()

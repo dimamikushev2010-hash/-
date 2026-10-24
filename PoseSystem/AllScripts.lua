@@ -1,28 +1,34 @@
--- ВСЕ СКРИПТЫ: позы, невидимость, лазеры, полёт, куб
+-- ВСЕ СКРИПТЫ: позы, невидимость, лазеры, полёт, куб, жители города (NPC)
 -- Каждый блок ниже — отдельный скрипт. Создай объект нужного типа в нужном месте,
 -- назови его точно как написано и вставь код блока целиком.
 -- Проще всего: открыть PoseSystem.rbxlx, там всё уже расставлено.
+-- Как расставить точки для жителей на своей карте — см. NPC_SETUP.md.
 
--- СПИСОК:
+-- СПИСОК (24 скриптов):
 --    1. ReplicatedStorage > ModuleScript "PoseConfig"
 --    2. ReplicatedStorage > ModuleScript "InvisibilityConfig"
 --    3. ReplicatedStorage > ModuleScript "LaserConfig"
 --    4. ReplicatedStorage > ModuleScript "FlightConfig"
 --    5. ReplicatedStorage > ModuleScript "CubeConfig"
---    6. ReplicatedStorage > ModuleScript "AbilityButton"
---    7. ReplicatedStorage > ModuleScript "RigAnimator"
---    8. ReplicatedStorage > ModuleScript "AbilityFx"
---    9. ServerScriptService > ModuleScript "AbilityRegistry"
---   10. ServerScriptService > Script "PoseServer"
---   11. ServerScriptService > Script "InvisibilityServer"
---   12. ServerScriptService > Script "LaserServer"
---   13. ServerScriptService > Script "FlightServer"
---   14. ServerScriptService > Script "CubeServer"
---   15. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
---   16. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
---   17. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
---   18. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
---   19. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
+--    6. ReplicatedStorage > ModuleScript "NPCConfig"
+--    7. ReplicatedStorage > ModuleScript "AbilityButton"
+--    8. ReplicatedStorage > ModuleScript "RigAnimator"
+--    9. ReplicatedStorage > ModuleScript "AbilityFx"
+--   10. ServerScriptService > ModuleScript "AbilityRegistry"
+--   11. ServerScriptService > Script "PoseServer"
+--   12. ServerScriptService > Script "InvisibilityServer"
+--   13. ServerScriptService > Script "LaserServer"
+--   14. ServerScriptService > Script "FlightServer"
+--   15. ServerScriptService > Script "CubeServer"
+--   16. ServerScriptService > Script "NPCDemo"
+--   17. ServerScriptService > Script "NPCServer"
+--   18. ServerScriptService > Script "NPCDoors"
+--   19. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
+--   20. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
+--   21. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
+--   22. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
+--   23. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
+--   24. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
 
 
 ----------------------------------------------------------------------
@@ -408,7 +414,145 @@ CubeConfig.ActiveColor = Color3.fromRGB(255, 190, 70)
 return CubeConfig
 
 ----------------------------------------------------------------------
--- 6. ReplicatedStorage > ModuleScript "AbilityButton"
+-- 6. ReplicatedStorage > ModuleScript "NPCConfig"
+----------------------------------------------------------------------
+
+-- ModuleScript: ReplicatedStorage > NPCConfig
+-- Настройки жителей города (NPC). Как расставить точки на карте — см. NPC_SETUP.md.
+
+local NPCConfig = {}
+
+-- Структура на карте:
+--   Workspace > NPCSystem > Spawns  — где появляются жители
+--   Workspace > NPCSystem > Points  — куда они ходят и что там делают
+--   Workspace > NPCSystem > Doors   — двери, которые они открывают сами
+NPCConfig.FolderName = "NPCSystem"
+NPCConfig.Tag = "NPC" -- тег CollectionService на каждом жителе
+
+-- Сколько жителей
+NPCConfig.MaxNPCs = 20 -- всего на карте
+NPCConfig.DefaultSpawnCount = 2 -- сколько жителей от одной точки, если у неё нет атрибута Count
+NPCConfig.RespawnTime = 12 -- через сколько секунд погибший житель возрождается
+NPCConfig.CorpseTime = 4 -- сколько секунд лежит тело
+
+-- Точки на карте видны только в Studio, а в игре прячутся
+NPCConfig.HideMarkersInGame = true
+
+-- Демо-городок, если на карте ещё нет папки NPCSystem (для проверки)
+NPCConfig.BuildDemoIfMissing = true
+
+-- Движение
+NPCConfig.WalkSpeed = NumberRange.new(8, 11) -- у каждого жителя своя
+NPCConfig.RunSpeed = 22 -- когда убегают от опасности
+NPCConfig.AgentRadius = 1.6
+NPCConfig.AgentHeight = 5
+
+-- Выбор следующей точки:
+--   SameZoneChance — остаться в своей зоне (дом, магазин…)
+--   OutdoorChance  — выйти на улицу (точки с Zone = "Street" или без Zone)
+--   остальное      — любая точка на карте
+NPCConfig.SameZoneChance = 0.55
+NPCConfig.OutdoorChance = 0.3
+NPCConfig.OutdoorZone = "Street"
+
+-- Сколько секунд длятся занятия в точках
+NPCConfig.ActivityTime = {
+	Idle = NumberRange.new(4, 9), -- просто стоит, осматривается
+	Look = NumberRange.new(5, 10), -- смотрит туда, куда «смотрит» точка (окно, витрина)
+	Sit = NumberRange.new(10, 22), -- сидит (на Seat — на стуле, иначе на полу)
+	Lie = NumberRange.new(12, 25), -- лежит (диван, кровать, газон)
+	Dance = NumberRange.new(6, 12),
+	Talk = NumberRange.new(8, 15), -- ждёт собеседника и болтает
+}
+
+-- Разговоры
+NPCConfig.ChatChance = 0.35 -- шанс заговорить со встречным жителем
+NPCConfig.ChatDistance = 9
+NPCConfig.GreetPlayerChance = 0.4 -- шанс помахать проходящему игроку
+NPCConfig.GreetDistance = 12
+NPCConfig.BubbleTime = 3.5 -- сколько висит облачко с текстом
+
+NPCConfig.FirstNames = {
+	"Аня", "Миша", "Катя", "Дима", "Оля", "Саша", "Лена", "Ваня", "Маша", "Костя",
+	"Юля", "Артём", "Настя", "Егор", "Света", "Никита", "Вика", "Паша", "Даша", "Рома",
+}
+
+-- Цвета кожи и одежды (одежда без ID ассетов — просто цвета частей тела)
+NPCConfig.SkinColors = {
+	Color3.fromRGB(255, 220, 190), Color3.fromRGB(234, 184, 146), Color3.fromRGB(204, 142, 105),
+	Color3.fromRGB(160, 104, 72), Color3.fromRGB(105, 64, 40),
+}
+NPCConfig.ShirtColors = {
+	Color3.fromRGB(220, 60, 60), Color3.fromRGB(60, 120, 220), Color3.fromRGB(70, 170, 90),
+	Color3.fromRGB(240, 200, 60), Color3.fromRGB(150, 80, 200), Color3.fromRGB(240, 240, 240),
+	Color3.fromRGB(40, 40, 45), Color3.fromRGB(255, 140, 60),
+}
+NPCConfig.PantsColors = {
+	Color3.fromRGB(40, 50, 90), Color3.fromRGB(30, 30, 35), Color3.fromRGB(110, 80, 60),
+	Color3.fromRGB(90, 90, 100), Color3.fromRGB(60, 80, 50),
+}
+-- Можно вписать UserId реальных аватаров Roblox — жители будут выглядеть как они.
+-- Пусто — жители собираются из цветов выше.
+NPCConfig.AvatarUserIds = {}
+
+-- Стандартные анимации Roblox (R15)
+NPCConfig.Animations = {
+	Idle = "rbxassetid://507766388",
+	Idle2 = "rbxassetid://507766666",
+	Walk = "rbxassetid://507777826",
+	Run = "rbxassetid://507767714",
+	Jump = "rbxassetid://507765000",
+	Fall = "rbxassetid://507767968",
+	SitChair = "rbxassetid://2506281703",
+	Wave = "rbxassetid://507770239",
+	Point = "rbxassetid://507770453",
+	Laugh = "rbxassetid://507770818",
+	Cheer = "rbxassetid://507770677",
+	Dance = "rbxassetid://507771019",
+	Dance2 = "rbxassetid://507776043",
+}
+
+-- Фразы
+NPCConfig.Phrases = {
+	Greet = { "Привет!", "Здравствуй!", "О, привет!", "Хорошего дня!", "Йо!" },
+	Hurt = { "Ай!", "Эй, больно!", "Помогите!", "Ты что делаешь?!", "А-а-а!" },
+	Wake = { "Где я?..", "Ох, голова...", "Снова здесь." },
+	Idle = { "Хм...", "Какая погода сегодня!", "Куда же я шёл...", "Надо бы в магазин." },
+	Door = { "Так, дверь...", "Пройду-ка." },
+}
+
+-- Диалоги жителей между собой: пары реплик (A, B, A, B...)
+NPCConfig.Conversations = {
+	{ "Привет! Как дела?", "Отлично! А у тебя?", "Тоже хорошо, иду гулять.", "Удачи!" },
+	{ "Видел летающего человека?", "Да! Прямо над домами!", "Чудеса какие-то.", "Ага..." },
+	{ "Ты слышал про лазеры из глаз?", "Слышал. Страшно выходить!", "Держись подальше от них.", "Точно!" },
+	{ "Какой сегодня день?", "Вроде бы суббота.", "Отлично, можно отдохнуть!" },
+	{ "Не знаешь, где тут кафе?", "Прямо и направо.", "Спасибо!", "Не за что!" },
+	{ "Опять этот куб прыгает...", "Да, милый он!", "Ну такое.", "Ха-ха!" },
+}
+
+-- Диалог с игроком: игрок выбирает тему, житель отвечает одной из фраз
+NPCConfig.PlayerTopics = {
+	{ Text = "Как дела?", Answers = { "Отлично, спасибо!", "Нормально, работаю.", "Устал немного, а ты как?" }, Emote = "Laugh" },
+	{ Text = "Что тут интересного?", Answers = { "Говорят, тут кто-то летает!", "Загляни в дома, там уютно.", "Погуляй по улице, тут красиво." }, Emote = "Point" },
+	{ Text = "Расскажи о себе", Answers = { "Я живу тут недалеко.", "Люблю гулять и болтать с соседями.", "Я самый обычный житель!" }, Emote = "Wave" },
+	{ Text = "Станцуем?", Answers = { "Давай!", "Только недолго!", "Ну смотри!" }, Emote = "Dance" },
+}
+NPCConfig.PlayerGreeting = { "Привет! Чем могу помочь?", "О, здравствуй!", "Да-да?", "Привет-привет!" }
+NPCConfig.PlayerBye = { "Пока!", "Удачи!", "Заходи ещё!", "До встречи!" }
+NPCConfig.TalkPromptText = "Поговорить"
+NPCConfig.TalkDistance = 10
+
+-- Двери
+NPCConfig.DoorOpenDistance = 6 -- на каком расстоянии житель открывает дверь
+NPCConfig.DoorCloseDelay = 2.5 -- через сколько секунд после ухода дверь закрывается
+NPCConfig.DoorOpenAngle = 95 -- на сколько градусов открывается
+NPCConfig.DoorSpeed = 4 -- скорость открывания (больше = быстрее)
+
+return NPCConfig
+
+----------------------------------------------------------------------
+-- 7. ReplicatedStorage > ModuleScript "AbilityButton"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > AbilityButton
@@ -688,7 +832,7 @@ end
 return AbilityButton
 
 ----------------------------------------------------------------------
--- 7. ReplicatedStorage > ModuleScript "RigAnimator"
+-- 8. ReplicatedStorage > ModuleScript "RigAnimator"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > RigAnimator
@@ -971,7 +1115,7 @@ end)
 return RigAnimator
 
 ----------------------------------------------------------------------
--- 8. ReplicatedStorage > ModuleScript "AbilityFx"
+-- 9. ReplicatedStorage > ModuleScript "AbilityFx"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > AbilityFx
@@ -1149,7 +1293,7 @@ end
 return AbilityFx
 
 ----------------------------------------------------------------------
--- 9. ServerScriptService > ModuleScript "AbilityRegistry"
+-- 10. ServerScriptService > ModuleScript "AbilityRegistry"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ServerScriptService > AbilityRegistry
@@ -1198,7 +1342,7 @@ end
 return AbilityRegistry
 
 ----------------------------------------------------------------------
--- 10. ServerScriptService > Script "PoseServer"
+-- 11. ServerScriptService > Script "PoseServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > PoseServer
@@ -1341,7 +1485,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 11. ServerScriptService > Script "InvisibilityServer"
+-- 12. ServerScriptService > Script "InvisibilityServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > InvisibilityServer
@@ -1452,7 +1596,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 12. ServerScriptService > Script "LaserServer"
+-- 13. ServerScriptService > Script "LaserServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > LaserServer
@@ -1637,7 +1781,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 13. ServerScriptService > Script "FlightServer"
+-- 14. ServerScriptService > Script "FlightServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > FlightServer
@@ -1750,7 +1894,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 14. ServerScriptService > Script "CubeServer"
+-- 15. ServerScriptService > Script "CubeServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > CubeServer
@@ -1993,7 +2137,1394 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 15. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
+-- 16. ServerScriptService > Script "NPCDemo"
+----------------------------------------------------------------------
+
+-- Script: ServerScriptService > NPCDemo
+-- Демо-городок для проверки жителей: два дома с дверями, мебелью и окнами,
+-- улица с фонтаном, скамейками и фонарями, и все точки для NPC.
+-- Строится ТОЛЬКО если на карте ещё нет папки Workspace > NPCSystem.
+-- Когда сделаешь свою карту с папкой NPCSystem — демо само перестанет появляться
+-- (или выключи NPCConfig.BuildDemoIfMissing).
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Config = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+
+if not Config.BuildDemoIfMissing or workspace:FindFirstChild(Config.FolderName) then
+	return
+end
+
+local town = Instance.new("Folder")
+town.Name = "DemoTown"
+town.Parent = workspace
+
+local system = Instance.new("Folder")
+system.Name = Config.FolderName
+local spawns = Instance.new("Folder")
+spawns.Name = "Spawns"
+spawns.Parent = system
+local points = Instance.new("Folder")
+points.Name = "Points"
+points.Parent = system
+local doors = Instance.new("Folder")
+doors.Name = "Doors"
+doors.Parent = system
+
+local function block(parent: Instance, name: string, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material?)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.Size = size
+	p.CFrame = cframe
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Parent = parent
+	return p
+end
+
+local MARKER_COLORS = {
+	Idle = Color3.fromRGB(80, 200, 255),
+	Look = Color3.fromRGB(255, 255, 120),
+	Sit = Color3.fromRGB(120, 255, 140),
+	Lie = Color3.fromRGB(200, 140, 255),
+	Dance = Color3.fromRGB(255, 120, 200),
+	Talk = Color3.fromRGB(255, 170, 60),
+}
+
+local function point(name: string, pos: Vector3, look: Vector3, activity: string, zone: string?)
+	local p = block(points, name, Vector3.new(2, 0.2, 2), CFrame.lookAt(pos, pos + look), MARKER_COLORS[activity] or Color3.new(1, 1, 1), Enum.Material.Neon)
+	p.Transparency = 0.4
+	p.CanCollide = false
+	p:SetAttribute("Activity", activity)
+	if zone then
+		p:SetAttribute("Zone", zone)
+	end
+	return p
+end
+
+local function seat(parent: Instance, name: string, size: Vector3, pos: Vector3, look: Vector3, zone: string?, color: Color3)
+	local s = Instance.new("Seat")
+	s.Name = name
+	s.Anchored = true
+	s.Size = size
+	s.CFrame = CFrame.lookAt(pos, pos + look)
+	s.Color = color
+	s.Material = Enum.Material.Wood
+	s.TopSurface = Enum.SurfaceType.Smooth
+	if zone then
+		s:SetAttribute("Zone", zone)
+	end
+	s.Parent = parent
+	return s
+end
+
+local function spawnPoint(name: string, pos: Vector3, count: number, zone: string?)
+	local p = block(spawns, name, Vector3.new(3, 0.2, 3), CFrame.new(pos), Color3.fromRGB(255, 80, 80), Enum.Material.Neon)
+	p.Transparency = 0.4
+	p.CanCollide = false
+	p:SetAttribute("Count", count)
+	if zone then
+		p:SetAttribute("Zone", zone)
+	end
+	return p
+end
+
+local function lamp(parent: Instance, pos: Vector3, range: number, color: Color3?)
+	local bulb = block(parent, "Lamp", Vector3.new(1.2, 1.2, 1.2), CFrame.new(pos), color or Color3.fromRGB(255, 235, 190), Enum.Material.Neon)
+	bulb.Shape = Enum.PartType.Ball
+	bulb.CanCollide = false
+	local light = Instance.new("PointLight")
+	light.Range = range
+	light.Brightness = 1.6
+	light.Color = bulb.Color
+	light.Parent = bulb
+	return bulb
+end
+
+---------------------------------------------------------------------
+-- Дом: фасад смотрит на +Z (на улицу)
+---------------------------------------------------------------------
+
+local function house(ox: number, oz: number, zone: string, wallColor: Color3)
+	local model = Instance.new("Model")
+	model.Name = "House_" .. zone
+	model.Parent = town
+	local o = Vector3.new(ox, 0, oz)
+	local function at(x, y, z)
+		return o + Vector3.new(x, y, z)
+	end
+	local H = 12
+	local floorTop = 0.2
+
+	block(model, "Floor", Vector3.new(24, 0.2, 20), CFrame.new(at(0, 0.1, 0)), Color3.fromRGB(160, 120, 80), Enum.Material.WoodPlanks)
+	block(model, "WallBack", Vector3.new(24, H, 1), CFrame.new(at(0, floorTop + H / 2, -9.5)), wallColor, Enum.Material.Brick)
+	block(model, "WallLeft", Vector3.new(1, H, 20), CFrame.new(at(-11.5, floorTop + H / 2, 0)), wallColor, Enum.Material.Brick)
+	block(model, "WallRight", Vector3.new(1, H, 20), CFrame.new(at(11.5, floorTop + H / 2, 0)), wallColor, Enum.Material.Brick)
+	block(model, "WallFrontL", Vector3.new(9.5, H, 1), CFrame.new(at(-7.25, floorTop + H / 2, 9.5)), wallColor, Enum.Material.Brick)
+	block(model, "WallFrontR", Vector3.new(9.5, H, 1), CFrame.new(at(7.25, floorTop + H / 2, 9.5)), wallColor, Enum.Material.Brick)
+	block(model, "Lintel", Vector3.new(5, H - 9, 1), CFrame.new(at(0, floorTop + 9 + (H - 9) / 2, 9.5)), wallColor, Enum.Material.Brick)
+	block(model, "Roof", Vector3.new(26, 1, 22), CFrame.new(at(0, floorTop + H + 0.5, 0)), Color3.fromRGB(120, 50, 45), Enum.Material.Slate)
+
+	local window = block(model, "Window", Vector3.new(6, 4, 0.2), CFrame.new(at(0, 6, -8.9)), Color3.fromRGB(170, 220, 255), Enum.Material.Glass)
+	window.Transparency = 0.3
+	window.CanCollide = false
+	lamp(model, at(0, floorTop + H - 1, 0), 28)
+
+	-- Дверь (её открывают жители и игроки)
+	local door = block(doors, zone .. "_Door", Vector3.new(5, 9, 0.4), CFrame.new(at(0, floorTop + 4.5, 9.5)), Color3.fromRGB(110, 70, 40), Enum.Material.Wood)
+	door:SetAttribute("Hinge", "Left")
+
+	-- Кухня: стол и два стула
+	block(model, "TableTop", Vector3.new(4, 0.3, 3), CFrame.new(at(-7, floorTop + 2.85, -4)), Color3.fromRGB(140, 95, 60), Enum.Material.Wood)
+	block(model, "TableLeg", Vector3.new(0.6, 2.7, 0.6), CFrame.new(at(-7, floorTop + 1.35, -4)), Color3.fromRGB(110, 75, 50), Enum.Material.Wood)
+	seat(points, zone .. "_Chair1", Vector3.new(2, 1, 2), at(-7, floorTop + 0.5, -1.2), Vector3.new(0, 0, -1), zone, Color3.fromRGB(150, 100, 60))
+	seat(points, zone .. "_Chair2", Vector3.new(2, 1, 2), at(-7, floorTop + 0.5, -6.8), Vector3.new(0, 0, 1), zone, Color3.fromRGB(150, 100, 60))
+
+	-- Гостиная: диван и ковёр
+	block(model, "SofaBase", Vector3.new(6, 2, 2.5), CFrame.new(at(7, floorTop + 1, -7.2)), Color3.fromRGB(70, 90, 150), Enum.Material.Fabric)
+	block(model, "SofaBack", Vector3.new(6, 3, 0.6), CFrame.new(at(7, floorTop + 2.5, -8.5)), Color3.fromRGB(60, 80, 135), Enum.Material.Fabric)
+	block(model, "Rug", Vector3.new(6, 0.05, 6), CFrame.new(at(4, floorTop + 0.03, -0.5)), Color3.fromRGB(180, 70, 70), Enum.Material.Fabric).CanCollide = false
+
+	point(zone .. "_Lie", at(3, floorTop + 0.1, 1), Vector3.new(0, 0, 1), "Lie", zone)
+	point(zone .. "_Window", at(0, floorTop + 0.1, -6.5), Vector3.new(0, 0, -1), "Look", zone)
+	point(zone .. "_Idle", at(7, floorTop + 0.1, 5), Vector3.new(-1, 0, 0), "Idle", zone)
+	point(zone .. "_Dance", at(-6, floorTop + 0.1, 4), Vector3.new(0, 0, 1), "Dance", zone)
+	spawnPoint(zone .. "_Spawn", at(0, floorTop + 0.1, 2), 1, zone)
+end
+
+house(-35, -50, "Дом1", Color3.fromRGB(230, 210, 180))
+house(35, -50, "Дом2", Color3.fromRGB(190, 215, 230))
+
+---------------------------------------------------------------------
+-- Улица
+---------------------------------------------------------------------
+
+local street = Instance.new("Model")
+street.Name = "Street"
+street.Parent = town
+local Z = "Street"
+
+block(street, "Road", Vector3.new(110, 0.1, 12), CFrame.new(0, 0.05, -32), Color3.fromRGB(60, 60, 65), Enum.Material.Asphalt).CanCollide = false
+block(street, "Grass", Vector3.new(20, 0.1, 16), CFrame.new(25, 0.05, 12), Color3.fromRGB(90, 160, 70), Enum.Material.Grass).CanCollide = false
+
+-- Фонтан
+local basin = block(street, "FountainBase", Vector3.new(1.4, 12, 12), CFrame.new(0, 0.7, -14) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(180, 180, 190), Enum.Material.Concrete)
+basin.Shape = Enum.PartType.Cylinder
+local water = block(street, "FountainWater", Vector3.new(0.2, 10.5, 10.5), CFrame.new(0, 1.35, -14) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(80, 170, 255), Enum.Material.Glass)
+water.Shape = Enum.PartType.Cylinder
+water.Transparency = 0.25
+water.CanCollide = false
+lamp(street, Vector3.new(0, 4, -14), 20, Color3.fromRGB(150, 210, 255))
+
+-- Скамейки
+for i, x in { -20, 20 } do
+	seat(points, "Bench" .. i, Vector3.new(4, 1, 2), Vector3.new(x, 0.5, -18), Vector3.new(0, 0, 1), Z, Color3.fromRGB(130, 90, 55))
+	block(street, "BenchBack" .. i, Vector3.new(4, 2, 0.4), CFrame.new(x, 1.5, -19.2), Color3.fromRGB(120, 80, 50), Enum.Material.Wood)
+end
+
+-- Фонари
+for _, pos in { Vector3.new(-25, 0, -25), Vector3.new(25, 0, -25), Vector3.new(-25, 0, 5), Vector3.new(25, 0, 0) } do
+	block(street, "LampPost", Vector3.new(0.6, 9, 0.6), CFrame.new(pos + Vector3.new(0, 4.5, 0)), Color3.fromRGB(40, 40, 45), Enum.Material.Metal)
+	lamp(street, pos + Vector3.new(0, 9.4, 0), 26)
+end
+
+point("Talk1", Vector3.new(-7, 0.1, -24), Vector3.new(1, 0, 0), "Talk", Z)
+point("Talk2", Vector3.new(12, 0.1, -10), Vector3.new(-1, 0, 0), "Talk", Z)
+point("Fountain", Vector3.new(0, 0.1, -5.5), Vector3.new(0, 0, -1), "Look", Z)
+point("Idle1", Vector3.new(-15, 0.1, -6), Vector3.new(0, 0, 1), "Idle", Z)
+point("Idle2", Vector3.new(18, 0.1, -22), Vector3.new(-1, 0, 0), "Idle", Z)
+point("Idle3", Vector3.new(-3, 0.1, 10), Vector3.new(0, 0, -1), "Idle", Z)
+point("StreetDance", Vector3.new(-13, 0.1, 8), Vector3.new(0, 0, -1), "Dance", Z)
+point("GrassLie", Vector3.new(22, 0.1, 12), Vector3.new(-1, 0, 0), "Lie", Z)
+
+spawnPoint("StreetSpawnL", Vector3.new(-8, 0.1, 3), 3, Z)
+spawnPoint("StreetSpawnR", Vector3.new(8, 0.1, 3), 3, Z)
+
+system.Parent = workspace
+
+----------------------------------------------------------------------
+-- 17. ServerScriptService > Script "NPCServer"
+----------------------------------------------------------------------
+
+-- Script: ServerScriptService > NPCServer
+-- Жители города (NPC):
+--   * появляются на точках Spawns, «просыпаются» (лёжа → на колени → встают);
+--   * ходят по точкам Points с поиском пути: по дому, потом на улицу, в другие дома;
+--   * в точках занимаются делами: стоят, смотрят в окно, сидят, лежат, танцуют, ждут собеседника;
+--   * болтают друг с другом (облачка с текстом и жесты), машут проходящим игрокам;
+--   * с ними можно поговорить (кнопка E) и выбрать тему;
+--   * получив урон, вскрикивают и убегают; погибнув — возрождаются на своей точке.
+-- Анимации — стандартные анимации Roblox (их видят все), сидение/лежание на полу —
+-- через систему поз (PoseClient).
+
+local Players = game:GetService("Players")
+local PathfindingService = game:GetService("PathfindingService")
+local CollectionService = game:GetService("CollectionService")
+local PhysicsService = game:GetService("PhysicsService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+
+local folder = workspace:WaitForChild(Config.FolderName, 30)
+if not folder then
+	warn("[NPC] Нет папки Workspace >", Config.FolderName, "— жители не появятся. См. NPC_SETUP.md")
+	return
+end
+local spawnsFolder = folder:WaitForChild("Spawns", 10)
+local pointsFolder = folder:WaitForChild("Points", 10)
+if not spawnsFolder or not pointsFolder then
+	warn("[NPC] В папке", Config.FolderName, "нужны папки Spawns и Points")
+	return
+end
+
+local liveFolder = folder:FindFirstChild("Live") or Instance.new("Folder")
+liveFolder.Name = "Live"
+liveFolder.Parent = folder
+
+local dialogRemote = ReplicatedStorage:FindFirstChild("NPCDialog") or Instance.new("RemoteEvent")
+dialogRemote.Name = "NPCDialog"
+dialogRemote.Parent = ReplicatedStorage
+
+-- Жители не толкают друг друга в дверях
+local COLLISION_GROUP = "NPCs"
+pcall(function()
+	PhysicsService:RegisterCollisionGroup(COLLISION_GROUP)
+	PhysicsService:CollisionGroupSetCollidable(COLLISION_GROUP, COLLISION_GROUP, false)
+end)
+
+local rng = Random.new()
+local function pick(list)
+	return list[rng:NextInteger(1, #list)]
+end
+local function randomIn(range: NumberRange): number
+	return rng:NextNumber(range.Min, range.Max)
+end
+local function flat(v: Vector3): Vector3
+	return Vector3.new(v.X, 0, v.Z)
+end
+
+---------------------------------------------------------------------
+-- Маркеры на карте
+---------------------------------------------------------------------
+
+local function hideMarker(part: BasePart)
+	if Config.HideMarkersInGame and not part:IsA("Seat") then
+		part.Transparency = 1
+		part.CanCollide = false
+		part.CanQuery = false
+		part.CanTouch = false
+		for _, d in part:GetDescendants() do
+			if d:IsA("Decal") or d:IsA("SurfaceGui") or d:IsA("BillboardGui") then
+				d:Destroy()
+			end
+		end
+	end
+end
+
+local points = {} -- [part] = { part, activity, zone, occupants }
+
+local function registerPoint(part: Instance)
+	if not part:IsA("BasePart") or points[part] then
+		return
+	end
+	hideMarker(part)
+	local activity = part:GetAttribute("Activity") or (part:IsA("Seat") and "Sit") or "Idle"
+	points[part] = {
+		part = part,
+		activity = activity,
+		zone = part:GetAttribute("Zone"),
+		occupants = 0,
+		capacity = activity == "Talk" and 2 or 1,
+	}
+end
+
+for _, d in pointsFolder:GetDescendants() do
+	registerPoint(d)
+end
+pointsFolder.DescendantAdded:Connect(registerPoint)
+pointsFolder.DescendantRemoving:Connect(function(d)
+	points[d] = nil
+end)
+
+for _, d in spawnsFolder:GetDescendants() do
+	if d:IsA("BasePart") then
+		hideMarker(d)
+	end
+end
+
+---------------------------------------------------------------------
+-- Внешность
+---------------------------------------------------------------------
+
+local function makeDescription(): HumanoidDescription
+	if #Config.AvatarUserIds > 0 then
+		local ok, desc = pcall(function()
+			return Players:GetHumanoidDescriptionFromUserId(pick(Config.AvatarUserIds))
+		end)
+		if ok and desc then
+			return desc
+		end
+	end
+	local desc = Instance.new("HumanoidDescription")
+	local skin = pick(Config.SkinColors)
+	local shirt = pick(Config.ShirtColors)
+	local pants = pick(Config.PantsColors)
+	local longSleeves = rng:NextNumber() < 0.5
+	desc.HeadColor = skin
+	desc.TorsoColor = shirt
+	desc.LeftArmColor = longSleeves and shirt or skin
+	desc.RightArmColor = longSleeves and shirt or skin
+	desc.LeftLegColor = pants
+	desc.RightLegColor = pants
+	desc.HeightScale = rng:NextNumber(0.92, 1.05)
+	desc.WidthScale = rng:NextNumber(0.9, 1.05)
+	return desc
+end
+
+---------------------------------------------------------------------
+-- Анимации (на сервере — видны всем)
+---------------------------------------------------------------------
+
+local function newAnimator(humanoid: Humanoid)
+	local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator")
+	animator.Parent = humanoid
+	local tracks = {}
+
+	local function track(name: string, priority: Enum.AnimationPriority, looped: boolean)
+		if tracks[name] == nil then
+			local animation = Instance.new("Animation")
+			animation.AnimationId = Config.Animations[name]
+			local ok, t = pcall(animator.LoadAnimation, animator, animation)
+			if ok and t then
+				t.Priority = priority
+				t.Looped = looped
+				tracks[name] = t
+			else
+				tracks[name] = false
+			end
+		end
+		return tracks[name] or nil
+	end
+
+	local self = { current = nil }
+
+	local function setLocomotion(name: string, speed: number)
+		local t = track(name, name == "Idle" and Enum.AnimationPriority.Idle or Enum.AnimationPriority.Movement, true)
+		if self.current ~= t then
+			if self.current then
+				self.current:Stop(0.25)
+			end
+			if t then
+				t:Play(0.25)
+			end
+			self.current = t
+		end
+		if t then
+			t:AdjustSpeed(speed)
+		end
+	end
+
+	humanoid.Running:Connect(function(speed)
+		if speed < 0.5 then
+			setLocomotion("Idle", 1)
+		elseif speed < 15 then
+			setLocomotion("Walk", speed / 14)
+		else
+			setLocomotion("Run", speed / 20)
+		end
+	end)
+
+	humanoid.StateChanged:Connect(function(_, new)
+		local fall = track("Fall", Enum.AnimationPriority.Movement, true)
+		if new == Enum.HumanoidStateType.Freefall then
+			if fall then
+				fall:Play(0.2)
+			end
+		elseif fall and fall.IsPlaying then
+			fall:Stop(0.2)
+		end
+		if new == Enum.HumanoidStateType.Jumping then
+			local jump = track("Jump", Enum.AnimationPriority.Movement, false)
+			if jump then
+				jump:Play(0.1)
+			end
+		end
+	end)
+
+	humanoid.Seated:Connect(function(active)
+		local sit = track("SitChair", Enum.AnimationPriority.Action, true)
+		if sit then
+			if active then
+				sit:Play(0.3)
+			else
+				sit:Stop(0.3)
+			end
+		end
+	end)
+
+	-- Жест/эмоция: проигрывается поверх, duration — для зацикленных (танец)
+	function self.emote(name: string, duration: number?)
+		local looped = duration ~= nil
+		local t = track(name, Enum.AnimationPriority.Action, looped)
+		if t then
+			t:Play(0.2)
+			if duration then
+				task.delay(duration, function()
+					t:Stop(0.4)
+				end)
+			end
+		end
+		return t
+	end
+
+	function self.stopAll()
+		for _, t in pairs(tracks) do
+			if t then
+				t:Stop(0.2)
+			end
+		end
+	end
+
+	setLocomotion("Idle", 1)
+	return self
+end
+
+---------------------------------------------------------------------
+-- Жители
+---------------------------------------------------------------------
+
+local npcs = {} -- [model] = npc
+local total = 0
+
+local function say(npc, text: string, duration: number?)
+	if not npc.alive then
+		return
+	end
+	npc.model:SetAttribute("SayDuration", duration or Config.BubbleTime)
+	npc.model:SetAttribute("SayText", text)
+	npc.model:SetAttribute("SayId", (npc.model:GetAttribute("SayId") or 0) + 1)
+end
+
+local function shouldStop(npc): boolean
+	return not npc.alive or npc.abort or npc.lock ~= nil
+end
+
+local function stopMoving(npc)
+	if npc.alive then
+		npc.humanoid:MoveTo(npc.hrp.Position)
+	end
+end
+
+local function setPose(npc, pose: string)
+	npc.model:SetAttribute("Pose", pose)
+end
+
+-- Плавный поворот лицом в сторону
+local function face(npc, direction: Vector3, time: number?)
+	direction = flat(direction)
+	if direction.Magnitude < 0.05 or not npc.alive then
+		return
+	end
+	local hrp = npc.hrp
+	local from = hrp.CFrame
+	local goal = CFrame.lookAt(hrp.Position, hrp.Position + direction.Unit)
+	local duration = time or 0.3
+	local start = os.clock()
+	npc.humanoid.AutoRotate = false
+	while npc.alive do
+		local t = math.min(1, (os.clock() - start) / duration)
+		hrp.CFrame = CFrame.new(hrp.Position) * from.Rotation:Lerp(goal.Rotation, t * t * (3 - 2 * t))
+		if t >= 1 then
+			break
+		end
+		task.wait()
+	end
+	npc.humanoid.AutoRotate = true
+end
+
+-- Подняться из позы (сидя на стуле, на полу или лёжа)
+local function standUp(npc)
+	if npc.humanoid.Sit then
+		npc.humanoid.Sit = false
+		npc.humanoid.Jump = true
+		task.wait(0.4)
+	end
+	local pose = npc.model:GetAttribute("Pose")
+	if pose == "Lie" then
+		setPose(npc, "Kneel")
+		task.wait(0.7)
+	end
+	if pose and pose ~= "Stand" then
+		setPose(npc, "Stand")
+		task.wait(0.45)
+	end
+	npc.humanoid.WalkSpeed = npc.speed
+end
+
+local function pause(npc, seconds: number): boolean
+	local deadline = os.clock() + seconds
+	while os.clock() < deadline do
+		if shouldStop(npc) then
+			return false
+		end
+		task.wait(0.2)
+	end
+	return true
+end
+
+---------------------------------------------------------------------
+-- Общение
+---------------------------------------------------------------------
+
+local function freeForChat(npc, now: number): boolean
+	return npc.alive
+		and npc.lock == nil
+		and now >= npc.chatCooldown
+		and npc.model:GetAttribute("Pose") ~= "Lie"
+		and not npc.humanoid.Sit
+		and now >= npc.fleeUntil
+end
+
+local function runConversation(a, b, lines)
+	a.lock, b.lock = "chat", "chat"
+	stopMoving(a)
+	stopMoving(b)
+	task.spawn(face, a, b.hrp.Position - a.hrp.Position)
+	face(b, a.hrp.Position - b.hrp.Position)
+
+	for i, line in lines do
+		local speaker = (i % 2 == 1) and a or b
+		if not (a.alive and b.alive) or a.lock ~= "chat" or b.lock ~= "chat" then
+			break
+		end
+		say(speaker, line)
+		local r = rng:NextNumber()
+		if r < 0.25 then
+			speaker.anim.emote("Point")
+		elseif r < 0.45 then
+			speaker.anim.emote("Laugh")
+		elseif i == 1 and r < 0.7 then
+			speaker.anim.emote("Wave")
+		end
+		task.wait(Config.BubbleTime * 0.85)
+	end
+
+	local now = os.clock()
+	for _, npc in { a, b } do
+		if npc.lock == "chat" then
+			npc.lock = nil
+		end
+		npc.chatCooldown = now + rng:NextNumber(30, 60)
+		npc.abort = true -- после разговора выбираем новое дело
+	end
+end
+
+local function tryStartChat(npc, now: number)
+	if now < npc.nextSocialCheck then
+		return
+	end
+	npc.nextSocialCheck = now + 0.6
+
+	-- Помахать проходящему игроку
+	for _, player in Players:GetPlayers() do
+		local character = player.Character
+		local hrp = character and character:FindFirstChild("HumanoidRootPart")
+		if hrp and (hrp.Position - npc.hrp.Position).Magnitude < Config.GreetDistance then
+			if now >= (npc.greeted[player] or 0) then
+				npc.greeted[player] = now + 45
+				if rng:NextNumber() < Config.GreetPlayerChance then
+					task.spawn(function()
+						npc.anim.emote("Wave")
+						say(npc, pick(Config.Phrases.Greet), 2.5)
+					end)
+				end
+			end
+		end
+	end
+
+	-- Заговорить с соседом
+	if not freeForChat(npc, now) then
+		return
+	end
+	for _, other in pairs(npcs) do
+		if other ~= npc and freeForChat(other, now)
+			and (other.hrp.Position - npc.hrp.Position).Magnitude < Config.ChatDistance then
+			local key = other.model
+			if now >= (npc.chatChecked[key] or 0) then
+				npc.chatChecked[key] = now + 20
+				other.chatChecked[npc.model] = now + 20
+				if rng:NextNumber() < Config.ChatChance then
+					task.spawn(runConversation, npc, other, pick(Config.Conversations))
+					return
+				end
+			end
+		end
+	end
+end
+
+---------------------------------------------------------------------
+-- Ходьба
+---------------------------------------------------------------------
+
+local function walkTo(npc, target: Vector3): boolean
+	local humanoid, hrp = npc.humanoid, npc.hrp
+	local path = PathfindingService:CreatePath({
+		AgentRadius = Config.AgentRadius,
+		AgentHeight = Config.AgentHeight,
+		AgentCanJump = true,
+		WaypointSpacing = 4,
+		Costs = { Door = 1 },
+	})
+
+	for _ = 1, 3 do
+		if shouldStop(npc) then
+			return false
+		end
+		local ok = pcall(path.ComputeAsync, path, hrp.Position, target)
+		local waypoints
+		if ok and path.Status == Enum.PathStatus.Success then
+			waypoints = path:GetWaypoints()
+		elseif (flat(target - hrp.Position)).Magnitude < 14 then
+			waypoints = { { Position = hrp.Position }, { Position = target, Action = Enum.PathWaypointAction.Walk } }
+		else
+			task.wait(1)
+			continue
+		end
+
+		local blocked = false
+		local conn
+		if ok then
+			conn = path.Blocked:Connect(function()
+				blocked = true
+			end)
+		end
+
+		local reachedAll = true
+		for i = 2, #waypoints do
+			local wp = waypoints[i]
+			if wp.Action == Enum.PathWaypointAction.Jump then
+				humanoid.Jump = true
+			end
+			humanoid:MoveTo(wp.Position)
+
+			local start = os.clock()
+			local lastPos, lastMove = hrp.Position, os.clock()
+			local reached = false
+			while true do
+				if shouldStop(npc) then
+					if conn then
+						conn:Disconnect()
+					end
+					stopMoving(npc)
+					return false
+				end
+				local now = os.clock()
+				tryStartChat(npc, now)
+				if (flat(wp.Position - hrp.Position)).Magnitude < 2.2 then
+					reached = true
+					break
+				end
+				-- Застрял: подпрыгнуть, потом пересчитать путь
+				if (hrp.Position - lastPos).Magnitude > 0.5 then
+					lastPos, lastMove = hrp.Position, now
+				elseif now - lastMove > 1.2 then
+					humanoid.Jump = true
+					lastMove = now
+				end
+				if blocked or now - start > 4 then
+					break
+				end
+				humanoid:MoveTo(wp.Position)
+				task.wait(0.1)
+			end
+			if not reached then
+				reachedAll = false
+				break
+			end
+		end
+		if conn then
+			conn:Disconnect()
+		end
+		if reachedAll then
+			return true
+		end
+	end
+	return false
+end
+
+---------------------------------------------------------------------
+-- Выбор дела
+---------------------------------------------------------------------
+
+local function choosePoint(npc)
+	local r = rng:NextNumber()
+	local mode = (r < Config.SameZoneChance and "same")
+		or (r < Config.SameZoneChance + Config.OutdoorChance and "outdoor")
+		or "any"
+
+	local candidates, totalWeight = {}, 0
+	local function collect(filter)
+		table.clear(candidates)
+		totalWeight = 0
+		for _, point in pairs(points) do
+			if point ~= npc.point and point.occupants < point.capacity and point.part.Parent
+				and not (point.part:IsA("Seat") and point.part.Occupant) and filter(point) then
+				-- Ближние точки чуть вероятнее
+				local dist = (point.part.Position - npc.hrp.Position).Magnitude
+				local weight = 1 / (1 + dist / 80)
+				table.insert(candidates, { point = point, weight = weight })
+				totalWeight += weight
+			end
+		end
+	end
+
+	if mode == "same" then
+		collect(function(p)
+			return p.zone == npc.zone
+		end)
+	elseif mode == "outdoor" then
+		collect(function(p)
+			return p.zone == nil or p.zone == Config.OutdoorZone
+		end)
+	end
+	if #candidates == 0 then
+		collect(function()
+			return true
+		end)
+	end
+	if #candidates == 0 then
+		return nil
+	end
+
+	local roll = rng:NextNumber() * totalWeight
+	for _, c in candidates do
+		roll -= c.weight
+		if roll <= 0 then
+			return c.point
+		end
+	end
+	return candidates[#candidates].point
+end
+
+local function doActivity(npc, point)
+	local part = point.part
+	local activity = point.activity
+	local range = Config.ActivityTime[activity] or Config.ActivityTime.Idle
+	local duration = randomIn(range)
+
+	if activity == "Sit" and part:IsA("Seat") then
+		if part.Occupant then
+			return
+		end
+		part:Sit(npc.humanoid)
+		pause(npc, duration)
+		standUp(npc)
+	elseif activity == "Sit" or activity == "Lie" then
+		face(npc, part.CFrame.LookVector)
+		npc.humanoid.WalkSpeed = 0
+		setPose(npc, activity)
+		pause(npc, duration)
+		if npc.alive then
+			standUp(npc)
+		end
+	elseif activity == "Look" then
+		face(npc, part.CFrame.LookVector, 0.5)
+		pause(npc, duration)
+	elseif activity == "Dance" then
+		face(npc, part.CFrame.LookVector)
+		local t = npc.anim.emote(rng:NextNumber() < 0.5 and "Dance" or "Dance2", duration)
+		if not pause(npc, duration) and t then
+			t:Stop(0.3)
+		end
+	elseif activity == "Talk" then
+		-- Ждём собеседника: tryStartChat сам заведёт разговор
+		face(npc, part.CFrame.LookVector)
+		local deadline = os.clock() + duration
+		while os.clock() < deadline and not shouldStop(npc) do
+			npc.chatChecked = {} -- в точке для болтовни шанс встречи выше
+			tryStartChat(npc, os.clock())
+			task.wait(0.5)
+		end
+	else -- Idle: стоит, иногда осматривается и бормочет
+		local elapsed = 0
+		while elapsed < duration and not shouldStop(npc) do
+			local step = rng:NextNumber(1.5, 3)
+			if rng:NextNumber() < 0.5 then
+				local angle = rng:NextNumber(-1.2, 1.2)
+				face(npc, (npc.hrp.CFrame * CFrame.Angles(0, angle, 0)).LookVector, 0.6)
+			end
+			if rng:NextNumber() < 0.12 then
+				say(npc, pick(Config.Phrases.Idle))
+			end
+			pause(npc, step)
+			elapsed += step
+		end
+	end
+end
+
+local function fleePoint(npc)
+	local best, bestDist = nil, 0
+	for _, point in pairs(points) do
+		local dist = (point.part.Position - npc.hrp.Position).Magnitude
+		if dist > bestDist and dist < 250 then
+			best, bestDist = point, dist
+		end
+	end
+	return best
+end
+
+local function brain(npc)
+	-- Просыпаемся: лёжа → на колени → встаём
+	setPose(npc, "Lie")
+	task.wait(1.4)
+	if rng:NextNumber() < 0.35 then
+		say(npc, pick(Config.Phrases.Wake))
+	end
+	setPose(npc, "Kneel")
+	task.wait(0.9)
+	setPose(npc, "Stand")
+	task.wait(0.5)
+
+	while npc.alive do
+		while npc.alive and npc.lock ~= nil do
+			task.wait(0.2)
+		end
+		if not npc.alive then
+			break
+		end
+		npc.abort = false
+
+		local now = os.clock()
+		if now < npc.fleeUntil then
+			-- Убегаем подальше
+			standUp(npc)
+			npc.humanoid.WalkSpeed = Config.RunSpeed
+			local target = fleePoint(npc)
+			if target then
+				walkTo(npc, target.part.Position)
+			else
+				task.wait(1)
+			end
+			npc.humanoid.WalkSpeed = npc.speed
+			continue
+		end
+
+		local point = choosePoint(npc)
+		if not point then
+			task.wait(2)
+			continue
+		end
+		point.occupants += 1
+		npc.point = point
+		local arrived = walkTo(npc, point.part.Position)
+		if arrived and not shouldStop(npc) then
+			if point.zone ~= nil then
+				npc.zone = point.zone
+			end
+			doActivity(npc, point)
+		end
+		point.occupants = math.max(0, point.occupants - 1)
+		task.wait(rng:NextNumber(0.2, 1))
+	end
+end
+
+---------------------------------------------------------------------
+-- Разговор с игроком
+---------------------------------------------------------------------
+
+local function endPlayerTalk(npc, sayBye: boolean)
+	local player = npc.talkingTo
+	if not player then
+		return
+	end
+	npc.talkingTo = nil
+	if sayBye and npc.alive then
+		say(npc, pick(Config.PlayerBye), 2.5)
+		npc.anim.emote("Wave")
+	end
+	if npc.lock == "player" then
+		npc.lock = nil
+	end
+	npc.abort = true
+	npc.chatCooldown = os.clock() + 10
+	if npc.prompt then
+		npc.prompt.Enabled = true
+	end
+	if player.Parent then
+		dialogRemote:FireClient(player, "Close", npc.model)
+	end
+end
+
+local function startPlayerTalk(npc, player: Player)
+	if not npc.alive or npc.talkingTo then
+		return
+	end
+	local character = player.Character
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
+	if not hrp then
+		return
+	end
+	if npc.lock == "chat" then
+		say(npc, "Секунду, я разговариваю!", 2)
+		return
+	end
+
+	npc.lock = "player"
+	npc.talkingTo = player
+	npc.lastTalk = os.clock()
+	npc.prompt.Enabled = false
+	stopMoving(npc)
+
+	local greeting = pick(Config.PlayerGreeting)
+	local topics = {}
+	for i, topic in Config.PlayerTopics do
+		topics[i] = topic.Text
+	end
+	dialogRemote:FireClient(player, "Open", npc.model, npc.name, greeting, topics)
+
+	task.spawn(function()
+		standUp(npc)
+		face(npc, hrp.Position - npc.hrp.Position)
+		npc.anim.emote("Wave")
+		say(npc, greeting)
+
+		-- Следим, не ушёл ли игрок
+		while npc.talkingTo == player and npc.alive do
+			local c = player.Character
+			local r = c and c:FindFirstChild("HumanoidRootPart")
+			if not r or (r.Position - npc.hrp.Position).Magnitude > Config.TalkDistance + 8
+				or os.clock() - npc.lastTalk > 40 then
+				endPlayerTalk(npc, true)
+				break
+			end
+			if (flat(r.Position - npc.hrp.Position)).Magnitude > 1 then
+				local look = flat(npc.hrp.CFrame.LookVector)
+				local want = flat(r.Position - npc.hrp.Position).Unit
+				if look:Dot(want) < 0.9 then
+					face(npc, want, 0.25)
+				end
+			end
+			task.wait(0.3)
+		end
+	end)
+end
+
+dialogRemote.OnServerEvent:Connect(function(player: Player, action: any, model: any, index: any)
+	local npc = typeof(model) == "Instance" and npcs[model] or nil
+	if not npc or npc.talkingTo ~= player then
+		return
+	end
+	if action == "Bye" then
+		endPlayerTalk(npc, true)
+	elseif action == "Ask" and type(index) == "number" then
+		local topic = Config.PlayerTopics[index]
+		if not topic or os.clock() - (npc.lastAsk or 0) < 0.6 then
+			return
+		end
+		npc.lastAsk = os.clock()
+		npc.lastTalk = os.clock()
+		local answer = pick(topic.Answers)
+		say(npc, answer)
+		if topic.Emote == "Dance" then
+			npc.anim.emote(rng:NextNumber() < 0.5 and "Dance" or "Dance2", 4)
+		elseif topic.Emote then
+			npc.anim.emote(topic.Emote)
+		end
+		dialogRemote:FireClient(player, "Answer", model, answer)
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	for _, npc in pairs(npcs) do
+		if npc.talkingTo == player then
+			endPlayerTalk(npc, false)
+		end
+		npc.greeted[player] = nil
+	end
+end)
+
+---------------------------------------------------------------------
+-- Появление и возрождение
+---------------------------------------------------------------------
+
+local spawnNPC
+
+local function onDied(npc)
+	if not npc.alive then
+		return
+	end
+	npc.alive = false
+	if npc.talkingTo then
+		endPlayerTalk(npc, false)
+	end
+	if npc.point then
+		npc.point.occupants = math.max(0, npc.point.occupants - 1)
+	end
+	npc.anim.stopAll()
+	task.delay(Config.CorpseTime, function()
+		npcs[npc.model] = nil
+		total -= 1
+		npc.model:Destroy()
+	end)
+	task.delay(Config.RespawnTime, function()
+		if npc.spawn.Parent then
+			spawnNPC(npc.spawn)
+		end
+	end)
+end
+
+function spawnNPC(spawnPart: BasePart)
+	if total >= Config.MaxNPCs then
+		return
+	end
+	total += 1
+
+	local ok, model = pcall(function()
+		return Players:CreateHumanoidModelFromDescription(makeDescription(), Enum.HumanoidRigType.R15)
+	end)
+	if not ok or not model then
+		total -= 1
+		warn("[NPC] Не удалось создать модель жителя:", model)
+		return
+	end
+
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	local hrp = model:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not hrp then
+		total -= 1
+		model:Destroy()
+		return
+	end
+	local oldAnimate = model:FindFirstChild("Animate")
+	if oldAnimate then
+		oldAnimate:Destroy() -- анимации ведёт сервер
+	end
+
+	local name = pick(Config.FirstNames)
+	model.Name = name
+	humanoid.DisplayName = name
+	humanoid.NameDisplayDistance = 40
+	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.DisplayWhenDamaged
+	local speed = randomIn(Config.WalkSpeed)
+	humanoid.WalkSpeed = speed
+
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CollisionGroup = COLLISION_GROUP
+		end
+	end
+
+	-- Ставим на точку появления
+	local offset = (rng:NextNumber() - 0.5) * 2
+	local top = spawnPart.Position + Vector3.new(offset, spawnPart.Size.Y / 2, offset)
+	local look = flat(spawnPart.CFrame.LookVector)
+	local height = humanoid.HipHeight + hrp.Size.Y / 2 + 0.1
+	model:PivotTo(CFrame.lookAt(top + Vector3.new(0, height, 0), top + Vector3.new(0, height, 0) + (look.Magnitude > 0 and look or Vector3.new(0, 0, -1))))
+	model:SetAttribute("Pose", "Lie")
+	CollectionService:AddTag(model, Config.Tag)
+	model.Parent = liveFolder
+	pcall(function()
+		hrp:SetNetworkOwner(nil)
+	end)
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "TalkPrompt"
+	prompt.ActionText = Config.TalkPromptText
+	prompt.ObjectText = name
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = Config.TalkDistance
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = hrp
+
+	local npc = {
+		model = model,
+		humanoid = humanoid,
+		hrp = hrp,
+		name = name,
+		spawn = spawnPart,
+		zone = spawnPart:GetAttribute("Zone"),
+		speed = speed,
+		anim = newAnimator(humanoid),
+		prompt = prompt,
+		alive = true,
+		lock = nil, -- "chat" / "player"
+		abort = false,
+		point = nil,
+		talkingTo = nil,
+		lastTalk = 0,
+		chatCooldown = os.clock() + rng:NextNumber(5, 15),
+		chatChecked = {},
+		greeted = {},
+		nextSocialCheck = 0,
+		fleeUntil = 0,
+		lastHurt = 0,
+	}
+	npcs[model] = npc
+
+	prompt.Triggered:Connect(function(player)
+		startPlayerTalk(npc, player)
+	end)
+
+	local lastHealth = humanoid.Health
+	humanoid.HealthChanged:Connect(function(health)
+		if health < lastHealth and health > 0 then
+			local now = os.clock()
+			if now - npc.lastHurt > 2 then
+				npc.lastHurt = now
+				say(npc, pick(Config.Phrases.Hurt), 2)
+			end
+			npc.fleeUntil = now + 6
+			if npc.talkingTo then
+				endPlayerTalk(npc, false)
+			end
+			if npc.lock == "chat" then
+				npc.lock = nil
+			end
+			npc.abort = true
+		end
+		lastHealth = health
+	end)
+	humanoid.Died:Connect(function()
+		onDied(npc)
+	end)
+
+	task.spawn(brain, npc)
+end
+
+-- Расселяем жителей по точкам появления
+task.wait(1)
+local spawnList = {}
+for _, d in spawnsFolder:GetDescendants() do
+	if d:IsA("BasePart") then
+		table.insert(spawnList, d)
+	end
+end
+if #spawnList == 0 then
+	warn("[NPC] В папке Spawns нет ни одной точки появления")
+end
+for _, spawnPart in spawnList do
+	local count = spawnPart:GetAttribute("Count") or Config.DefaultSpawnCount
+	for _ = 1, count do
+		task.spawn(spawnNPC, spawnPart)
+		task.wait(0.3)
+	end
+end
+
+----------------------------------------------------------------------
+-- 18. ServerScriptService > Script "NPCDoors"
+----------------------------------------------------------------------
+
+-- Script: ServerScriptService > NPCDoors
+-- Двери из Workspace > NPCSystem > Doors:
+--   * жители открывают их сами, когда подходят, и закрывают за собой;
+--   * игроки открывают и закрывают кнопкой E;
+--   * дверь всегда открывается «от себя» — в сторону от того, кто открыл;
+--   * поиск пути у жителей проходит сквозь закрытые двери (PathfindingModifier).
+--
+-- Дверь — это Part или Model (несколько деталей, например полотно + ручка).
+-- Атрибуты двери (необязательно):
+--   Hinge  = "Left" / "Right" — с какой стороны петли (по умолчанию "Left")
+--   Locked = true            — заперта: жители не ходят через неё, игроки не открывают
+
+local CollectionService = game:GetService("CollectionService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+
+local folder = workspace:WaitForChild(Config.FolderName, 30)
+if not folder then
+	return
+end
+local doorsFolder = folder:WaitForChild("Doors", 10)
+if not doorsFolder then
+	return
+end
+
+local doors = {} -- [instance] = состояние двери
+
+local function getParts(door: Instance): { BasePart }
+	if door:IsA("BasePart") then
+		return { door }
+	end
+	local parts = {}
+	for _, d in door:GetDescendants() do
+		if d:IsA("BasePart") then
+			table.insert(parts, d)
+		end
+	end
+	return parts
+end
+
+local function setupDoor(door: Instance)
+	if doors[door] or not (door:IsA("BasePart") or door:IsA("Model")) then
+		return
+	end
+	local parts = getParts(door)
+	if #parts == 0 then
+		return
+	end
+
+	local boxCF, boxSize
+	if door:IsA("BasePart") then
+		boxCF, boxSize = door.CFrame, door.Size
+	else
+		boxCF, boxSize = (door :: Model):GetBoundingBox()
+	end
+
+	-- Ширина двери — по большей горизонтальной оси
+	local widthAxis, width
+	if boxSize.X >= boxSize.Z then
+		widthAxis, width = boxCF.RightVector, boxSize.X
+	else
+		widthAxis, width = boxCF.LookVector, boxSize.Z
+	end
+	local side = door:GetAttribute("Hinge") == "Right" and 1 or -1
+	local hinge = boxCF.Position + widthAxis * (width / 2) * side
+	local freeEnd = boxCF.Position - hinge
+	local locked = door:GetAttribute("Locked") == true
+
+	local collide = {}
+	for _, part in parts do
+		part.Anchored = true
+		collide[part] = part.CanCollide
+		-- Поиск пути считает дверь проходимой (если она не заперта)
+		local modifier = part:FindFirstChildOfClass("PathfindingModifier") or Instance.new("PathfindingModifier")
+		modifier.Label = "Door"
+		modifier.PassThrough = not locked
+		modifier.Parent = part
+	end
+
+	-- Кнопка для игроков — на самой большой детали
+	local main = parts[1]
+	for _, part in parts do
+		if part.Size.Magnitude > main.Size.Magnitude then
+			main = part
+		end
+	end
+	local prompt
+	if not locked then
+		prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "DoorPrompt"
+		prompt.ActionText = "Открыть"
+		prompt.ObjectText = "Дверь"
+		prompt.HoldDuration = 0
+		prompt.MaxActivationDistance = 8
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = main
+	end
+
+	local state = {
+		door = door,
+		parts = parts,
+		collide = collide,
+		closedPivot = door:GetPivot(),
+		hingeCF = CFrame.new(hinge),
+		center = boxCF.Position,
+		swingDir = Vector3.yAxis:Cross(freeEnd), -- куда идёт край двери при повороте на +угол
+		angle = 0,
+		target = 0,
+		openedByPlayer = false,
+		lastNpcNear = 0,
+		locked = locked,
+		prompt = prompt,
+	}
+	doors[door] = state
+
+	if prompt then
+		prompt.Triggered:Connect(function(player)
+			local character = player.Character
+			local hrp = character and character:FindFirstChild("HumanoidRootPart")
+			if state.target ~= 0 then
+				state.target = 0
+				state.openedByPlayer = false
+			elseif hrp then
+				state.openedByPlayer = true
+				state.target = math.rad(Config.DoorOpenAngle) * (state.swingDir:Dot(hrp.Position - state.center) > 0 and -1 or 1)
+			end
+		end)
+	end
+end
+
+for _, door in doorsFolder:GetChildren() do
+	setupDoor(door)
+end
+doorsFolder.ChildAdded:Connect(function(door)
+	task.wait(0.1) -- даём детали модели догрузиться
+	setupDoor(door)
+end)
+doorsFolder.ChildRemoved:Connect(function(door)
+	doors[door] = nil
+end)
+
+-- Кто из жителей рядом с дверью
+local function nearestNpc(state): Vector3?
+	for _, npc in CollectionService:GetTagged(Config.Tag) do
+		local hrp = npc:FindFirstChild("HumanoidRootPart")
+		local humanoid = npc:FindFirstChildOfClass("Humanoid")
+		if hrp and humanoid and humanoid.Health > 0 then
+			if (hrp.Position - state.center).Magnitude < Config.DoorOpenDistance then
+				return hrp.Position
+			end
+		end
+	end
+	return nil
+end
+
+local scanTimer = 0
+RunService.Heartbeat:Connect(function(dt)
+	scanTimer += dt
+	local scan = scanTimer >= 0.15
+	if scan then
+		scanTimer = 0
+	end
+	local now = os.clock()
+
+	for door, state in pairs(doors) do
+		if not door.Parent then
+			doors[door] = nil
+			continue
+		end
+
+		-- Жители открывают и закрывают сами
+		if scan and not state.locked and not state.openedByPlayer then
+			local npcPos = nearestNpc(state)
+			if npcPos then
+				state.lastNpcNear = now
+				if state.target == 0 then
+					state.target = math.rad(Config.DoorOpenAngle) * (state.swingDir:Dot(npcPos - state.center) > 0 and -1 or 1)
+				end
+			elseif state.target ~= 0 and now - state.lastNpcNear > Config.DoorCloseDelay then
+				state.target = 0
+			end
+		end
+
+		-- Плавное движение створки
+		if state.angle ~= state.target then
+			local diff = state.target - state.angle
+			local step = diff * math.min(1, dt * Config.DoorSpeed)
+			if math.abs(diff) < 0.01 then
+				state.angle = state.target
+			else
+				state.angle += step
+			end
+			door:PivotTo(state.hingeCF * CFrame.Angles(0, state.angle, 0) * state.hingeCF:Inverse() * state.closedPivot)
+
+			local open = math.abs(state.angle) > math.rad(5)
+			for _, part in state.parts do
+				part.CanCollide = (not open) and state.collide[part]
+			end
+			if state.prompt then
+				state.prompt.ActionText = state.target ~= 0 and "Закрыть" or "Открыть"
+			end
+		end
+	end
+end)
+
+----------------------------------------------------------------------
+-- 19. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > PoseClient
@@ -2366,6 +3897,16 @@ for _, p in Players:GetPlayers() do
 	watchPlayer(p)
 end
 
+-- Жители города (NPC) тоже умеют сидеть и лежать: их поза — тот же атрибут Pose
+local CollectionService = game:GetService("CollectionService")
+local NPC_TAG = "NPC"
+for _, npc in CollectionService:GetTagged(NPC_TAG) do
+	task.spawn(addController, npc)
+end
+CollectionService:GetInstanceAddedSignal(NPC_TAG):Connect(function(npc)
+	task.spawn(addController, npc)
+end)
+
 RunService.PreSimulation:Connect(function(dt)
 	-- PreSimulation идёт ПОСЛЕ стандартных анимаций, поэтому наша поза их перекрывает
 	local now = os.clock()
@@ -2526,7 +4067,7 @@ if PoseConfig.ShowHint and UserInputService.KeyboardEnabled then
 end
 
 ----------------------------------------------------------------------
--- 16. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
+-- 20. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > InvisibilityClient
@@ -2973,7 +4514,7 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 17. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
+-- 21. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > LaserClient
@@ -3454,7 +4995,7 @@ RunService.RenderStepped:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 18. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
+-- 22. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > FlightClient
@@ -3943,7 +5484,7 @@ AbilityButton.Create({
 })
 
 ----------------------------------------------------------------------
--- 19. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
+-- 23. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > CubeClient
@@ -4140,3 +5681,319 @@ AbilityButton.Create({
 	UntilAttribute = Config.UntilAttribute,
 	CooldownAttribute = Config.CooldownAttribute,
 })
+
+----------------------------------------------------------------------
+-- 24. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
+----------------------------------------------------------------------
+
+-- LocalScript: StarterPlayer > StarterPlayerScripts > NPCClient
+-- Клиент жителей:
+--   * облачка с репликами над головой: «выпрыгивают», текст печатается по буквам, потом тают;
+--   * окно разговора с жителем: имя, его ответ и кнопки тем.
+
+local Players = game:GetService("Players")
+local CollectionService = game:GetService("CollectionService")
+local TweenService = game:GetService("TweenService")
+local TextService = game:GetService("TextService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local dialogRemote = ReplicatedStorage:WaitForChild("NPCDialog")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local BUBBLE_FONT = Enum.Font.GothamMedium
+local BUBBLE_TEXT_SIZE = 18
+local BUBBLE_MAX_WIDTH = 240
+local TYPE_SPEED = 45 -- букв в секунду
+
+local bubbleGui = Instance.new("ScreenGui")
+bubbleGui.Name = "NPCBubbles"
+bubbleGui.ResetOnSpawn = false
+bubbleGui.Parent = playerGui
+
+---------------------------------------------------------------------
+-- Облачка
+---------------------------------------------------------------------
+
+local bubbles = {} -- [npc model] = { billboard, token }
+
+local function showBubble(model: Model, text: string, duration: number)
+	local head = model:FindFirstChild("Head")
+	if not head then
+		return
+	end
+	local old = bubbles[model]
+	if old then
+		old.billboard:Destroy()
+	end
+
+	local bounds = TextService:GetTextSize(text, BUBBLE_TEXT_SIZE, BUBBLE_FONT, Vector2.new(BUBBLE_MAX_WIDTH, 1000))
+	local width, height = bounds.X + 28, bounds.Y + 20
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "Bubble"
+	billboard.Adornee = head
+	billboard.Size = UDim2.fromOffset(width, height + 12)
+	billboard.StudsOffset = Vector3.new(0, 2.4, 0)
+	billboard.MaxDistance = 70
+	billboard.LightInfluence = 0
+	billboard.Parent = bubbleGui
+
+	local group = Instance.new("CanvasGroup")
+	group.BackgroundTransparency = 1
+	group.Size = UDim2.fromScale(1, 1)
+	group.GroupTransparency = 0
+	group.Parent = billboard
+
+	local scale = Instance.new("UIScale")
+	scale.Scale = 0.4
+	scale.Parent = group
+
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, 0, 1, -12)
+	frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	frame.BorderSizePixel = 0
+	frame.Parent = group
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+
+	-- «Хвостик» облачка
+	local tail = Instance.new("Frame")
+	tail.AnchorPoint = Vector2.new(0.5, 0.5)
+	tail.Position = UDim2.new(0.5, 0, 1, -12)
+	tail.Size = UDim2.fromOffset(14, 14)
+	tail.Rotation = 45
+	tail.BackgroundColor3 = frame.BackgroundColor3
+	tail.BorderSizePixel = 0
+	tail.ZIndex = 0
+	tail.Parent = group
+
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = BUBBLE_FONT
+	label.TextSize = BUBBLE_TEXT_SIZE
+	label.TextColor3 = Color3.fromRGB(30, 30, 40)
+	label.TextWrapped = true
+	label.Text = text
+	label.MaxVisibleGraphemes = 0
+	label.Parent = frame
+
+	local entry = { billboard = billboard }
+	bubbles[model] = entry
+
+	TweenService:Create(scale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+
+	task.spawn(function()
+		-- Печатаем по буквам
+		local length = utf8.len(text) or #text
+		local start = os.clock()
+		while billboard.Parent do
+			local shown = math.floor((os.clock() - start) * TYPE_SPEED)
+			label.MaxVisibleGraphemes = math.min(shown, length)
+			if shown >= length then
+				break
+			end
+			task.wait()
+		end
+		label.MaxVisibleGraphemes = -1
+
+		task.wait(duration)
+		if bubbles[model] ~= entry then
+			return
+		end
+		local fade = TweenService:Create(group, TweenInfo.new(0.4), { GroupTransparency = 1 })
+		fade:Play()
+		fade.Completed:Wait()
+		if bubbles[model] == entry then
+			bubbles[model] = nil
+		end
+		billboard:Destroy()
+	end)
+end
+
+local function watchNpc(model: Instance)
+	if not model:IsA("Model") then
+		return
+	end
+	model:GetAttributeChangedSignal("SayId"):Connect(function()
+		local text = model:GetAttribute("SayText")
+		if type(text) == "string" and text ~= "" then
+			showBubble(model, text, model:GetAttribute("SayDuration") or Config.BubbleTime)
+		end
+	end)
+	model.AncestryChanged:Connect(function()
+		if not model.Parent and bubbles[model] then
+			bubbles[model].billboard:Destroy()
+			bubbles[model] = nil
+		end
+	end)
+end
+
+for _, model in CollectionService:GetTagged(Config.Tag) do
+	watchNpc(model)
+end
+CollectionService:GetInstanceAddedSignal(Config.Tag):Connect(watchNpc)
+
+---------------------------------------------------------------------
+-- Окно разговора
+---------------------------------------------------------------------
+
+local dialogGui = Instance.new("ScreenGui")
+dialogGui.Name = "NPCDialog"
+dialogGui.ResetOnSpawn = false
+dialogGui.Enabled = false
+dialogGui.Parent = playerGui
+
+local panel = Instance.new("Frame")
+panel.AnchorPoint = Vector2.new(0.5, 1)
+panel.Position = UDim2.new(0.5, 0, 1, -110)
+panel.Size = UDim2.new(1, -32, 0, 0)
+panel.AutomaticSize = Enum.AutomaticSize.Y
+panel.BackgroundColor3 = Color3.fromRGB(22, 26, 36)
+panel.BackgroundTransparency = 0.08
+panel.BorderSizePixel = 0
+panel.Parent = dialogGui
+Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 16)
+local sizeLimit = Instance.new("UISizeConstraint")
+sizeLimit.MaxSize = Vector2.new(520, math.huge)
+sizeLimit.Parent = panel
+local panelStroke = Instance.new("UIStroke")
+panelStroke.Color = Color3.fromRGB(90, 110, 150)
+panelStroke.Thickness = 1.5
+panelStroke.Parent = panel
+local panelScale = Instance.new("UIScale")
+panelScale.Parent = panel
+
+local padding = Instance.new("UIPadding")
+padding.PaddingTop = UDim.new(0, 14)
+padding.PaddingBottom = UDim.new(0, 14)
+padding.PaddingLeft = UDim.new(0, 16)
+padding.PaddingRight = UDim.new(0, 16)
+padding.Parent = panel
+
+local layout = Instance.new("UIListLayout")
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Padding = UDim.new(0, 10)
+layout.Parent = panel
+
+local nameLabel = Instance.new("TextLabel")
+nameLabel.LayoutOrder = 1
+nameLabel.BackgroundTransparency = 1
+nameLabel.Size = UDim2.new(1, 0, 0, 22)
+nameLabel.Font = Enum.Font.GothamBold
+nameLabel.TextSize = 18
+nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+nameLabel.TextColor3 = Color3.fromRGB(255, 205, 110)
+nameLabel.Parent = panel
+
+local speechLabel = Instance.new("TextLabel")
+speechLabel.LayoutOrder = 2
+speechLabel.BackgroundTransparency = 1
+speechLabel.Size = UDim2.new(1, 0, 0, 0)
+speechLabel.AutomaticSize = Enum.AutomaticSize.Y
+speechLabel.Font = Enum.Font.GothamMedium
+speechLabel.TextSize = 17
+speechLabel.TextWrapped = true
+speechLabel.TextXAlignment = Enum.TextXAlignment.Left
+speechLabel.TextColor3 = Color3.fromRGB(235, 238, 245)
+speechLabel.Parent = panel
+
+local buttons = Instance.new("Frame")
+buttons.LayoutOrder = 3
+buttons.BackgroundTransparency = 1
+buttons.Size = UDim2.new(1, 0, 0, 0)
+buttons.AutomaticSize = Enum.AutomaticSize.Y
+buttons.Parent = panel
+local grid = Instance.new("UIGridLayout")
+grid.CellSize = UDim2.new(0.5, -5, 0, 38)
+grid.CellPadding = UDim2.fromOffset(10, 8)
+grid.SortOrder = Enum.SortOrder.LayoutOrder
+grid.Parent = buttons
+
+local currentNpc: Model? = nil
+local typingToken = 0
+local busyUntil = 0
+
+local function typeText(text: string)
+	typingToken += 1
+	local token = typingToken
+	speechLabel.Text = text
+	speechLabel.MaxVisibleGraphemes = 0
+	local length = utf8.len(text) or #text
+	task.spawn(function()
+		local start = os.clock()
+		while token == typingToken do
+			local shown = math.floor((os.clock() - start) * TYPE_SPEED)
+			speechLabel.MaxVisibleGraphemes = math.min(shown, length)
+			if shown >= length then
+				speechLabel.MaxVisibleGraphemes = -1
+				break
+			end
+			task.wait()
+		end
+	end)
+end
+
+local function makeButton(text: string, order: number, accent: boolean, onClick)
+	local button = Instance.new("TextButton")
+	button.LayoutOrder = order
+	button.BackgroundColor3 = accent and Color3.fromRGB(70, 50, 55) or Color3.fromRGB(45, 55, 75)
+	button.AutoButtonColor = true
+	button.Font = Enum.Font.GothamMedium
+	button.TextSize = 15
+	button.TextColor3 = Color3.fromRGB(240, 242, 250)
+	button.Text = text
+	button.TextWrapped = true
+	button.Parent = buttons
+	Instance.new("UICorner", button).CornerRadius = UDim.new(0, 10)
+	button.Activated:Connect(function()
+		if os.clock() < busyUntil then
+			return
+		end
+		onClick()
+	end)
+	return button
+end
+
+local function closeDialog()
+	currentNpc = nil
+	typingToken += 1
+	dialogGui.Enabled = false
+end
+
+local function openDialog(model: Model, name: string, greeting: string, topics: { string })
+	currentNpc = model
+	nameLabel.Text = name
+	typeText(greeting)
+	for _, child in buttons:GetChildren() do
+		if child:IsA("GuiButton") then
+			child:Destroy()
+		end
+	end
+	for i, text in topics do
+		makeButton(text, i, false, function()
+			busyUntil = os.clock() + 0.7
+			dialogRemote:FireServer("Ask", model, i)
+		end)
+	end
+	makeButton("Пока 👋", #topics + 1, true, function()
+		dialogRemote:FireServer("Bye", model)
+		closeDialog()
+	end)
+
+	dialogGui.Enabled = true
+	panelScale.Scale = 0.85
+	TweenService:Create(panelScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+end
+
+dialogRemote.OnClientEvent:Connect(function(action, model, a, b, c)
+	if action == "Open" then
+		openDialog(model, a, b, c)
+	elseif action == "Answer" and model == currentNpc then
+		typeText(a)
+	elseif action == "Close" and model == currentNpc then
+		closeDialog()
+	end
+end)

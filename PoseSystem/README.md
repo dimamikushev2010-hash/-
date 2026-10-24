@@ -125,6 +125,21 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 - **Невидимость**: при исчезновении персонаж скрещивает руки, приседает и резко разводит их в стороны, вокруг вспыхивают голубые искры. При появлении он встаёт в силовую стойку под красную вспышку.
 - **Лазеры**: силовая стойка с кулаками у пояса, голова следит за целью, луч дрожит от мощности. Камера слегка трясётся, на поверхностях остаются раскалённые следы, которые остывают и исчезают.
 
+## Жители города (NPC)
+
+- Жители **появляются** на точках, просыпаются (лёжа → на колени → встают) и идут по делам.
+- **Ходят** по городу с поиском пути: по своему дому, потом на улицу, к соседям. Двери **открывают сами** и закрывают за собой. Игроки открывают двери кнопкой **E**.
+- **Чем заняты в точках**: стоят и осматриваются, смотрят в окно, садятся на стулья и скамейки, сидят и лежат на полу, танцуют, ждут собеседника.
+- **Болтают** друг с другом: встают лицом к лицу, над головой облачка с репликами, жестикулируют, смеются. Проходящим игрокам машут и здороваются.
+- **С жителем можно поговорить**: подойди и нажми **E**. Откроется окно с темами разговора, житель отвечает, жестикулирует и может станцевать.
+- **Получив урон** (например, от лазеров), житель вскрикивает и убегает. Погибший возрождается через 12 секунд.
+- **Анимации**: стандартные анимации Roblox (ходьба, бег, жесты, танцы, сидение на стуле) и позы из системы поз (сидеть и лежать на полу). Их видят все игроки.
+- Если на карте нет своей папки `NPCSystem`, автоматически строится **демо-городок**: два дома с дверями и мебелью, улица с фонтаном, скамейками и фонарями.
+
+**Как расставить точки на своей карте** — в `NPC_SETUP.md`. Там же готовый текст для Claude в Studio.
+
+Файлы: `NPCConfig` (ModuleScript, ReplicatedStorage), `NPCServer`, `NPCDoors`, `NPCDemo` (Script, ServerScriptService), `NPCClient` (LocalScript, StarterPlayerScripts). Все настройки, фразы и диалоги — в `NPCConfig`.
+
 ## Все клавиши
 
 | Клавиша | Способность |
@@ -134,15 +149,16 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 | R | Лазеры из глаз |
 | F | Полёт |
 | T | Куб |
+| E | Поговорить с жителем / открыть дверь |
 
 ## Все файлы
 
 | Где | Тип | Имена |
 |---|---|---|
-| ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
+| ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `NPCConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
 | ServerScriptService | ModuleScript | `AbilityRegistry` |
-| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer` |
-| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient` |
+| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCServer`, `NPCDoors`, `NPCDemo` |
+| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient` |
 
 - `RigAnimator` — общий движок анимаций способностей. Он смешивает анимации разных способностей и не мешает системе поз.
 - `AbilityFx` — частицы, пыль и тряска камеры.
