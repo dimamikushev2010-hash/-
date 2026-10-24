@@ -133,15 +133,17 @@ local function showBubble(model: Instance, text: string, duration: number)
 		-- Печатаем по буквам
 		local length = utf8.len(text) or #text
 		local start = os.clock()
-		-- Голос: короткие «слоги» с высотой этого жителя
+		-- Голос: живое «бормотание» с высотой этого жителя; длинная реплика — пара слогов
 		local pitch = (not model:IsA("BasePart")) and model:GetAttribute("VoicePitch") or nil
+		local syllables = pitch and math.clamp(math.ceil(length / 12), 1, 3) or 0
 		local nextBlip = 0
 		while billboard.Parent do
 			local shown = math.floor((os.clock() - start) * TYPE_SPEED)
 			label.MaxVisibleGraphemes = math.min(shown, length)
-			if pitch and os.clock() >= nextBlip and shown < length then
+			if syllables > 0 and os.clock() >= nextBlip then
+				syllables -= 1
 				nextBlip = os.clock() + 1 / Sounds.VoiceSpeed
-				playAt(head, Sounds.NPC.Voice, pitch * (0.9 + math.random() * 0.25))
+				playAt(head, Sounds.NPC.Voice, pitch * (0.95 + math.random() * 0.1))
 			end
 			if shown >= length then
 				break
