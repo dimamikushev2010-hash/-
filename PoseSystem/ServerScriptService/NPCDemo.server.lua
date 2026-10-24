@@ -51,6 +51,9 @@ local MARKER_COLORS = {
 	Talk = Color3.fromRGB(255, 170, 60),
 }
 
+MARKER_COLORS.Work = Color3.fromRGB(255, 255, 255)
+MARKER_COLORS.Patrol = Color3.fromRGB(60, 90, 255)
+
 local function point(name: string, pos: Vector3, look: Vector3, activity: string, zone: string?)
 	local p = block(points, name, Vector3.new(2, 0.2, 2), CFrame.lookAt(pos, pos + look), MARKER_COLORS[activity] or Color3.new(1, 1, 1), Enum.Material.Neon)
 	p.Transparency = 0.4
@@ -204,7 +207,29 @@ point("Idle3", Vector3.new(-3, 0.1, 10), Vector3.new(0, 0, -1), "Idle", Z)
 point("StreetDance", Vector3.new(-13, 0.1, 8), Vector3.new(0, 0, -1), "Dance", Z)
 point("GrassLie", Vector3.new(22, 0.1, 12), Vector3.new(-1, 0, 0), "Lie", Z)
 
-spawnPoint("StreetSpawnL", Vector3.new(-8, 0.1, 3), 3, Z)
-spawnPoint("StreetSpawnR", Vector3.new(8, 0.1, 3), 3, Z)
+-- Ларёк с мороженым: продавец стоит за прилавком
+block(street, "StallCounter", Vector3.new(6, 3, 1.5), CFrame.new(-30, 1.5, 6), Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
+block(street, "StallBack", Vector3.new(6, 8, 0.5), CFrame.new(-30, 4, 10), Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
+for i = -1, 1 do
+	block(street, "StallAwning", Vector3.new(2, 0.3, 4.5), CFrame.new(-30 + i * 2, 8.3, 7.5) * CFrame.Angles(math.rad(-12), 0, 0),
+		i == 0 and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(230, 70, 90), Enum.Material.Fabric)
+end
+local sign = block(street, "StallSign", Vector3.new(4, 1, 0.2), CFrame.new(-30, 3.6, 5.2), Color3.fromRGB(255, 120, 170), Enum.Material.SmoothPlastic)
+sign:SetAttribute(Config.NightLightAttribute, true)
+local work = point("IceCreamSeller", Vector3.new(-30, 0.1, 8), Vector3.new(0, 0, -1), "Work", Z)
+work:SetAttribute("Role", "Мороженщик")
+
+-- Маршрут охранника: обходит улицу по порядку Order
+local route = { Vector3.new(-28, 0.1, -26), Vector3.new(28, 0.1, -26), Vector3.new(28, 0.1, 8), Vector3.new(-20, 0.1, 14) }
+for i, pos in route do
+	local nextPos = route[i % #route + 1]
+	local p = point("Guard" .. i, pos, nextPos - pos, "Patrol", Z)
+	p:SetAttribute("Route", "Guard")
+	p:SetAttribute("Order", i)
+	p:SetAttribute("Role", "Охранник")
+end
+
+spawnPoint("StreetSpawnL", Vector3.new(-8, 0.1, 3), 4, Z)
+spawnPoint("StreetSpawnR", Vector3.new(8, 0.1, 3), 4, Z)
 
 system.Parent = workspace

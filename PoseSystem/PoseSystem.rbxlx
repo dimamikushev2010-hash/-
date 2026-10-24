@@ -1196,6 +1196,16 @@ NPCConfig.Phrases = {
 	KnownGreet = { "О, %s! Рад снова видеть!", "%s, привет-привет!", "А, это ты, %s!" },
 	FollowStart = { "Пошли!", "Веди!", "Ладно, иду за тобой." },
 	FollowEnd = { "Ладно, пока!", "Было весело!", "Я пойду по делам." },
+	-- Работа
+	Work = { "Заходите!", "Свежие булочки!", "Чем могу помочь?", "Лучшие цены в городе!", "Хорошего дня!" },
+	Patrol = { "Всё спокойно.", "Порядок.", "Так, проверим...", "Никаких нарушений." },
+	-- Задания (%s — название вещи)
+	QuestAsk = { "Ох, я потерял(а) %s! Поможешь найти?", "Слушай, я где-то оставил(а) %s. Найдёшь?" },
+	QuestWaiting = { "Ну что, нашёл?", "Ищи, ищи, я жду!", "Я отметил(а), где видел(а) в последний раз!" },
+	QuestThanks = { "Ура, спасибо огромное!", "Ты лучший! Держи награду!", "Спасибо, выручил(а)!" },
+	-- Дружба (%s — имя игрока)
+	Friend = { "О, мой друг %s!", "%s! Как же я рад тебя видеть!", "Привет, дружище %s!" },
+	Gift = { "Мы теперь друзья! Держи подарок!", "Это тебе, друг!" },
 }
 
 -- Диалоги жителей между собой: пары реплик (A, B, A, B...)
@@ -1216,6 +1226,49 @@ NPCConfig.PlayerTopics = {
 	{ Text = "Станцуем?", Answers = { "Давай!", "Только недолго!", "Ну смотри!" }, Emote = "Dance" },
 	{ Text = "Пойдём со мной!", Answers = { "Пошли!", "Веди!", "Ладно, иду за тобой." }, Emote = "Cheer", Follow = true },
 }
+
+-- Задания: житель теряет вещь, игрок находит и приносит
+NPCConfig.QuestChance = 0.35 -- шанс, что у жителя есть задание (❗ над головой)
+NPCConfig.QuestCooldown = 90 -- через сколько секунд после выполнения может появиться новое
+NPCConfig.QuestTime = 180 -- сколько секунд даётся на поиски
+NPCConfig.QuestMinDistance = 35 -- вещь лежит не ближе этого
+NPCConfig.QuestReward = { Min = 15, Max = 40 }
+NPCConfig.QuestTopic = "Тебе нужна помощь?"
+NPCConfig.QuestReturnTopic = "Вот, держи %s!"
+NPCConfig.QuestItems = {
+	{ Name = "ключи", Icon = "🔑", Color = Color3.fromRGB(255, 210, 60) },
+	{ Name = "кошелёк", Icon = "👛", Color = Color3.fromRGB(200, 80, 160) },
+	{ Name = "телефон", Icon = "📱", Color = Color3.fromRGB(40, 40, 50) },
+	{ Name = "шапку", Icon = "🧢", Color = Color3.fromRGB(60, 120, 220) },
+	{ Name = "книгу", Icon = "📕", Color = Color3.fromRGB(200, 50, 50) },
+	{ Name = "мячик", Icon = "⚽", Color = Color3.fromRGB(245, 245, 245) },
+}
+
+-- Монеты (показываются в таблице игроков)
+NPCConfig.CurrencyName = "Монеты"
+
+-- Дружба: очки за разговоры (+1, не чаще раза в минуту) и задания (+5)
+NPCConfig.FriendLevels = {
+	{ Points = 0, Name = "Незнакомец", Icon = "" },
+	{ Points = 1, Name = "Знакомый", Icon = "" },
+	{ Points = 4, Name = "Приятель", Icon = "🙂" },
+	{ Points = 8, Name = "Друг", Icon = "❤️" },
+}
+NPCConfig.FriendGift = 20 -- монет в подарок, когда становитесь друзьями
+
+-- Работа: точки Activity = "Work" (прилавок) и маршруты Activity = "Patrol"
+NPCConfig.WorkShift = NumberRange.new(40, 80) -- сколько секунд работает до перерыва
+NPCConfig.PatrolPause = NumberRange.new(2, 4) -- остановка на каждой точке маршрута
+NPCConfig.DefaultWorkRole = "Продавец"
+NPCConfig.DefaultPatrolRole = "Охранник"
+
+-- Собаки и вещи в руках
+NPCConfig.DogChance = 0.25
+NPCConfig.DogColors = {
+	Color3.fromRGB(150, 100, 60), Color3.fromRGB(230, 220, 200), Color3.fromRGB(40, 35, 30),
+	Color3.fromRGB(210, 160, 90), Color3.fromRGB(120, 120, 125),
+}
+NPCConfig.PropChance = 0.45 -- шанс, что у жителя что-то в руках (кофе, телефон, мороженое, сумка)
 NPCConfig.PlayerGreeting = { "Привет! Чем могу помочь?", "О, здравствуй!", "Да-да?", "Привет-привет!" }
 NPCConfig.PlayerBye = { "Пока!", "Удачи!", "Заходи ещё!", "До встречи!" }
 NPCConfig.TalkPromptText = "Поговорить"
@@ -1248,6 +1301,8 @@ NPCConfig.Moods = {
 	Angry = "😠",
 	Wow = "😮",
 	Laugh = "😂",
+	Quest = "❗",
+	Happy = "❤️",
 }
 
 -- Двери
@@ -2124,6 +2179,9 @@ local MARKER_COLORS = {
 	Talk = Color3.fromRGB(255, 170, 60),
 }
 
+MARKER_COLORS.Work = Color3.fromRGB(255, 255, 255)
+MARKER_COLORS.Patrol = Color3.fromRGB(60, 90, 255)
+
 local function point(name: string, pos: Vector3, look: Vector3, activity: string, zone: string?)
 	local p = block(points, name, Vector3.new(2, 0.2, 2), CFrame.lookAt(pos, pos + look), MARKER_COLORS[activity] or Color3.new(1, 1, 1), Enum.Material.Neon)
 	p.Transparency = 0.4
@@ -2277,8 +2335,30 @@ point("Idle3", Vector3.new(-3, 0.1, 10), Vector3.new(0, 0, -1), "Idle", Z)
 point("StreetDance", Vector3.new(-13, 0.1, 8), Vector3.new(0, 0, -1), "Dance", Z)
 point("GrassLie", Vector3.new(22, 0.1, 12), Vector3.new(-1, 0, 0), "Lie", Z)
 
-spawnPoint("StreetSpawnL", Vector3.new(-8, 0.1, 3), 3, Z)
-spawnPoint("StreetSpawnR", Vector3.new(8, 0.1, 3), 3, Z)
+-- Ларёк с мороженым: продавец стоит за прилавком
+block(street, "StallCounter", Vector3.new(6, 3, 1.5), CFrame.new(-30, 1.5, 6), Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
+block(street, "StallBack", Vector3.new(6, 8, 0.5), CFrame.new(-30, 4, 10), Color3.fromRGB(240, 240, 245), Enum.Material.SmoothPlastic)
+for i = -1, 1 do
+	block(street, "StallAwning", Vector3.new(2, 0.3, 4.5), CFrame.new(-30 + i * 2, 8.3, 7.5) * CFrame.Angles(math.rad(-12), 0, 0),
+		i == 0 and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(230, 70, 90), Enum.Material.Fabric)
+end
+local sign = block(street, "StallSign", Vector3.new(4, 1, 0.2), CFrame.new(-30, 3.6, 5.2), Color3.fromRGB(255, 120, 170), Enum.Material.SmoothPlastic)
+sign:SetAttribute(Config.NightLightAttribute, true)
+local work = point("IceCreamSeller", Vector3.new(-30, 0.1, 8), Vector3.new(0, 0, -1), "Work", Z)
+work:SetAttribute("Role", "Мороженщик")
+
+-- Маршрут охранника: обходит улицу по порядку Order
+local route = { Vector3.new(-28, 0.1, -26), Vector3.new(28, 0.1, -26), Vector3.new(28, 0.1, 8), Vector3.new(-20, 0.1, 14) }
+for i, pos in route do
+	local nextPos = route[i % #route + 1]
+	local p = point("Guard" .. i, pos, nextPos - pos, "Patrol", Z)
+	p:SetAttribute("Route", "Guard")
+	p:SetAttribute("Order", i)
+	p:SetAttribute("Role", "Охранник")
+end
+
+spawnPoint("StreetSpawnL", Vector3.new(-8, 0.1, 3), 4, Z)
+spawnPoint("StreetSpawnR", Vector3.new(8, 0.1, 3), 4, Z)
 
 system.Parent = workspace
 ]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX21"><Properties><string name="Name">NPCServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > NPCServer
@@ -2293,7 +2373,11 @@ system.Parent = workspace
 --   * реагируют на суперспособности: показывают на летящего, смеются над кубом,
 --     оглядываются на невидимку, разбегаются от лазеров;
 --   * помнят игроков по имени и могут пойти следом («Пойдём со мной!»);
---   * над головой значок настроения.
+--   * над головой значок настроения;
+--   * дают задания (❗): найти потерянную вещь за монеты;
+--   * дружат с игроками (Знакомый → Приятель → Друг ❤️), друзьям дарят подарок;
+--   * работают: продавцы стоят за прилавком (Activity = "Work"), охранники обходят маршрут ("Patrol");
+--   * гуляют с собаками и носят вещи в руках (кофе, телефон, мороженое, сумка).
 -- Анимации — стандартные анимации Roblox (их видят все), сидение/лежание на полу —
 -- через систему поз (PoseClient).
 
@@ -2380,6 +2464,7 @@ local function hideMarker(part: BasePart)
 end
 
 local points = {} -- [part] = { part, activity, zone, occupants }
+local routes = {} -- [имя маршрута] = { points = {...по Order}, guard = npc }
 
 local function registerPoint(part: Instance)
 	if not part:IsA("BasePart") or points[part] then
@@ -2387,13 +2472,28 @@ local function registerPoint(part: Instance)
 	end
 	hideMarker(part)
 	local activity = part:GetAttribute("Activity") or (part:IsA("Seat") and "Sit") or "Idle"
-	points[part] = {
+	local info = {
 		part = part,
 		activity = activity,
 		zone = part:GetAttribute("Zone"),
 		occupants = 0,
 		capacity = activity == "Talk" and 2 or 1,
+		role = part:GetAttribute("Role"),
+		route = part:GetAttribute("Route"),
+		order = part:GetAttribute("Order") or 0,
+		worker = nil,
 	}
+	points[part] = info
+	if activity == "Patrol" then
+		local name = info.route or "Patrol"
+		local route = routes[name] or { points = {}, guard = nil }
+		routes[name] = route
+		info.route = name
+		table.insert(route.points, info)
+		table.sort(route.points, function(a, b)
+			return a.order < b.order
+		end)
+	end
 end
 
 for _, d in pointsFolder:GetDescendants() do
@@ -2401,7 +2501,15 @@ for _, d in pointsFolder:GetDescendants() do
 end
 pointsFolder.DescendantAdded:Connect(registerPoint)
 pointsFolder.DescendantRemoving:Connect(function(d)
+	local info = points[d]
 	points[d] = nil
+	if info and info.route and routes[info.route] then
+		local list = routes[info.route].points
+		local i = table.find(list, info)
+		if i then
+			table.remove(list, i)
+		end
+	end
 end)
 
 for _, d in spawnsFolder:GetDescendants() do
@@ -2564,22 +2672,240 @@ local function say(npc, text: string, duration: number?)
 end
 
 -- Значок настроения над головой (ключ из NPCConfig.Moods, nil — убрать)
+-- Если временного настроения нет — показываем «постоянное» (например, ❗ задание)
+local function moodValue(npc, mood: string?)
+	local key = mood or npc.baseMood
+	return key and Config.Moods[key] or nil
+end
+
 local function setMood(npc, mood: string?, duration: number?)
 	npc.moodToken = (npc.moodToken or 0) + 1
+	npc.activeMood = mood
 	local token = npc.moodToken
-	npc.model:SetAttribute("Mood", mood and Config.Moods[mood] or nil)
+	npc.model:SetAttribute("Mood", moodValue(npc, mood))
 	if duration then
 		task.delay(duration, function()
 			if npc.moodToken == token and npc.model.Parent then
-				npc.model:SetAttribute("Mood", nil)
+				npc.activeMood = nil
+				npc.model:SetAttribute("Mood", moodValue(npc, nil))
 			end
 		end)
+	end
+end
+
+local function setBaseMood(npc, mood: string?)
+	npc.baseMood = mood
+	if npc.activeMood == nil then
+		npc.model:SetAttribute("Mood", moodValue(npc, nil))
 	end
 end
 
 local function isNight(): boolean
 	return workspace:GetAttribute("IsNight") == true
 end
+
+---------------------------------------------------------------------
+-- Монеты и дружба
+---------------------------------------------------------------------
+
+local function getCoins(player: Player): IntValue
+	local stats = player:FindFirstChild("leaderstats")
+	if not stats then
+		stats = Instance.new("Folder")
+		stats.Name = "leaderstats"
+		stats.Parent = player
+	end
+	local coins = stats:FindFirstChild(Config.CurrencyName)
+	if not coins then
+		coins = Instance.new("IntValue")
+		coins.Name = Config.CurrencyName
+		coins.Parent = stats
+	end
+	return coins
+end
+Players.PlayerAdded:Connect(getCoins)
+for _, player in Players:GetPlayers() do
+	getCoins(player)
+end
+
+local function toast(player: Player, text: string)
+	if player.Parent then
+		dialogRemote:FireClient(player, "Toast", text)
+	end
+end
+
+local function addCoins(player: Player, amount: number)
+	getCoins(player).Value += amount
+	toast(player, string.format("+%d 🪙 %s", amount, Config.CurrencyName))
+end
+
+local FRIEND_POINTS = Config.FriendLevels[#Config.FriendLevels].Points
+
+local function friendPoints(npc, player: Player): number
+	local m = memory[npc.name]
+	return m and m[player.UserId] or 0
+end
+
+local function friendLevel(amount: number)
+	local level = Config.FriendLevels[1]
+	for _, l in Config.FriendLevels do
+		if amount >= l.Points then
+			level = l
+		end
+	end
+	return level
+end
+
+local function addFriendship(npc, player: Player, amount: number)
+	memory[npc.name] = memory[npc.name] or {}
+	local before = memory[npc.name][player.UserId] or 0
+	local after = before + amount
+	memory[npc.name][player.UserId] = after
+	-- Стали друзьями — подарок
+	if before < FRIEND_POINTS and after >= FRIEND_POINTS then
+		task.delay(2.5, function()
+			if npc.alive then
+				say(npc, pick(Config.Phrases.Gift))
+				npc.anim.emote("Cheer")
+				setMood(npc, "Happy", 4)
+			end
+			if player.Parent then
+				addCoins(player, Config.FriendGift)
+				toast(player, "❤️ " .. npc.name .. " теперь твой друг!")
+			end
+		end)
+	end
+end
+
+---------------------------------------------------------------------
+-- Задания: найти потерянную вещь
+---------------------------------------------------------------------
+
+local playerQuests = {} -- [player] = задание
+
+local function clearQuest(quest, reason: string?)
+	if quest.done then
+		return
+	end
+	quest.done = true
+	local player = quest.player
+	if playerQuests[player] == quest then
+		playerQuests[player] = nil
+	end
+	if quest.item and quest.item.Parent then
+		quest.item:Destroy()
+	end
+	if quest.npc.activeQuest == quest then
+		quest.npc.activeQuest = nil
+	end
+	if player.Parent then
+		player:SetAttribute("QuestText", nil)
+		if reason then
+			toast(player, reason)
+		end
+	end
+end
+
+local function offerQuestLater(npc, delay: number)
+	task.delay(delay, function()
+		if npc.alive and not npc.activeQuest and not npc.route and rng:NextNumber() < math.min(1, Config.QuestChance * 1.5) then
+			npc.hasQuest = true
+			setBaseMood(npc, "Quest")
+		end
+	end)
+end
+
+local function questSpot(npc)
+	local far, any = {}, {}
+	for _, p in pairs(points) do
+		if p.part.Parent and not p.part:IsA("Seat") then
+			table.insert(any, p)
+			if (p.part.Position - npc.hrp.Position).Magnitude >= Config.QuestMinDistance then
+				table.insert(far, p)
+			end
+		end
+	end
+	local list = #far > 0 and far or any
+	return #list > 0 and pick(list) or nil
+end
+
+local function startQuest(npc, player: Player)
+	local spot = questSpot(npc)
+	if not spot then
+		return nil
+	end
+	local def = pick(Config.QuestItems)
+
+	local item = Instance.new("Part")
+	item.Name = "QuestItem"
+	item.Shape = Enum.PartType.Ball
+	item.Size = Vector3.new(1, 1, 1)
+	item.Color = def.Color
+	item.Material = Enum.Material.SmoothPlastic
+	item.Anchored = true
+	item.CanCollide = false
+	item.CanTouch = false
+	item.CFrame = CFrame.new(spot.part.Position + Vector3.new(rng:NextNumber(-1.5, 1.5), 0.8, rng:NextNumber(-1.5, 1.5)))
+	item:SetAttribute("QuestOwner", player.UserId)
+	item:SetAttribute("QuestIcon", def.Icon)
+	local sparkles = Instance.new("Sparkles")
+	sparkles.SparkleColor = def.Color
+	sparkles.Parent = item
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Подобрать"
+	prompt.ObjectText = def.Name
+	prompt.HoldDuration = 0.3
+	prompt.MaxActivationDistance = 8
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = item
+	CollectionService:AddTag(item, "QuestItem")
+	item.Parent = liveFolder
+
+	local quest = { npc = npc, player = player, def = def, item = item, carrying = false, done = false }
+	prompt.Triggered:Connect(function(who)
+		if who ~= player or quest.done or quest.carrying then
+			return
+		end
+		quest.carrying = true
+		item:Destroy()
+		quest.item = nil
+		player:SetAttribute("QuestText", string.format("Верни %s %s — %s", def.Icon, def.Name, npc.name))
+		toast(player, string.format("%s Нашёл %s!", def.Icon, def.Name))
+	end)
+
+	npc.hasQuest = false
+	setBaseMood(npc, nil)
+	npc.activeQuest = quest
+	playerQuests[player] = quest
+	player:SetAttribute("QuestText", string.format("Найди %s %s для: %s", def.Icon, def.Name, npc.name))
+
+	task.delay(Config.QuestTime, function()
+		if not quest.done then
+			clearQuest(quest, "⌛ Время вышло, задание отменено")
+			offerQuestLater(npc, Config.QuestCooldown)
+		end
+	end)
+	return quest
+end
+
+local function finishQuest(npc, player: Player, quest): number
+	clearQuest(quest, nil)
+	local reward = rng:NextInteger(Config.QuestReward.Min, Config.QuestReward.Max)
+	addCoins(player, reward)
+	addFriendship(npc, player, 5)
+	setMood(npc, "Happy", 4)
+	npc.anim.emote("Cheer")
+	offerQuestLater(npc, Config.QuestCooldown)
+	return reward
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	local quest = playerQuests[player]
+	if quest then
+		clearQuest(quest, nil)
+		offerQuestLater(quest.npc, 5)
+	end
+end)
 
 local function shouldStop(npc): boolean
 	return not npc.alive or npc.abort or npc.lock ~= nil
@@ -2909,6 +3235,7 @@ local function choosePoint(npc)
 		totalWeight = 0
 		for _, point in pairs(points) do
 			if point ~= npc.point and point.occupants < point.capacity and point.part.Parent
+				and point.activity ~= "Work" and point.activity ~= "Patrol"
 				and not (point.part:IsA("Seat") and point.part.Occupant) and filter(point) then
 				-- Ближние точки чуть вероятнее
 				local dist = (point.part.Position - npc.hrp.Position).Magnitude
@@ -3077,6 +3404,98 @@ local function goSleep(npc): boolean
 	return true
 end
 
+---------------------------------------------------------------------
+-- Работа и патрули
+---------------------------------------------------------------------
+
+local function someoneNear(position: Vector3, radius: number): boolean
+	for _, player in Players:GetPlayers() do
+		local c = player.Character
+		local r = c and c:FindFirstChild("HumanoidRootPart")
+		if r and (r.Position - position).Magnitude < radius then
+			return true
+		end
+	end
+	return false
+end
+
+local function doWork(npc)
+	local point = npc.job
+	if not point.part.Parent then
+		npc.job = nil
+		return
+	end
+	if not walkTo(npc, point.part.Position) or shouldStop(npc) then
+		npc.onBreak = not shouldStop(npc) -- не дошёл до прилавка — займётся чем-то другим
+		return
+	end
+	face(npc, point.part.CFrame.LookVector)
+	local shiftEnd = os.clock() + randomIn(Config.WorkShift)
+	while os.clock() < shiftEnd and not shouldStop(npc) and not (isNight() and npc.homeZone) do
+		if someoneNear(npc.hrp.Position, 16) and rng:NextNumber() < 0.5 then
+			say(npc, pick(Config.Phrases.Work))
+			npc.anim.emote(rng:NextNumber() < 0.5 and "Wave" or "Point")
+		elseif rng:NextNumber() < 0.35 then
+			face(npc, (point.part.CFrame * CFrame.Angles(0, rng:NextNumber(-0.7, 0.7), 0)).LookVector, 0.6)
+		else
+			face(npc, point.part.CFrame.LookVector, 0.5)
+		end
+		pause(npc, rng:NextNumber(4, 8))
+	end
+	if not shouldStop(npc) then
+		npc.onBreak = true -- перерыв: одно обычное дело, потом снова за работу
+	end
+end
+
+local function doPatrol(npc)
+	local route = routes[npc.route]
+	if not route or #route.points == 0 then
+		npc.route = nil
+		return
+	end
+	for _, p in route.points do
+		if shouldStop(npc) or (isNight() and npc.homeZone) then
+			return
+		end
+		if p.part.Parent and walkTo(npc, p.part.Position) then
+			face(npc, p.part.CFrame.LookVector, 0.4)
+			if rng:NextNumber() < 0.25 then
+				say(npc, pick(Config.Phrases.Patrol))
+			end
+			if not pause(npc, randomIn(Config.PatrolPause)) then
+				return
+			end
+		end
+	end
+	if rng:NextNumber() < 0.3 then
+		npc.onBreak = true
+	end
+end
+
+local function assignJob(npc): string?
+	local best
+	for _, p in pairs(points) do
+		if p.activity == "Work" and not p.worker and p.part.Parent then
+			if not best or (p.zone == npc.homeZone and best.zone ~= npc.homeZone) then
+				best = p
+			end
+		end
+	end
+	if best then
+		best.worker = npc
+		npc.job = best
+		return best.role or Config.DefaultWorkRole
+	end
+	for name, route in pairs(routes) do
+		if not route.guard and #route.points > 0 then
+			route.guard = npc
+			npc.route = name
+			return route.points[1].role or Config.DefaultPatrolRole
+		end
+	end
+	return nil
+end
+
 local function brain(npc)
 	-- Просыпаемся: лёжа → на колени → встаём
 	setPose(npc, "Lie")
@@ -3119,6 +3538,18 @@ local function brain(npc)
 			continue
 		end
 
+		-- Работа или обход маршрута (между ними — перерывы)
+		if not npc.onBreak then
+			if npc.job then
+				doWork(npc)
+				continue
+			elseif npc.route then
+				doPatrol(npc)
+				continue
+			end
+		end
+		npc.onBreak = false
+
 		local point = choosePoint(npc)
 		if not point then
 			task.wait(2)
@@ -3141,6 +3572,8 @@ end
 ---------------------------------------------------------------------
 -- Разговор с игроком
 ---------------------------------------------------------------------
+
+local dialogTitle, refreshTopics -- объявлены ниже
 
 local function endPlayerTalk(npc, sayBye: boolean)
 	local player = npc.talkingTo
@@ -3166,6 +3599,32 @@ local function endPlayerTalk(npc, sayBye: boolean)
 	end
 end
 
+-- Заголовок окна: имя, работа и уровень дружбы
+function dialogTitle(npc, player: Player): string
+	local level = friendLevel(friendPoints(npc, player))
+	return string.format("%s  ·  %s %s", npc.title, level.Name, level.Icon)
+end
+
+-- Темы разговора: задание (если есть) + обычные темы
+function refreshTopics(npc, player: Player): { string }
+	local list = {}
+	local quest = playerQuests[player]
+	if quest and quest.npc == npc and quest.carrying then
+		table.insert(list, { text = string.format(Config.QuestReturnTopic, quest.def.Name), kind = "QuestReturn" })
+	elseif npc.hasQuest and not quest then
+		table.insert(list, { text = Config.QuestTopic, kind = "QuestAsk" })
+	end
+	for _, topic in Config.PlayerTopics do
+		table.insert(list, { text = topic.Text, kind = "Topic", topic = topic })
+	end
+	npc.topics = list
+	local texts = {}
+	for i, entry in list do
+		texts[i] = entry.text
+	end
+	return texts
+end
+
 local function startPlayerTalk(npc, player: Player)
 	if not npc.alive or npc.talkingTo then
 		return
@@ -3188,22 +3647,25 @@ local function startPlayerTalk(npc, player: Player)
 	stopMoving(npc)
 	setMood(npc, "Talk")
 
-	memory[npc.name] = memory[npc.name] or {}
-	local known = memory[npc.name][player.UserId]
-	memory[npc.name][player.UserId] = true
+	local points0 = friendPoints(npc, player)
+	if os.clock() >= (npc.friendCooldown[player] or 0) then
+		npc.friendCooldown[player] = os.clock() + 60
+		addFriendship(npc, player, 1)
+	end
+	local quest = playerQuests[player]
 	local greeting
 	if wasSleeping then
 		greeting = pick(Config.Phrases.Grumpy)
-	elseif known then
+	elseif quest and quest.npc == npc and not quest.carrying then
+		greeting = pick(Config.Phrases.QuestWaiting)
+	elseif points0 >= FRIEND_POINTS then
+		greeting = string.format(pick(Config.Phrases.Friend) :: string, player.DisplayName)
+	elseif points0 > 0 then
 		greeting = string.format(pick(Config.Phrases.KnownGreet) :: string, player.DisplayName)
 	else
 		greeting = pick(Config.PlayerGreeting)
 	end
-	local topics = {}
-	for i, topic in Config.PlayerTopics do
-		topics[i] = topic.Text
-	end
-	dialogRemote:FireClient(player, "Open", npc.model, npc.name, greeting, topics)
+	dialogRemote:FireClient(player, "Open", npc.model, dialogTitle(npc, player), greeting, refreshTopics(npc, player))
 
 	task.spawn(function()
 		standUp(npc)
@@ -3312,12 +3774,38 @@ dialogRemote.OnServerEvent:Connect(function(player: Player, action: any, model: 
 	if action == "Bye" then
 		endPlayerTalk(npc, true)
 	elseif action == "Ask" and type(index) == "number" then
-		local topic = Config.PlayerTopics[index]
-		if not topic or os.clock() - (npc.lastAsk or 0) < 0.6 then
+		local entry = npc.topics and npc.topics[index]
+		if not entry or os.clock() - (npc.lastAsk or 0) < 0.6 then
 			return
 		end
 		npc.lastAsk = os.clock()
 		npc.lastTalk = os.clock()
+
+		if entry.kind == "QuestAsk" then
+			local answer
+			local quest = npc.hasQuest and not playerQuests[player] and startQuest(npc, player)
+			if quest then
+				answer = string.format(pick(Config.Phrases.QuestAsk) :: string, quest.def.Name)
+				npc.anim.emote("Point")
+			else
+				answer = "Уже не нужно, спасибо!"
+			end
+			say(npc, answer)
+			dialogRemote:FireClient(player, "Answer", model, answer, refreshTopics(npc, player))
+			return
+		elseif entry.kind == "QuestReturn" then
+			local quest = playerQuests[player]
+			if quest and quest.npc == npc and quest.carrying then
+				local reward = finishQuest(npc, player, quest)
+				local answer = pick(Config.Phrases.QuestThanks) .. string.format(" (+%d)", reward)
+				say(npc, answer)
+				dialogRemote:FireClient(player, "Answer", model, answer, refreshTopics(npc, player))
+				dialogRemote:FireClient(player, "Title", model, dialogTitle(npc, player))
+			end
+			return
+		end
+
+		local topic = entry.topic
 		local answer = pick(topic.Answers)
 		say(npc, answer)
 		if topic.Emote == "Dance" then
@@ -3366,6 +3854,18 @@ local function onDied(npc)
 	if npc.point then
 		npc.point.occupants = math.max(0, npc.point.occupants - 1)
 	end
+	if npc.following then
+		stopFollow(npc, false)
+	end
+	if npc.job then
+		npc.job.worker = nil
+	end
+	if npc.route and routes[npc.route] and routes[npc.route].guard == npc then
+		routes[npc.route].guard = nil
+	end
+	if npc.activeQuest then
+		clearQuest(npc.activeQuest, "😢 " .. npc.name .. " пропал(а) — задание отменено")
+	end
 	npc.anim.stopAll()
 	task.delay(Config.CorpseTime, function()
 		npcs[npc.model] = nil
@@ -3377,6 +3877,50 @@ local function onDied(npc)
 			spawnNPC(npc.spawn)
 		end
 	end)
+end
+
+-- Вещи в руках (приварены к кисти и двигаются вместе с анимацией)
+local PROP_KINDS = { "Cup", "Phone", "IceCream", "Bag" }
+
+local function addProp(model: Model, kind: string)
+	local hand = model:FindFirstChild(kind == "Bag" and "LeftHand" or "RightHand")
+	if not hand then
+		return
+	end
+	local function piece(size: Vector3, color: Color3, offset: CFrame, shape: Enum.PartType?, material: Enum.Material?)
+		local p = Instance.new("Part")
+		p.Name = "Prop"
+		p.Size = size
+		p.Color = color
+		p.Material = material or Enum.Material.SmoothPlastic
+		if shape then
+			p.Shape = shape
+		end
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Massless = true
+		p.CollisionGroup = COLLISION_GROUP
+		p.CFrame = hand.CFrame * offset
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = hand
+		weld.Part1 = p
+		weld.Parent = p
+		p.Parent = model
+	end
+	local upright = CFrame.Angles(0, 0, math.rad(90)) -- ось цилиндра — вертикально
+	if kind == "Cup" then
+		piece(Vector3.new(0.7, 0.45, 0.45), Color3.fromRGB(245, 245, 240), CFrame.new(0, -0.3, -0.2) * upright, Enum.PartType.Cylinder)
+		piece(Vector3.new(0.1, 0.48, 0.48), Color3.fromRGB(120, 75, 45), CFrame.new(0, 0.07, -0.2) * upright, Enum.PartType.Cylinder)
+	elseif kind == "Phone" then
+		piece(Vector3.new(0.35, 0.7, 0.08), Color3.fromRGB(25, 25, 30), CFrame.new(0, -0.3, -0.25))
+		piece(Vector3.new(0.3, 0.6, 0.02), Color3.fromRGB(120, 190, 255), CFrame.new(0, -0.3, -0.3), nil, Enum.Material.Neon)
+	elseif kind == "IceCream" then
+		piece(Vector3.new(0.7, 0.3, 0.3), Color3.fromRGB(210, 160, 90), CFrame.new(0, -0.3, -0.2) * upright, Enum.PartType.Cylinder)
+		piece(Vector3.new(0.5, 0.5, 0.5), pick({ Color3.fromRGB(255, 170, 200), Color3.fromRGB(250, 240, 210), Color3.fromRGB(120, 80, 50) }), CFrame.new(0, 0.15, -0.2), Enum.PartType.Ball)
+	elseif kind == "Bag" then
+		piece(Vector3.new(1.1, 0.9, 0.4), pick(Config.ShirtColors), CFrame.new(0, -0.8, 0), nil, Enum.Material.Fabric)
+	end
 end
 
 function spawnNPC(spawnPart: BasePart)
@@ -3427,6 +3971,9 @@ function spawnNPC(spawnPart: BasePart)
 	local height = humanoid.HipHeight + hrp.Size.Y / 2 + 0.1
 	model:PivotTo(CFrame.lookAt(top + Vector3.new(0, height, 0), top + Vector3.new(0, height, 0) + (look.Magnitude > 0 and look or Vector3.new(0, 0, -1))))
 	model:SetAttribute("Pose", "Lie")
+	if rng:NextNumber() < Config.PropChance then
+		addProp(model, pick(PROP_KINDS))
+	end
 	CollectionService:AddTag(model, Config.Tag)
 	model.Parent = liveFolder
 	pcall(function()
@@ -3454,6 +4001,14 @@ function spawnNPC(spawnPart: BasePart)
 		saidNight = false,
 		following = nil,
 		reacted = {},
+		friendCooldown = {},
+		title = name,
+		job = nil,
+		route = nil,
+		onBreak = false,
+		hasQuest = false,
+		activeQuest = nil,
+		baseMood = nil,
 		speed = speed,
 		anim = newAnimator(humanoid),
 		prompt = prompt,
@@ -3471,6 +4026,22 @@ function spawnNPC(spawnPart: BasePart)
 		lastHurt = 0,
 	}
 	npcs[model] = npc
+
+	-- Работа, задание, собака
+	local role = assignJob(npc)
+	if role then
+		npc.title = name .. " · " .. role
+		humanoid.DisplayName = npc.title
+		prompt.ObjectText = npc.title
+	else
+		if rng:NextNumber() < Config.DogChance then
+			model:SetAttribute("DogColor", pick(Config.DogColors))
+		end
+	end
+	if not npc.route and rng:NextNumber() < Config.QuestChance then
+		npc.hasQuest = true
+		setBaseMood(npc, "Quest")
+	end
 
 	prompt.Triggered:Connect(function(player)
 		if npc.following == player then
@@ -5957,9 +6528,13 @@ AbilityButton.Create({
 -- Клиент жителей:
 --   * облачка с репликами над головой: «выпрыгивают», текст печатается по буквам, потом тают;
 --   * значок настроения над головой (💤 💬 🎵 😊 😱 ...), покачивается;
---   * окно разговора с жителем: имя, его ответ и кнопки тем.
+--   * окно разговора с жителем: имя, уровень дружбы, ответ и кнопки тем;
+--   * задания: вещь видна только тебе, отмечена значком сквозь стены, трекер сверху экрана;
+--   * всплывающие уведомления (+монеты, новый друг);
+--   * собаки на поводке у жителей: бегают рядом, виляют хвостом, садятся, гавкают.
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local CollectionService = game:GetService("CollectionService")
 local TweenService = game:GetService("TweenService")
 local TextService = game:GetService("TextService")
@@ -5987,8 +6562,9 @@ bubbleGui.Parent = playerGui
 
 local bubbles = {} -- [npc model] = { billboard, token }
 
-local function showBubble(model: Model, text: string, duration: number)
-	local head = model:FindFirstChild("Head")
+-- target — житель (облачко над головой) или любая деталь (например, голова собаки)
+local function showBubble(model: Instance, text: string, duration: number)
+	local head = model:IsA("BasePart") and model or model:FindFirstChild("Head")
 	if not head then
 		return
 	end
@@ -6298,10 +6874,7 @@ local function closeDialog()
 	dialogGui.Enabled = false
 end
 
-local function openDialog(model: Model, name: string, greeting: string, topics: { string })
-	currentNpc = model
-	nameLabel.Text = name
-	typeText(greeting)
+local function setTopics(model: Model, topics: { string })
 	for _, child in buttons:GetChildren() do
 		if child:IsA("GuiButton") then
 			child:Destroy()
@@ -6317,17 +6890,383 @@ local function openDialog(model: Model, name: string, greeting: string, topics: 
 		dialogRemote:FireServer("Bye", model)
 		closeDialog()
 	end)
+end
+
+local function openDialog(model: Model, name: string, greeting: string, topics: { string })
+	currentNpc = model
+	nameLabel.Text = name
+	typeText(greeting)
+	setTopics(model, topics)
 
 	dialogGui.Enabled = true
 	panelScale.Scale = 0.85
 	TweenService:Create(panelScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 end
 
+---------------------------------------------------------------------
+-- Всплывающие уведомления
+---------------------------------------------------------------------
+
+local toastGui = Instance.new("ScreenGui")
+toastGui.Name = "NPCToasts"
+toastGui.ResetOnSpawn = false
+toastGui.Parent = playerGui
+
+local toastList = Instance.new("Frame")
+toastList.AnchorPoint = Vector2.new(0.5, 0)
+toastList.Position = UDim2.new(0.5, 0, 0, 110)
+toastList.Size = UDim2.fromOffset(360, 200)
+toastList.BackgroundTransparency = 1
+toastList.Parent = toastGui
+local toastLayout = Instance.new("UIListLayout")
+toastLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+toastLayout.Padding = UDim.new(0, 6)
+toastLayout.Parent = toastList
+
+local function showToast(text: string)
+	local holder = Instance.new("CanvasGroup")
+	holder.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
+	holder.BackgroundTransparency = 0.1
+	holder.Size = UDim2.fromOffset(0, 36)
+	holder.AutomaticSize = Enum.AutomaticSize.X
+	holder.Parent = toastList
+	Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 18)
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0, 16)
+	pad.PaddingRight = UDim.new(0, 16)
+	pad.Parent = holder
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(0, 1)
+	label.AutomaticSize = Enum.AutomaticSize.X
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 18
+	label.TextColor3 = Color3.fromRGB(255, 225, 120)
+	label.Text = text
+	label.Parent = holder
+	local scale = Instance.new("UIScale")
+	scale.Scale = 0.5
+	scale.Parent = holder
+	TweenService:Create(scale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	task.delay(2.8, function()
+		local fade = TweenService:Create(holder, TweenInfo.new(0.4), { GroupTransparency = 1 })
+		fade:Play()
+		fade.Completed:Wait()
+		holder:Destroy()
+	end)
+end
+
+---------------------------------------------------------------------
+-- Трекер задания (сверху экрана)
+---------------------------------------------------------------------
+
+local tracker = Instance.new("Frame")
+tracker.AnchorPoint = Vector2.new(0.5, 0)
+tracker.Position = UDim2.new(0.5, 0, 0, 62)
+tracker.Size = UDim2.fromOffset(0, 38)
+tracker.AutomaticSize = Enum.AutomaticSize.X
+tracker.BackgroundColor3 = Color3.fromRGB(40, 32, 20)
+tracker.BackgroundTransparency = 0.15
+tracker.Visible = false
+tracker.Parent = toastGui
+Instance.new("UICorner", tracker).CornerRadius = UDim.new(0, 12)
+local trackerStroke = Instance.new("UIStroke")
+trackerStroke.Color = Color3.fromRGB(255, 200, 80)
+trackerStroke.Thickness = 1.5
+trackerStroke.Parent = tracker
+local trackerPad = Instance.new("UIPadding")
+trackerPad.PaddingLeft = UDim.new(0, 14)
+trackerPad.PaddingRight = UDim.new(0, 14)
+trackerPad.Parent = tracker
+local trackerLabel = Instance.new("TextLabel")
+trackerLabel.BackgroundTransparency = 1
+trackerLabel.Size = UDim2.fromScale(0, 1)
+trackerLabel.AutomaticSize = Enum.AutomaticSize.X
+trackerLabel.Font = Enum.Font.GothamBold
+trackerLabel.TextSize = 16
+trackerLabel.TextColor3 = Color3.fromRGB(255, 235, 190)
+trackerLabel.Parent = tracker
+local trackerScale = Instance.new("UIScale")
+trackerScale.Parent = tracker
+
+local function updateTracker()
+	local text = player:GetAttribute("QuestText")
+	if type(text) == "string" and text ~= "" then
+		trackerLabel.Text = "❗ " .. text
+		if not tracker.Visible then
+			tracker.Visible = true
+			trackerScale.Scale = 0.6
+			TweenService:Create(trackerScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		end
+	else
+		tracker.Visible = false
+	end
+end
+player:GetAttributeChangedSignal("QuestText"):Connect(updateTracker)
+updateTracker()
+
+---------------------------------------------------------------------
+-- Вещи для заданий: видны только тому, кто ищет
+---------------------------------------------------------------------
+
+local questItems = {} -- [part] = { marker, distanceLabel }
+
+local function watchQuestItem(item: Instance)
+	if not item:IsA("BasePart") then
+		return
+	end
+	local mine = item:GetAttribute("QuestOwner") == player.UserId
+	if not mine then
+		item.LocalTransparencyModifier = 1
+		for _, d in item:GetDescendants() do
+			if d:IsA("ProximityPrompt") or d:IsA("Sparkles") then
+				d.Enabled = false
+			end
+		end
+		return
+	end
+	local marker = Instance.new("BillboardGui")
+	marker.Adornee = item
+	marker.AlwaysOnTop = true
+	marker.Size = UDim2.fromOffset(70, 60)
+	marker.StudsOffset = Vector3.new(0, 2, 0)
+	marker.LightInfluence = 0
+	marker.Parent = bubbleGui
+	local icon = Instance.new("TextLabel")
+	icon.BackgroundTransparency = 1
+	icon.Size = UDim2.new(1, 0, 0, 36)
+	icon.Text = item:GetAttribute("QuestIcon") or "❗"
+	icon.TextScaled = true
+	icon.Font = Enum.Font.GothamBold
+	icon.Parent = marker
+	local distance = Instance.new("TextLabel")
+	distance.BackgroundTransparency = 1
+	distance.Position = UDim2.fromOffset(0, 38)
+	distance.Size = UDim2.new(1, 0, 0, 20)
+	distance.Font = Enum.Font.GothamBold
+	distance.TextSize = 15
+	distance.TextColor3 = Color3.fromRGB(255, 230, 120)
+	distance.TextStrokeTransparency = 0.4
+	distance.Parent = marker
+	TweenService:Create(marker, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+		StudsOffset = Vector3.new(0, 2.6, 0),
+	}):Play()
+	questItems[item] = { marker = marker, distance = distance, base = item.CFrame }
+	item.AncestryChanged:Connect(function()
+		if not item.Parent and questItems[item] then
+			questItems[item].marker:Destroy()
+			questItems[item] = nil
+		end
+	end)
+end
+
+for _, item in CollectionService:GetTagged("QuestItem") do
+	watchQuestItem(item)
+end
+CollectionService:GetInstanceAddedSignal("QuestItem"):Connect(watchQuestItem)
+
+---------------------------------------------------------------------
+-- Собаки на поводке
+---------------------------------------------------------------------
+
+local dogs = {} -- [npc model] = собака
+local dogParams = RaycastParams.new()
+dogParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function dogPart(folder: Instance, size: Vector3, color: Color3, shape: Enum.PartType?)
+	local p = Instance.new("Part")
+	p.Size = size
+	p.Color = color
+	p.Material = Enum.Material.SmoothPlastic
+	if shape then
+		p.Shape = shape
+	end
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = true
+	p.Parent = folder
+	return p
+end
+
+local function createDog(model: Model)
+	local color = model:GetAttribute("DogColor")
+	local hrp = model:FindFirstChild("HumanoidRootPart")
+	local hand = model:FindFirstChild("LeftHand")
+	if typeof(color) ~= "Color3" or not hrp then
+		return
+	end
+	local folder = Instance.new("Model")
+	folder.Name = "Dog_" .. model.Name
+	folder.Parent = workspace
+	local dark = color:Lerp(Color3.new(0, 0, 0), 0.35)
+	local dog = {
+		folder = folder,
+		body = dogPart(folder, Vector3.new(1.1, 0.9, 2), color),
+		head = dogPart(folder, Vector3.new(0.9, 0.85, 0.9), color),
+		snout = dogPart(folder, Vector3.new(0.5, 0.35, 0.45), dark),
+		nose = dogPart(folder, Vector3.new(0.2, 0.15, 0.1), Color3.fromRGB(20, 20, 20)),
+		earL = dogPart(folder, Vector3.new(0.22, 0.5, 0.12), dark),
+		earR = dogPart(folder, Vector3.new(0.22, 0.5, 0.12), dark),
+		tail = dogPart(folder, Vector3.new(0.18, 0.18, 0.9), color),
+		legs = {},
+		pos = hrp.Position - hrp.CFrame.LookVector * 3,
+		look = hrp.CFrame.LookVector,
+		phase = 0,
+		still = 0,
+		nextBark = os.clock() + math.random(8, 25),
+	}
+	for i = 1, 4 do
+		dog.legs[i] = dogPart(folder, Vector3.new(0.28, 0.7, 0.28), color)
+	end
+	for _, eyeX in { -0.22, 0.22 } do
+		dog["eye" .. (eyeX < 0 and "L" or "R")] = dogPart(folder, Vector3.new(0.14, 0.14, 0.05), Color3.fromRGB(15, 15, 15))
+	end
+
+	-- Поводок
+	if hand then
+		local a0 = Instance.new("Attachment")
+		a0.Name = "LeashHand"
+		a0.Position = Vector3.new(0, -0.3, 0)
+		a0.Parent = hand
+		local a1 = Instance.new("Attachment")
+		a1.Name = "LeashCollar"
+		a1.Parent = dog.head
+		local leash = Instance.new("Beam")
+		leash.Attachment0 = a0
+		leash.Attachment1 = a1
+		leash.Color = ColorSequence.new(Color3.fromRGB(170, 40, 40))
+		leash.Width0 = 0.08
+		leash.Width1 = 0.08
+		leash.FaceCamera = true
+		leash.Segments = 12
+		leash.CurveSize0 = -1
+		leash.CurveSize1 = 1
+		leash.Parent = dog.head
+		dog.handAttachment = a0
+	end
+	dogs[model] = dog
+end
+
+local function destroyDog(model: Model)
+	local dog = dogs[model]
+	if dog then
+		dogs[model] = nil
+		dog.folder:Destroy()
+		if dog.handAttachment then
+			dog.handAttachment:Destroy()
+		end
+	end
+end
+
+local function updateDog(model: Model, dog, dt: number, now: number)
+	local hrp = model:FindFirstChild("HumanoidRootPart")
+	if not hrp then
+		return
+	end
+	-- Место рядом с хозяином: сбоку и чуть сзади
+	local goal = hrp.Position + hrp.CFrame.RightVector * 2.2 - hrp.CFrame.LookVector * 1.2
+	local toGoal = Vector3.new(goal.X - dog.pos.X, 0, goal.Z - dog.pos.Z)
+	local dist = toGoal.Magnitude
+	local speed = 0
+	if dist > 0.4 then
+		local maxStep = math.max(10, dist * 3) * dt
+		local step = math.min(dist, maxStep)
+		dog.pos += toGoal.Unit * step
+		speed = step / dt
+		dog.look = dog.look:Lerp(toGoal.Unit, math.min(1, dt * 8))
+	else
+		local ownerLook = Vector3.new(hrp.CFrame.LookVector.X, 0, hrp.CFrame.LookVector.Z)
+		dog.look = dog.look:Lerp(ownerLook.Unit, math.min(1, dt * 3))
+	end
+	-- Пол под собакой
+	dogParams.FilterDescendantsInstances = { model, dog.folder }
+	local hit = workspace:Raycast(Vector3.new(dog.pos.X, hrp.Position.Y + 2, dog.pos.Z), Vector3.new(0, -12, 0), dogParams)
+	local ground = hit and hit.Position.Y or (hrp.Position.Y - 3)
+	dog.pos = Vector3.new(dog.pos.X, ground, dog.pos.Z)
+
+	local moving = speed > 1
+	dog.still = moving and 0 or dog.still + dt
+	local sitting = dog.still > 2.5
+	dog.phase += dt * (moving and math.clamp(speed, 4, 20) * 1.1 or 0)
+
+	local look = Vector3.new(dog.look.X, 0, dog.look.Z)
+	if look.Magnitude < 0.01 then
+		look = Vector3.new(0, 0, -1)
+	end
+	local bob = moving and math.abs(math.sin(dog.phase)) * 0.15 or 0
+	local root = CFrame.lookAt(dog.pos, dog.pos + look.Unit) * CFrame.new(0, 1.15 + bob, 0)
+	-- Сидит: корпус наклонён назад
+	local bodyCF = sitting and (root * CFrame.new(0, -0.25, 0.2) * CFrame.Angles(math.rad(25), 0, 0)) or root
+	dog.body.CFrame = bodyCF
+	local headCF = bodyCF * CFrame.new(0, 0.55, -1.15) * CFrame.Angles(math.rad(sitting and -20 or 0) + math.sin(now * 2) * 0.05, math.sin(now * 0.7) * 0.25, 0)
+	dog.head.CFrame = headCF
+	dog.snout.CFrame = headCF * CFrame.new(0, -0.15, -0.6)
+	dog.nose.CFrame = headCF * CFrame.new(0, -0.05, -0.85)
+	dog.eyeL.CFrame = headCF * CFrame.new(-0.22, 0.15, -0.46)
+	dog.eyeR.CFrame = headCF * CFrame.new(0.22, 0.15, -0.46)
+	local earFlap = math.sin(dog.phase * 2) * (moving and 0.25 or 0.05)
+	dog.earL.CFrame = headCF * CFrame.new(-0.4, 0.2, 0.05) * CFrame.Angles(0, 0, math.rad(20) + earFlap)
+	dog.earR.CFrame = headCF * CFrame.new(0.4, 0.2, 0.05) * CFrame.Angles(0, 0, -math.rad(20) - earFlap)
+	-- Хвост виляет, на ходу быстрее
+	local wag = math.sin(now * (moving and 18 or 10)) * 0.6
+	dog.tail.CFrame = bodyCF * CFrame.new(0, 0.35, 1.05) * CFrame.Angles(math.rad(35), wag, 0) * CFrame.new(0, 0, 0.4)
+	-- Лапы шагают
+	local legOffsets = { Vector3.new(-0.35, -0.55, -0.7), Vector3.new(0.35, -0.55, -0.7), Vector3.new(-0.35, -0.55, 0.7), Vector3.new(0.35, -0.55, 0.7) }
+	for i = 1, 4 do
+		local swing = moving and math.sin(dog.phase + (i % 2 == 0 and math.pi or 0) + (i > 2 and math.pi or 0)) * 0.6 or 0
+		local legRoot = (sitting and i > 2) and root or bodyCF
+		dog.legs[i].CFrame = legRoot * CFrame.new(legOffsets[i] + Vector3.new(0, 0.2, 0)) * CFrame.Angles(swing, 0, 0) * CFrame.new(0, -0.35, 0)
+	end
+	-- Гав!
+	if now > dog.nextBark then
+		dog.nextBark = now + math.random(12, 35)
+		showBubble(dog.head, "Гав!", 1.2)
+	end
+end
+
+RunService.RenderStepped:Connect(function(dt)
+	local now = os.clock()
+	for _, model in CollectionService:GetTagged(Config.Tag) do
+		if model:GetAttribute("DogColor") and not dogs[model] and model:FindFirstChild("HumanoidRootPart") then
+			createDog(model)
+		end
+	end
+	for model, dog in pairs(dogs) do
+		local humanoid = model:FindFirstChildOfClass("Humanoid")
+		if not model.Parent or not humanoid or humanoid.Health <= 0 then
+			destroyDog(model)
+		else
+			updateDog(model, dog, dt, now)
+		end
+	end
+	-- Вещи для заданий вращаются, показываем расстояние
+	local character = player.Character
+	local myRoot = character and character:FindFirstChild("HumanoidRootPart")
+	for item, entry in pairs(questItems) do
+		item.CFrame = entry.base * CFrame.new(0, math.sin(now * 3) * 0.2, 0) * CFrame.Angles(0, now * 2, 0)
+		if myRoot then
+			entry.distance.Text = string.format("%d м", math.floor((item.Position - myRoot.Position).Magnitude))
+		end
+	end
+end)
+
 dialogRemote.OnClientEvent:Connect(function(action, model, a, b, c)
+	if action == "Toast" then
+		showToast(model)
+		return
+	elseif action == "Title" and model == currentNpc then
+		nameLabel.Text = a
+		return
+	end
 	if action == "Open" then
 		openDialog(model, a, b, c)
 	elseif action == "Answer" and model == currentNpc then
 		typeText(a)
+		if type(b) == "table" then
+			setTopics(model, b)
+		end
 	elseif action == "Close" and model == currentNpc then
 		closeDialog()
 	end

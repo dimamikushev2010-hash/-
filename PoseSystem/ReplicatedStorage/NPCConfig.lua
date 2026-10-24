@@ -113,6 +113,16 @@ NPCConfig.Phrases = {
 	KnownGreet = { "О, %s! Рад снова видеть!", "%s, привет-привет!", "А, это ты, %s!" },
 	FollowStart = { "Пошли!", "Веди!", "Ладно, иду за тобой." },
 	FollowEnd = { "Ладно, пока!", "Было весело!", "Я пойду по делам." },
+	-- Работа
+	Work = { "Заходите!", "Свежие булочки!", "Чем могу помочь?", "Лучшие цены в городе!", "Хорошего дня!" },
+	Patrol = { "Всё спокойно.", "Порядок.", "Так, проверим...", "Никаких нарушений." },
+	-- Задания (%s — название вещи)
+	QuestAsk = { "Ох, я потерял(а) %s! Поможешь найти?", "Слушай, я где-то оставил(а) %s. Найдёшь?" },
+	QuestWaiting = { "Ну что, нашёл?", "Ищи, ищи, я жду!", "Я отметил(а), где видел(а) в последний раз!" },
+	QuestThanks = { "Ура, спасибо огромное!", "Ты лучший! Держи награду!", "Спасибо, выручил(а)!" },
+	-- Дружба (%s — имя игрока)
+	Friend = { "О, мой друг %s!", "%s! Как же я рад тебя видеть!", "Привет, дружище %s!" },
+	Gift = { "Мы теперь друзья! Держи подарок!", "Это тебе, друг!" },
 }
 
 -- Диалоги жителей между собой: пары реплик (A, B, A, B...)
@@ -133,6 +143,49 @@ NPCConfig.PlayerTopics = {
 	{ Text = "Станцуем?", Answers = { "Давай!", "Только недолго!", "Ну смотри!" }, Emote = "Dance" },
 	{ Text = "Пойдём со мной!", Answers = { "Пошли!", "Веди!", "Ладно, иду за тобой." }, Emote = "Cheer", Follow = true },
 }
+
+-- Задания: житель теряет вещь, игрок находит и приносит
+NPCConfig.QuestChance = 0.35 -- шанс, что у жителя есть задание (❗ над головой)
+NPCConfig.QuestCooldown = 90 -- через сколько секунд после выполнения может появиться новое
+NPCConfig.QuestTime = 180 -- сколько секунд даётся на поиски
+NPCConfig.QuestMinDistance = 35 -- вещь лежит не ближе этого
+NPCConfig.QuestReward = { Min = 15, Max = 40 }
+NPCConfig.QuestTopic = "Тебе нужна помощь?"
+NPCConfig.QuestReturnTopic = "Вот, держи %s!"
+NPCConfig.QuestItems = {
+	{ Name = "ключи", Icon = "🔑", Color = Color3.fromRGB(255, 210, 60) },
+	{ Name = "кошелёк", Icon = "👛", Color = Color3.fromRGB(200, 80, 160) },
+	{ Name = "телефон", Icon = "📱", Color = Color3.fromRGB(40, 40, 50) },
+	{ Name = "шапку", Icon = "🧢", Color = Color3.fromRGB(60, 120, 220) },
+	{ Name = "книгу", Icon = "📕", Color = Color3.fromRGB(200, 50, 50) },
+	{ Name = "мячик", Icon = "⚽", Color = Color3.fromRGB(245, 245, 245) },
+}
+
+-- Монеты (показываются в таблице игроков)
+NPCConfig.CurrencyName = "Монеты"
+
+-- Дружба: очки за разговоры (+1, не чаще раза в минуту) и задания (+5)
+NPCConfig.FriendLevels = {
+	{ Points = 0, Name = "Незнакомец", Icon = "" },
+	{ Points = 1, Name = "Знакомый", Icon = "" },
+	{ Points = 4, Name = "Приятель", Icon = "🙂" },
+	{ Points = 8, Name = "Друг", Icon = "❤️" },
+}
+NPCConfig.FriendGift = 20 -- монет в подарок, когда становитесь друзьями
+
+-- Работа: точки Activity = "Work" (прилавок) и маршруты Activity = "Patrol"
+NPCConfig.WorkShift = NumberRange.new(40, 80) -- сколько секунд работает до перерыва
+NPCConfig.PatrolPause = NumberRange.new(2, 4) -- остановка на каждой точке маршрута
+NPCConfig.DefaultWorkRole = "Продавец"
+NPCConfig.DefaultPatrolRole = "Охранник"
+
+-- Собаки и вещи в руках
+NPCConfig.DogChance = 0.25
+NPCConfig.DogColors = {
+	Color3.fromRGB(150, 100, 60), Color3.fromRGB(230, 220, 200), Color3.fromRGB(40, 35, 30),
+	Color3.fromRGB(210, 160, 90), Color3.fromRGB(120, 120, 125),
+}
+NPCConfig.PropChance = 0.45 -- шанс, что у жителя что-то в руках (кофе, телефон, мороженое, сумка)
 NPCConfig.PlayerGreeting = { "Привет! Чем могу помочь?", "О, здравствуй!", "Да-да?", "Привет-привет!" }
 NPCConfig.PlayerBye = { "Пока!", "Удачи!", "Заходи ещё!", "До встречи!" }
 NPCConfig.TalkPromptText = "Поговорить"
@@ -165,6 +218,8 @@ NPCConfig.Moods = {
 	Angry = "😠",
 	Wow = "😮",
 	Laugh = "😂",
+	Quest = "❗",
+	Happy = "❤️",
 }
 
 -- Двери
