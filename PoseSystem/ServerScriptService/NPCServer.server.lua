@@ -2247,6 +2247,91 @@ workspace:GetAttributeChangedSignal("Weather"):Connect(function()
 	end
 end)
 
+---------------------------------------------------------------------
+-- Телефон: знакомые жители пишут сообщения
+---------------------------------------------------------------------
+
+local function npcByName(name: string)
+	for _, npc in pairs(npcs) do
+		if npc.name == name and npc.alive then
+			return npc
+		end
+	end
+	return nil
+end
+
+-- Знакомые игрока (по памяти жителей)
+Registry.friendsOf = function(player: Player)
+	local list = {}
+	for name, known in pairs(memory) do
+		local pts = known[player.UserId]
+		if pts and pts > 0 then
+			local level = friendLevel(pts)
+			table.insert(list, { name = name, level = level.Name, icon = level.Icon, points = pts, online = npcByName(name) ~= nil })
+		end
+	end
+	table.sort(list, function(a, b)
+		return a.points > b.points
+	end)
+	return list
+end
+
+local chatCooldown = {} -- [player][name] = время
+Registry.phoneReply = function(player: Player, name: any, replyIndex: any)
+	if type(name) ~= "string" or type(replyIndex) ~= "number" then
+		return
+	end
+	local reply = Config.Phone.Replies[replyIndex]
+	local known = memory[name] and memory[name][player.UserId]
+	if not reply or not known then
+		return
+	end
+	local phone = ReplicatedStorage:FindFirstChild("PhoneRemote")
+	task.spawn(function()
+		task.wait(rng:NextNumber(0.6, 1.2))
+		if phone and player.Parent then
+			phone:FireClient(player, "Typing", name)
+		end
+		task.wait(rng:NextNumber(1.2, 2.6))
+		if phone and player.Parent then
+			phone:FireClient(player, "Message", { from = name, text = pick(reply.Answers) })
+		end
+		local now = os.clock()
+		chatCooldown[player] = chatCooldown[player] or {}
+		if now >= (chatCooldown[player][name] or 0) then
+			chatCooldown[player][name] = now + 120
+			local npc = npcByName(name)
+			if npc then
+				addFriendship(npc, player, Config.Phone.FriendPointsPerChat or 1)
+			end
+		end
+	end)
+end
+
+-- Иногда кто-то из знакомых пишет сам
+task.spawn(function()
+	while true do
+		task.wait(rng:NextNumber(Config.Phone.MessageEvery.Min, Config.Phone.MessageEvery.Max))
+		local phone = ReplicatedStorage:FindFirstChild("PhoneRemote")
+		for _, player in Players:GetPlayers() do
+			local friends = Registry.friendsOf(player)
+			if phone and #friends > 0 and rng:NextNumber() < 0.7 then
+				local friend = friends[rng:NextInteger(1, math.min(#friends, 4))]
+				phone:FireClient(player, "Typing", friend.name)
+				task.delay(rng:NextNumber(1.5, 3), function()
+					if player.Parent then
+						phone:FireClient(player, "Message", { from = friend.name, text = pick(Config.Phone.Messages) })
+					end
+				end)
+			end
+		end
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	chatCooldown[player] = nil
+end)
+
 -- API для транспорта
 Registry.walkTo = function(npc, position: Vector3): boolean
 	npc.externalWalking = true

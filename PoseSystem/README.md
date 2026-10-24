@@ -196,6 +196,26 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 - **Машины** в дождь и туман едут медленнее и включают фары.
 - **Звуки:** `SoundConfig.Weather` — `Rain` (зацикленный дождь), `Thunder` (гром), `Wind` (зацикленный ветер).
 
+## Телефон 📱
+
+Клавиша **P** или кнопка 📱 слева внизу. Телефон выезжает справа, на нём — экран блокировки (время, день, погода, последние уведомления). Нажми на экран — откроется рабочий стол.
+
+| Приложение | Что делает |
+|---|---|
+| 🗺 Карта | Дороги города, ты (со стрелкой взгляда), автобус, такси, полиция (мигает с сиреной), остановки, участок, места |
+| 🚕 Такси | Выбери место — свободное такси приедет к тебе. Подойди к нему за 60 секунд, оно отвезёт за `TaxiPrice` монет |
+| 🚔 Полиция | Заявление в 102: что случилось → где. Ниже — твои заявления с живым статусом |
+| 🚌 Автобус | Маршрут по остановкам: где автобус сейчас и куда едет |
+| 💬 Сообщения | Знакомые жители сами пишут тебе (`NPCConfig.Phone`). Отвечай быстрыми ответами — растёт дружба |
+| ☀️ Погода | Погода сейчас: дождь, облака, туман и совет |
+| 📋 Задания | Текущее задание, монеты, друзья |
+| ⚙️ Настройки | Обои, часы на экране, капли дождя, звуки телефона |
+
+- Новые сообщения и статусы приходят уведомлениями: сверху экрана телефона или рядом с кнопкой 📱 (с красным счётчиком).
+- Полоска внизу экрана — «домой», стрелка ‹ — назад.
+- Звуки: `SoundConfig.Phone` — `Notify`, `Tap`, `Unlock`, `Send`.
+- Файлы: `PhoneServer` (Script, ServerScriptService), `PhoneClient` (LocalScript, StarterPlayerScripts).
+
 ## Все клавиши
 
 | Клавиша | Способность |
@@ -206,6 +226,7 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 | F | Полёт |
 | T | Куб |
 | E | Поговорить с жителем / открыть дверь / такси / автобус |
+| P | Телефон |
 
 ## Все файлы
 
@@ -213,8 +234,8 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 |---|---|---|
 | ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `NPCConfig`, `VehicleConfig`, `SoundConfig`, `WeatherConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
 | ServerScriptService | ModuleScript | `AbilityRegistry`, `NPCRegistry`, `VehicleDefaults` |
-| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCServer`, `NPCDoors`, `NPCDemo`, `DayNightServer`, `TrafficServer`, `WeatherServer` |
-| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient`, `VehicleClient`, `PoliceDeskClient`, `WeatherClient` |
+| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCServer`, `NPCDoors`, `NPCDemo`, `DayNightServer`, `TrafficServer`, `WeatherServer`, `PhoneServer` |
+| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient`, `VehicleClient`, `PoliceDeskClient`, `WeatherClient`, `PhoneClient` |
 
 - `RigAnimator` — общий движок анимаций способностей. Он смешивает анимации разных способностей и не мешает системе поз.
 - `AbilityFx` — частицы, пыль и тряска камеры.

@@ -57,6 +57,14 @@ SoundConfig.Weather = {
 	Wind = { Id = "", Volume = 0.3 }, -- зацикленный ветер (в грозу и туман)
 }
 
+-- Телефон
+SoundConfig.Phone = {
+	Notify = { Id = "", Volume = 0.5 }, -- новое сообщение / уведомление
+	Tap = { Id = "rbxasset://sounds/clickfast.wav", Volume = 0.25 }, -- нажатие
+	Unlock = { Id = "", Volume = 0.4 }, -- разблокировка
+	Send = { Id = "", Volume = 0.4 }, -- отправка сообщения
+}
+
 -- Голоса жителей: у каждого своя высота (случайная в этом диапазоне).
 -- Для живого голоса диапазон небольшой: 0.9–1.15 звучит естественно.
 SoundConfig.VoicePitch = NumberRange.new(0.9, 1.15)

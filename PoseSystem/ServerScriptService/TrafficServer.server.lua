@@ -1570,8 +1570,11 @@ local function busLoop()
 	while bus and bus.model.Parent do
 		for _, stop in busStops do
 			bus.atTerminal = false
+			bus.model:SetAttribute("NextStop", stop.name)
+			bus.model:SetAttribute("AtStop", "")
 			drive(bus, { node = stop.node, curb = true })
 			bus.atStop = stop
+			bus.model:SetAttribute("AtStop", stop.name)
 			bus.model:SetAttribute("BusDoors", true)
 			for name in pairs(bus.doors) do
 				setDoor(bus, name, true)
@@ -1585,12 +1588,15 @@ local function busLoop()
 			end
 			task.wait(1)
 			bus.atStop = nil
+			bus.model:SetAttribute("AtStop", "")
 		end
 		-- Конечная: на стоянку автобуса, отдых
+		bus.model:SetAttribute("NextStop", "Конечная")
 		if bus.homeSpot then
 			drive(bus, { spot = bus.homeSpot })
 		end
 		bus.atTerminal = true
+		bus.model:SetAttribute("AtStop", "Конечная")
 		task.wait(Config.BusLoopPause)
 	end
 end
@@ -1661,6 +1667,10 @@ local function setTicket(ticket, status: string, done: boolean?)
 	local player = ticket.player
 	if player and player.Parent then
 		policeRemote:FireClient(player, "Tickets", ticketList(player))
+		local phone = ReplicatedStorage:FindFirstChild("PhoneRemote")
+		if phone then
+			phone:FireClient(player, "Tickets", ticketList(player))
+		end
 		toast(player, string.format("🚔 Заявление №%d: %s", ticket.id, status))
 	end
 end
@@ -2019,6 +2029,50 @@ local function openDesk(player: Player)
 	})
 end
 
+-- Новое заявление (от дежурного или с телефона). Возвращает ответ дежурного.
+local function createReport(player: Player, typeIndex: any, placeIndex: any): string?
+	local kind = type(typeIndex) == "number" and Config.PoliceCallTypes[typeIndex] or nil
+	local place = type(placeIndex) == "number" and places[placeIndex] or nil
+	if not kind or not place then
+		return nil
+	end
+	local now = os.clock()
+	local active = 0
+	for _, t in tickets[player] or {} do
+		if not t.done then
+			active += 1
+		end
+	end
+	if now < (reportCooldown[player] or 0) or active >= 3 then
+		return "Подождите, мы ещё работаем по вашим заявлениям."
+	end
+	reportCooldown[player] = now + 15
+	nextTicket += 1
+	local ticket = { id = nextTicket, icon = kind.Icon, kind = kind.Name, place = place.name, status = "Принято", player = player }
+	tickets[player] = tickets[player] or {}
+	table.insert(tickets[player], 1, ticket)
+	if #tickets[player] > 6 then
+		table.remove(tickets[player])
+	end
+	local call = callAt(place.pos)
+	call.kind = kind
+	call.ticket = ticket
+	-- Заявления игроков — вперёд очереди
+	table.insert(callQueue, 1, call)
+	local free = false
+	for _, car in cars do
+		if car.kind == "Police" and car.state == "parked" then
+			free = true
+		end
+	end
+	policeRemote:FireClient(player, "Tickets", ticketList(player))
+	local phone = ReplicatedStorage:FindFirstChild("PhoneRemote")
+	if phone then
+		phone:FireClient(player, "Tickets", ticketList(player))
+	end
+	return string.format("%s Номер заявления: %d.", pick(free and Config.ReportAccepted or Config.ReportBusy), ticket.id)
+end
+
 policeRemote.OnServerEvent:Connect(function(player: Player, action: any, a: any, b: any)
 	if not duty or not duty.alive then
 		return
@@ -2028,44 +2082,12 @@ policeRemote.OnServerEvent:Connect(function(player: Player, action: any, a: any,
 	if not root or (root.Position - duty.hrp.Position).Magnitude > 20 then
 		return
 	end
-	if action == "Report" and type(a) == "number" and type(b) == "number" then
-		local kind, place = Config.PoliceCallTypes[a], places[b]
-		if not kind or not place then
-			return
+	if action == "Report" then
+		local answer = createReport(player, a, b)
+		if answer then
+			dutyAnswer(player, answer)
+			Registry.emote(duty, "Point")
 		end
-		local now = os.clock()
-		local active = 0
-		for _, t in tickets[player] or {} do
-			if not t.done then
-				active += 1
-			end
-		end
-		if now < (reportCooldown[player] or 0) or active >= 3 then
-			dutyAnswer(player, "Подождите, мы ещё работаем по вашим заявлениям.")
-			return
-		end
-		reportCooldown[player] = now + 15
-		nextTicket += 1
-		local ticket = { id = nextTicket, icon = kind.Icon, kind = kind.Name, place = place.name, status = "Принято", player = player }
-		tickets[player] = tickets[player] or {}
-		table.insert(tickets[player], 1, ticket)
-		if #tickets[player] > 6 then
-			table.remove(tickets[player])
-		end
-		local call = callAt(place.pos)
-		call.kind = kind
-		call.ticket = ticket
-		-- Заявления игроков — вперёд очереди
-		table.insert(callQueue, 1, call)
-		local free = false
-		for _, car in cars do
-			if car.kind == "Police" and car.state == "parked" then
-				free = true
-			end
-		end
-		dutyAnswer(player, string.format("%s Номер заявления: %d.", pick(free and Config.ReportAccepted or Config.ReportBusy), ticket.id))
-		Registry.emote(duty, "Point")
-		policeRemote:FireClient(player, "Tickets", ticketList(player))
 	elseif action == "Ask" and type(a) == "number" then
 		local q = Config.DutyQuestions[a]
 		if not q then
@@ -2416,4 +2438,121 @@ end
 
 for _, npc in pairs(Registry.npcs) do
 	Registry.assignCar(npc)
+end
+
+---------------------------------------------------------------------
+-- Телефон игрока (PhoneServer вызывает эти функции)
+---------------------------------------------------------------------
+
+local function phoneSend(player: Player, action: string, payload)
+	local phone = ReplicatedStorage:FindFirstChild("PhoneRemote")
+	if phone and player.Parent then
+		phone:FireClient(player, action, payload)
+	end
+end
+
+function Registry.phoneData(player: Player)
+	local placeNames, types, stops = {}, {}, {}
+	for i, place in places do
+		placeNames[i] = place.name
+	end
+	for i, k in Config.PoliceCallTypes do
+		types[i] = { name = k.Name, icon = k.Icon }
+	end
+	for i, stop in busStops do
+		stops[i] = stop.name
+	end
+	return {
+		places = placeNames,
+		policeTypes = types,
+		tickets = ticketList(player),
+		taxiPrice = Config.TaxiPrice,
+		busStops = stops,
+	}
+end
+
+function Registry.phoneReport(player: Player, typeIndex: any, placeIndex: any)
+	local answer = createReport(player, typeIndex, placeIndex)
+	if answer then
+		phoneSend(player, "PoliceAnswer", answer)
+	end
+end
+
+-- Такси по телефону: приезжает к игроку, ждёт, везёт, берёт плату
+local phoneTaxiBusy = {}
+function Registry.phoneTaxi(player: Player, placeIndex: any)
+	local place = type(placeIndex) == "number" and places[placeIndex] or nil
+	local wallet = coins(player)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local function status(text: string, done: boolean?)
+		phoneSend(player, "Taxi", { text = text, done = done == true })
+	end
+	if not place or not root or phoneTaxiBusy[player] or playerTaxiBusy[player] then
+		return
+	end
+	if not wallet or wallet.Value < Config.TaxiPrice then
+		status("Не хватает монет 🪙 (нужно " .. Config.TaxiPrice .. ")", true)
+		return
+	end
+	local taxi = freeTaxi()
+	if not taxi then
+		status("Все такси заняты, попробуйте позже", true)
+		return
+	end
+	phoneTaxiBusy[player] = true
+	taxi.state = "busy"
+	taxi.model:SetAttribute("TaxiBusy", true)
+	taxi.model:SetAttribute("CalledBy", player.UserId)
+	if taxi.prompt then
+		taxi.prompt.Enabled = false
+	end
+	status("🚕 Такси едет к вам...")
+	local ok = drive(taxi, { node = nearestNode(root.Position), curb = 5 })
+	local function finish()
+		phoneTaxiBusy[player] = nil
+		taxi.model:SetAttribute("CalledBy", nil)
+		taxiReturn(taxi)
+		if taxi.prompt then
+			taxi.prompt.Enabled = true
+		end
+	end
+	if not ok then
+		status("Такси не смогло проехать 😕", true)
+		finish()
+		return
+	end
+	status("🚕 Такси ждёт вас! Подойдите к машине")
+	honk(taxi)
+	-- Ждём игрока минуту
+	local deadline = os.clock() + 60
+	local near = false
+	while os.clock() < deadline and player.Parent do
+		local c = player.Character
+		local r = c and c:FindFirstChild("HumanoidRootPart")
+		if r and (r.Position - taxi.pos).Magnitude < 12 then
+			near = true
+			break
+		end
+		task.wait(0.5)
+	end
+	if not near then
+		status("Такси уехало: вы не пришли", true)
+		finish()
+		return
+	end
+	local seat = freeSeat(taxi)
+	if not seat or not wallet.Parent or wallet.Value < Config.TaxiPrice then
+		status("Не получилось сесть", true)
+		finish()
+		return
+	end
+	wallet.Value -= Config.TaxiPrice
+	seatPlayer(player, taxi, seat)
+	status("🚕 Едем: " .. place.name)
+	task.wait(0.8)
+	drive(taxi, { node = nearestNode(place.pos), curb = 5 })
+	unseatPlayer(player, taxi, 1)
+	status("Приехали! -" .. Config.TaxiPrice .. " 🪙", true)
+	finish()
 end

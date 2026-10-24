@@ -216,7 +216,9 @@ RunService.RenderStepped:Connect(function(dt)
 	-- Облако капель над камерой, чуть впереди по ходу взгляда
 	local ahead = camera.CFrame.LookVector * Vector3.new(1, 0, 1) * 20
 	rainPart.CFrame = CFrame.new(camPos + ahead + Vector3.new(0, 45, 0))
-	rain.Rate = indoors and 0 or Config.RainDrops * intensity
+	-- Капли можно выключить в телефоне (⚙️ Настройки → «Капли дождя»)
+	local effects = player:GetAttribute("RainEffects") ~= false
+	rain.Rate = (indoors or not effects) and 0 or Config.RainDrops * intensity
 
 	local ignore = { camera }
 	if player.Character then
@@ -227,7 +229,7 @@ RunService.RenderStepped:Connect(function(dt)
 	if ground then
 		splashPart.CFrame = CFrame.new(ground.Position + Vector3.new(0, 0.1, 0))
 	end
-	splash.Rate = (indoors or not ground) and 0 or 160 * intensity
+	splash.Rate = (indoors or not ground or not effects) and 0 or 160 * intensity
 
 	-- Звук: внутри тише
 	if rainSound then
