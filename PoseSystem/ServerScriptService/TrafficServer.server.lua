@@ -231,41 +231,72 @@ local function startNode(position: Vector3, look: Vector3): string
 	return best
 end
 
--- Кратчайший путь по точкам (Дейкстра)
-local function route(from: string, to: string): { string }?
+-- Где можно развернуться: точка с Turnaround = true или тупик
+local function canTurnAround(name: string): boolean
+	local node = nodes[name]
+	return node.part:GetAttribute("Turnaround") == true or linkCount(node) <= 1
+end
+
+-- Откуда машина подъехала к точке (сосед «за спиной»)
+local function behindNode(from: string, look: Vector3): string?
+	local forward = flat(look).Magnitude > 0.1 and flat(look).Unit or Vector3.new(0, 0, -1)
+	local best, bestDot = nil, -0.3
+	for nb in pairs(nodes[from].links) do
+		local dir = flat(nodes[nb].pos - nodes[from].pos)
+		if dir.Magnitude > 0.1 then
+			local d = dir.Unit:Dot(forward)
+			if d < bestDot then
+				best, bestDot = nb, d
+			end
+		end
+	end
+	return best
+end
+
+-- Кратчайший путь по точкам (Дейкстра) без разворотов посреди дороги:
+-- вернуться в точку, из которой приехал, можно только там, где разрешён разворот
+local function route(from: string, to: string, prev: string?, allowUTurns: boolean?): { string }?
 	if from == to then
 		return { from }
 	end
-	local dist, prev, done = { [from] = 0 }, {}, {}
+	local function key(n: string, p: string?)
+		return n .. "|" .. (p or "")
+	end
+	local startKey = key(from, prev)
+	local dist, state, back, done = { [startKey] = 0 }, { [startKey] = { node = from, prev = prev } }, {}, {}
 	while true do
-		local best, bestD = nil, math.huge
-		for name, d in pairs(dist) do
-			if not done[name] and d < bestD then
-				best, bestD = name, d
+		local bestKey, bestD = nil, math.huge
+		for k, d in pairs(dist) do
+			if not done[k] and d < bestD then
+				bestKey, bestD = k, d
 			end
 		end
-		if not best then
+		if not bestKey then
 			return nil
 		end
-		if best == to then
-			break
+		local st = state[bestKey]
+		if st.node == to then
+			local path = {}
+			local k = bestKey
+			while k do
+				table.insert(path, 1, state[k].node)
+				k = back[k]
+			end
+			return path
 		end
-		done[best] = true
-		for nb in pairs(nodes[best].links) do
-			local nd = bestD + (nodes[nb].pos - nodes[best].pos).Magnitude
-			if nd < (dist[nb] or math.huge) then
-				dist[nb] = nd
-				prev[nb] = best
+		done[bestKey] = true
+		for nb in pairs(nodes[st.node].links) do
+			if allowUTurns or nb ~= st.prev or canTurnAround(st.node) then
+				local nk = key(nb, st.node)
+				local nd = bestD + (nodes[nb].pos - nodes[st.node].pos).Magnitude
+				if nd < (dist[nk] or math.huge) then
+					dist[nk] = nd
+					state[nk] = { node = nb, prev = st.node }
+					back[nk] = bestKey
+				end
 			end
 		end
 	end
-	local path = { to }
-	local cur = to
-	while prev[cur] do
-		cur = prev[cur]
-		table.insert(path, 1, cur)
-	end
-	return path
 end
 
 ---------------------------------------------------------------------
@@ -635,20 +666,6 @@ if #places == 0 then
 	end
 end
 
-local function zonePoints(zone: string?): { BasePart }
-	local list = {}
-	local npcFolder = workspace:FindFirstChild(NPCConfig.FolderName)
-	local pointsFolder = npcFolder and npcFolder:FindFirstChild("Points")
-	if zone and pointsFolder then
-		for _, p in pointsFolder:GetDescendants() do
-			if p:IsA("BasePart") and p:GetAttribute("Zone") == zone and not p:IsA("Seat") then
-				table.insert(list, p)
-			end
-		end
-	end
-	return list
-end
-
 ---------------------------------------------------------------------
 -- Машины: сборка из шаблона
 ---------------------------------------------------------------------
@@ -1016,7 +1033,13 @@ end
 local function drive(car, spec): boolean
 	local fromNode = startNode(car.pos, car.look)
 	local toNode = spec.spot and nearestNode(spec.spot.pos) or spec.node
-	local path = fromNode and toNode and route(fromNode, toNode)
+	local path = fromNode and toNode and route(fromNode, toNode, behindNode(fromNode, car.look))
+	if not path and fromNode and toNode and Config.AllowUTurnFallback then
+		path = route(fromNode, toNode, nil, true)
+		if path then
+			warn("[Traffic] Без разворота не доехать от", fromNode, "до", toNode, "— добавь кольцо или точку с Turnaround = true")
+		end
+	end
 	if not path then
 		warn("[Traffic] Нет пути от", fromNode, "до", toNode, "— проверь атрибуты Links у точек дороги")
 		return false
@@ -1570,14 +1593,90 @@ end
 -- Полиция
 ---------------------------------------------------------------------
 
-local function spawnOfficer(car, index: number)
+local policeRemote = ReplicatedStorage:FindFirstChild("PoliceRemote") or Instance.new("RemoteEvent")
+policeRemote.Name = "PoliceRemote"
+policeRemote.Parent = ReplicatedStorage
+
+-- Участок: стойка дежурного, места ожидания, камера
+local station = { desk = nil, idle = {}, cell = nil }
+local stationFolder = folder("PoliceStation")
+if stationFolder then
+	for _, p in stationFolder:GetDescendants() do
+		if p:IsA("BasePart") then
+			if string.find(p.Name, "^Desk") then
+				station.desk = p
+			elseif string.find(p.Name, "^Cell") then
+				station.cell = p
+			elseif string.find(p.Name, "^Idle") then
+				table.insert(station.idle, p)
+			end
+			hideMarker(p)
+		end
+	end
+end
+
+local function onFloor(part: BasePart): Vector3
+	return Vector3.new(part.Position.X, groundY(part.Position), part.Position.Z)
+end
+
+local function standCFrame(position: Vector3, look: Vector3): CFrame
+	local p = position + Vector3.new(0, 3, 0)
+	local l = flat(look).Magnitude > 0.1 and flat(look).Unit or Vector3.new(0, 0, -1)
+	return CFrame.lookAt(p, p + l)
+end
+
+local callQueue = {} -- вызовы по очереди
+local nextTicket = 0
+local tickets = {} -- [player] = { заявления }
+local recentEvents = {} -- для «Что нового в городе?»
+local jailed = {} -- [npc] = true
+
+local function addEvent(text: string)
+	table.insert(recentEvents, 1, text)
+	if #recentEvents > 4 then
+		table.remove(recentEvents)
+	end
+end
+
+local function ticketList(player: Player)
+	local out = {}
+	for _, t in tickets[player] or {} do
+		table.insert(out, { id = t.id, icon = t.icon, kind = t.kind, place = t.place, status = t.status, done = t.done })
+	end
+	return out
+end
+
+local function setTicket(ticket, status: string, done: boolean?)
+	if not ticket then
+		return
+	end
+	ticket.status = status
+	ticket.done = done == true
+	local player = ticket.player
+	if player and player.Parent then
+		policeRemote:FireClient(player, "Tickets", ticketList(player))
+		toast(player, string.format("🚔 Заявление №%d: %s", ticket.id, status))
+	end
+end
+
+-- Точка вызова для места: ближайший вход в здание (PoliceCalls) или само место
+local function callAt(position: Vector3)
+	local best, bestDist = nil, 45
+	for _, c in policeCalls do
+		local d = (c.pos - position).Magnitude
+		if d < bestDist then
+			best, bestDist = c, d
+		end
+	end
+	return best and { pos = best.pos, zone = best.zone } or { pos = position, zone = nil }
+end
+
+local function spawnOfficer(at: CFrame, title: string?)
 	if not Registry.spawnCustom then
 		return nil
 	end
-	local seat = index == 1 and car.driverSeat or car.seats[1]
-	local pos = doorSide(car, seat or car.body, nil)
-	local officer = Registry.spawnCustom(CFrame.lookAt(pos + Vector3.new(0, 3, 0), pos + Vector3.new(0, 3, 0) + car.look), {
-		prefix = "Офицер",
+	local officer = Registry.spawnCustom(at, {
+		prefix = title or "Офицер",
 		shirt = Config.PoliceShirt,
 		pants = Config.PolicePants,
 		role = "Полиция",
@@ -1592,99 +1691,430 @@ local function spawnOfficer(car, index: number)
 	return officer
 end
 
-local function policeLoop(car)
+-- Офицеры в участке: стоят на местах, иногда переходят, болтают
+local function stationLife(officer)
+	while officer.alive do
+		if not officer.onDuty and #station.idle > 0 then
+			local spot = pick(station.idle)
+			if Registry.walkTo(officer, onFloor(spot)) and not officer.onDuty then
+				Registry.face(officer, spot.CFrame.LookVector)
+				if rng:NextNumber() < 0.2 then
+					Registry.say(officer, pick({ "Тихо сегодня.", "Кофе будешь?", "Ну и смена...", "Где мой рапорт?" }))
+				end
+			end
+		end
+		task.wait(rng:NextNumber(Config.StationWanderTime.Min, Config.StationWanderTime.Max))
+	end
+end
+
+local function newOfficer(car)
+	local at
+	if #station.idle > 0 then
+		local spot = pick(station.idle)
+		at = standCFrame(onFloor(spot), spot.CFrame.LookVector)
+	else
+		at = standCFrame(doorSide(car, car.driverSeat), car.look)
+	end
+	local officer = spawnOfficer(at)
+	if officer then
+		task.spawn(stationLife, officer)
+	end
+	return officer
+end
+
+-- Все садятся по местам; ждём, пока сядут или выйдет время
+local function boardAll(car, people)
+	local done = 0
+	for _, entry in people do
+		task.spawn(function()
+			local who, seat = entry.npc, entry.seat
+			if who and who.alive and seat and not who.inVehicle and Registry.walkTo(who, doorSide(car, seat)) then
+				seatNPC(who, car, seat)
+			end
+			done += 1
+		end)
+	end
+	local deadline = os.clock() + 40
+	while done < #people and os.clock() < deadline do
+		task.wait(0.3)
+	end
+end
+
+local function say(npc, text: string?)
+	if npc and npc.alive and text and text ~= "" then
+		Registry.say(npc, text)
+		task.wait(Config.QuestionGap + #text / 30)
+	end
+end
+
+-- Событие на месте вызова: опрос жителя, иногда задержание
+local function workCall(car, call, officers)
+	local o1, o2 = officers[1], officers[2] or officers[1]
+	local door = call.pos
+	local toRoad = flat(car.pos - door)
+	toRoad = toRoad.Magnitude > 0.5 and toRoad.Unit or Vector3.new(1, 0, 0)
+	local side = toRoad:Cross(Vector3.yAxis)
+
+	-- Встают у двери порознь, лицом к дому
+	local arrived = 0
+	for i, officer in officers do
+		task.spawn(function()
+			if officer and officer.alive then
+				local offset = (i == 1 and 1 or -1) * Config.OfficerSpacing
+				local spot = door + toRoad * 2.4 + side * offset
+				Registry.walkTo(officer, Vector3.new(spot.X, groundY(spot), spot.Z))
+				Registry.face(officer, -toRoad)
+			end
+			arrived += 1
+		end)
+	end
+	local deadline = os.clock() + 30
+	while arrived < #officers and os.clock() < deadline do
+		task.wait(0.3)
+	end
+
+	local kind = call.kind
+	local resident = Registry.findResident(call.zone, door, 60)
+	if resident and not Registry.claim(resident, "police") then
+		resident = nil
+	end
+	if not resident then
+		for _, line in Config.NobodyLines do
+			say(o1, line)
+		end
+		return "Никого не оказалось на месте", false
+	end
+
+	-- Житель выходит к офицерам
+	Registry.setMood(resident, "Police")
+	local meet = door + toRoad * 0.6
+	Registry.walkTo(resident, Vector3.new(meet.X, groundY(meet), meet.Z))
+	Registry.face(resident, toRoad)
+	Registry.emote(o1, "Wave")
+
+	local arrest = rng:NextNumber() < (kind.Arrest or 0) and kind.Suspect and kind.Suspect[1] ~= ""
+	local answers = arrest and kind.Suspect or kind.Resident
+	say(o1, kind.Officer[1])
+	say(resident, answers[1])
+	Registry.emote(o2, "Point")
+	say(o2, kind.Officer[2])
+	Registry.emote(resident, rng:NextNumber() < 0.5 and "Point" or "Wave")
+	say(resident, answers[2])
+
+	if not arrest then
+		say(o1, pick(Config.PoliceCloseLines))
+		say(resident, pick(Config.ResidentThanks))
+		Registry.release(resident)
+		return kind.Name .. ": разобрались на месте", false
+	end
+
+	-- Задержание: наручники, в машину, в участок
+	say(o1, pick(Config.ArrestLines))
+	resident.model:SetAttribute("Cuffed", true)
+	Registry.setMood(resident, "Cuffed")
+	say(resident, pick(Config.ArrestedLines))
+	local rear = car.seats[#car.seats] ~= car.seats[1] and car.seats[#car.seats] or car.seats[2]
+	if not rear then
+		Registry.release(resident)
+		return kind.Name .. ": некуда посадить задержанного", false
+	end
+	boardAll(car, { { npc = resident, seat = rear } })
+	return kind.Name .. ": задержан " .. resident.name, true, resident
+end
+
+local function handleCall(car, call)
+	car.state = "busy"
+	local ticket = call.ticket
+	-- Замена погибших офицеров
+	for i = 1, Config.PoliceOfficersPerCar do
+		local o = car.officers[i]
+		if not o or not o.alive then
+			car.officers[i] = newOfficer(car)
+		end
+	end
+	local officers = {}
+	for _, o in car.officers do
+		if o and o.alive then
+			o.onDuty = true
+			table.insert(officers, o)
+		end
+	end
+	-- Прерываем прогулку по участку
+	for _, o in officers do
+		o.abort = true
+	end
+	task.wait(0.4)
+	for _, o in officers do
+		o.abort = false
+	end
+	if #officers == 0 then
+		table.insert(callQueue, 1, call)
+		car.state = "parked"
+		task.wait(10)
+		return
+	end
+
+	-- Из участка — в машину
+	setTicket(ticket, "Наряд выезжает")
+	local seating = {}
+	for i, o in officers do
+		table.insert(seating, { npc = o, seat = i == 1 and car.driverSeat or car.seats[i - 1] })
+	end
+	boardAll(car, seating)
+
+	car.model:SetAttribute("Siren", true)
+	car.model:SetAttribute("SirenMuted", false)
+	setTicket(ticket, "Наряд в пути 🚨")
+	drive(car, { node = nearestNode(call.pos), curb = 5 })
+	car.model:SetAttribute("SirenMuted", true) -- мигалки горят, сирена молчит
+	setTicket(ticket, "Наряд на месте")
+
+	for _, o in officers do
+		task.spawn(unseatNPC, o)
+	end
+	task.wait(1.4)
+	local summary, arrested, suspect = workCall(car, call, officers)
+	addEvent(summary)
+
+	-- Обратно в машину и в участок
+	local back = {}
+	for i, o in officers do
+		table.insert(back, { npc = o, seat = i == 1 and car.driverSeat or car.seats[i - 1] })
+	end
+	boardAll(car, back)
+	car.model:SetAttribute("Siren", false)
+	car.model:SetAttribute("SirenMuted", false)
+	drive(car, { spot = car.homeSpot })
+
+	for _, o in officers do
+		task.spawn(unseatNPC, o)
+	end
+	if arrested and suspect and suspect.alive then
+		setTicket(ticket, "Задержанный доставлен в участок")
+		task.wait(1)
+		unseatNPC(suspect)
+		if station.cell then
+			-- Ведут в камеру и оформляют
+			task.spawn(function()
+				Registry.walkTo(officers[1], onFloor(station.cell) + station.cell.CFrame.LookVector * 2.5)
+			end)
+			Registry.walkTo(suspect, onFloor(station.cell))
+			Registry.face(suspect, station.cell.CFrame.LookVector)
+			say(officers[1], pick(Config.BookingLines))
+		end
+		jailed[suspect] = true
+		task.spawn(function()
+			local release = os.clock() + rng:NextNumber(Config.CellTime.Min, Config.CellTime.Max)
+			while suspect.alive and os.clock() < release do
+				task.wait(rng:NextNumber(12, 25))
+				if suspect.alive and os.clock() < release then
+					Registry.say(suspect, pick(Config.CellLines))
+				end
+			end
+			jailed[suspect] = nil
+			if suspect.alive then
+				Registry.say(suspect, "Наконец-то свобода!")
+				Registry.release(suspect)
+			end
+		end)
+	elseif arrested and suspect then
+		Registry.release(suspect)
+	end
+	setTicket(ticket, "Закрыто: " .. summary, true)
+	task.wait(2)
+	for _, o in officers do
+		o.onDuty = false
+	end
+	car.state = "parked"
+end
+
+local function policeCarLoop(car)
 	car.officers = {}
 	for i = 1, Config.PoliceOfficersPerCar do
-		car.officers[i] = spawnOfficer(car, i)
+		car.officers[i] = newOfficer(car)
 	end
 	while car.model.Parent do
+		local call = table.remove(callQueue, 1)
+		if call then
+			local ok, err = pcall(handleCall, car, call)
+			if not ok then
+				warn("[Traffic] Ошибка на вызове:", err)
+				for _, o in car.officers do
+					if o then
+						o.onDuty = false
+					end
+				end
+				car.state = "parked"
+			end
+		else
+			task.wait(1)
+		end
+	end
+end
+
+-- Случайные вызовы по городу
+local function dispatcher()
+	while true do
 		local waitTime = rng:NextNumber(Config.PoliceCallInterval.Min, Config.PoliceCallInterval.Max)
 		if isNight() then
 			waitTime *= Config.PoliceNightFactor
 		end
 		task.wait(waitTime)
-		if #policeCalls == 0 then
-			continue
+		if #policeCalls > 0 and #callQueue < 2 then
+			local c = pick(policeCalls)
+			table.insert(callQueue, { pos = c.pos, zone = c.zone, kind = pick(Config.PoliceCallTypes) })
 		end
-		-- Замена погибших офицеров
-		for i = 1, Config.PoliceOfficersPerCar do
-			local o = car.officers[i]
-			if not o or not o.alive then
-				car.officers[i] = spawnOfficer(car, i)
+	end
+end
+
+-- Дежурный и его меню
+local duty = nil
+local reportCooldown = {}
+
+local function dutyAnswer(player: Player, text: string)
+	if duty and duty.alive then
+		Registry.say(duty, text)
+	end
+	policeRemote:FireClient(player, "Say", text)
+end
+
+local function openDesk(player: Player)
+	if not duty or not duty.alive then
+		return
+	end
+	local types = {}
+	for i, k in Config.PoliceCallTypes do
+		types[i] = { name = k.Name, icon = k.Icon }
+	end
+	local placeNames = {}
+	for i, place in places do
+		placeNames[i] = place.name
+	end
+	local questions = {}
+	for i, q in Config.DutyQuestions do
+		questions[i] = q.Text
+	end
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root then
+		Registry.face(duty, root.Position - duty.hrp.Position)
+	end
+	Registry.emote(duty, "Wave")
+	local greeting = pick(Config.DutyGreetings)
+	Registry.say(duty, greeting)
+	policeRemote:FireClient(player, "Open", {
+		officer = duty.model,
+		name = duty.name,
+		greeting = greeting,
+		types = types,
+		places = placeNames,
+		questions = questions,
+		tickets = ticketList(player),
+	})
+end
+
+policeRemote.OnServerEvent:Connect(function(player: Player, action: any, a: any, b: any)
+	if not duty or not duty.alive then
+		return
+	end
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or (root.Position - duty.hrp.Position).Magnitude > 20 then
+		return
+	end
+	if action == "Report" and type(a) == "number" and type(b) == "number" then
+		local kind, place = Config.PoliceCallTypes[a], places[b]
+		if not kind or not place then
+			return
+		end
+		local now = os.clock()
+		local active = 0
+		for _, t in tickets[player] or {} do
+			if not t.done then
+				active += 1
 			end
 		end
-		local call = pick(policeCalls)
-		car.state = "busy"
-
-		-- По машинам
-		local seated = 0
-		for i, officer in car.officers do
-			task.spawn(function()
-				local seat = i == 1 and car.driverSeat or car.seats[i - 1]
-				if officer and officer.alive and seat and Registry.walkTo(officer, doorSide(car, seat)) then
-					seatNPC(officer, car, seat)
-				end
-				seated += 1
-			end)
+		if now < (reportCooldown[player] or 0) or active >= 3 then
+			dutyAnswer(player, "Подождите, мы ещё работаем по вашим заявлениям.")
+			return
 		end
-		local deadline = os.clock() + 25
-		while seated < #car.officers and os.clock() < deadline do
-			task.wait(0.3)
+		reportCooldown[player] = now + 15
+		nextTicket += 1
+		local ticket = { id = nextTicket, icon = kind.Icon, kind = kind.Name, place = place.name, status = "Принято", player = player }
+		tickets[player] = tickets[player] or {}
+		table.insert(tickets[player], 1, ticket)
+		if #tickets[player] > 6 then
+			table.remove(tickets[player])
 		end
-
-		car.model:SetAttribute("Siren", true)
-		car.model:SetAttribute("SirenMuted", false)
-		drive(car, { node = nearestNode(call.pos), curb = 5 })
-		car.model:SetAttribute("SirenMuted", true) -- мигалки горят, сирена молчит
-
-		-- Выходят и идут в здание
-		local inside = zonePoints(call.zone)
-		local done = 0
-		for _, officer in car.officers do
-			task.spawn(function()
-				if officer and officer.alive then
-					unseatNPC(officer)
-					if Registry.walkTo(officer, call.pos) then
-						Registry.say(officer, pick(Config.PolicePhrases))
-						if #inside > 0 then
-							Registry.walkTo(officer, pick(inside).Position)
-						end
-						task.wait(rng:NextNumber(Config.PoliceInsideTime.Min, Config.PoliceInsideTime.Max))
-						Registry.say(officer, pick(Config.PoliceDonePhrases))
-						Registry.walkTo(officer, call.pos)
-					end
-				end
-				done += 1
-			end)
-		end
-		while done < #car.officers do
-			task.wait(0.5)
-		end
-
-		-- Обратно в машину и на базу
-		seated = 0
-		for i, officer in car.officers do
-			task.spawn(function()
-				local seat = i == 1 and car.driverSeat or car.seats[i - 1]
-				if officer and officer.alive and seat and Registry.walkTo(officer, doorSide(car, seat)) then
-					seatNPC(officer, car, seat)
-				end
-				seated += 1
-			end)
-		end
-		deadline = os.clock() + 40
-		while seated < #car.officers and os.clock() < deadline do
-			task.wait(0.3)
-		end
-		car.model:SetAttribute("Siren", false)
-		car.model:SetAttribute("SirenMuted", false)
-		drive(car, { spot = car.homeSpot })
-		for _, officer in car.officers do
-			if officer and officer.inVehicle then
-				task.spawn(unseatNPC, officer)
+		local call = callAt(place.pos)
+		call.kind = kind
+		call.ticket = ticket
+		-- Заявления игроков — вперёд очереди
+		table.insert(callQueue, 1, call)
+		local free = false
+		for _, car in cars do
+			if car.kind == "Police" and car.state == "parked" then
+				free = true
 			end
 		end
-		car.state = "parked"
+		dutyAnswer(player, string.format("%s Номер заявления: %d.", pick(free and Config.ReportAccepted or Config.ReportBusy), ticket.id))
+		Registry.emote(duty, "Point")
+		policeRemote:FireClient(player, "Tickets", ticketList(player))
+	elseif action == "Ask" and type(a) == "number" then
+		local q = Config.DutyQuestions[a]
+		if not q then
+			return
+		end
+		local answer = pick(q.Answers)
+		if string.find(answer, "%%s") then
+			local filler
+			if a == 1 then
+				filler = #recentEvents > 0 and ("Последние вызовы: " .. table.concat(recentEvents, "; ") .. ".") or "Всё спокойно, вызовов не было."
+			else
+				local names = {}
+				for npc in pairs(jailed) do
+					table.insert(names, npc.name)
+				end
+				filler = #names > 0 and ("Сейчас в камере: " .. table.concat(names, ", ") .. ".") or "Камера пустая. Пока что."
+			end
+			answer = string.format(answer, filler)
+		end
+		dutyAnswer(player, answer)
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	tickets[player] = nil
+	reportCooldown[player] = nil
+end)
+
+local function spawnDuty()
+	if not station.desk then
+		return
+	end
+	duty = spawnOfficer(standCFrame(onFloor(station.desk), station.desk.CFrame.LookVector), Config.DutyOfficerName)
+	if duty then
+		duty.onDuty = true
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "DutyPrompt"
+		prompt.ActionText = "Обратиться"
+		prompt.ObjectText = "Дежурный"
+		prompt.HoldDuration = 0
+		prompt.MaxActivationDistance = 12
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = duty.hrp
+		prompt.Triggered:Connect(openDesk)
+		-- Дежурный всегда возвращается за стойку
+		task.spawn(function()
+			while duty and duty.alive do
+				task.wait(5)
+				local home = onFloor(station.desk)
+				if (flat(duty.hrp.Position - home)).Magnitude > 2 then
+					Registry.walkTo(duty, home)
+				end
+				Registry.face(duty, station.desk.CFrame.LookVector)
+			end
+		end)
 	end
 end
 
@@ -1815,8 +2245,20 @@ end
 for i = 1, math.min(Config.Count.Police, #spots.Police) do
 	local car = spawnCar("Police", spots.Police[i])
 	if car then
-		task.spawn(policeLoop, car)
+		task.spawn(policeCarLoop, car)
 	end
+end
+if #spots.Police > 0 then
+	task.spawn(dispatcher)
+	task.spawn(function()
+		-- Дежурный: возрождается, если с ним что-то случилось
+		while true do
+			if not duty or not duty.alive then
+				spawnDuty()
+			end
+			task.wait(20)
+		end
+	end)
 end
 
 -- Поток машин: свои водители, катаются всё время

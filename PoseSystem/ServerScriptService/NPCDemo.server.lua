@@ -334,10 +334,62 @@ spot("Police_1", Vector3.new(-73, 0.1, 0), NORTH, "Police")
 spot("Police_2", Vector3.new(-73, 0.1, 12), NORTH, "Police")
 spot("Bus_Depot", Vector3.new(-74, 0.1, -18), NORTH, "Bus")
 
--- Полицейский участок (декор)
-block(street, "PoliceStation", Vector3.new(10, 9, 26), CFrame.new(-84, 4.5, 2), Color3.fromRGB(60, 80, 140), Enum.Material.Concrete)
-local policeSign = block(street, "PoliceSign", Vector3.new(0.3, 1.5, 8), CFrame.new(-78.8, 7.5, 2), Color3.fromRGB(80, 140, 255), Enum.Material.SmoothPlastic)
-policeSign:SetAttribute(Config.NightLightAttribute, true)
+-- Полицейский участок: здание с дверью, стойка дежурного, кабинеты, камера
+local stationFolder = sub("PoliceStation")
+do
+	local m = Instance.new("Model")
+	m.Name = "PoliceStation"
+	m.Parent = town
+	local WALL = Color3.fromRGB(70, 90, 150)
+	local H = 10
+	block(m, "Floor", Vector3.new(16, 0.2, 24), CFrame.new(-86, 0.1, 2), Color3.fromRGB(190, 190, 200), Enum.Material.Concrete)
+	block(m, "WallBack", Vector3.new(1, H, 24), CFrame.new(-93.5, 0.2 + H / 2, 2), WALL, Enum.Material.Concrete)
+	block(m, "WallLeft", Vector3.new(16, H, 1), CFrame.new(-86, 0.2 + H / 2, -9.5), WALL, Enum.Material.Concrete)
+	block(m, "WallRight", Vector3.new(16, H, 1), CFrame.new(-86, 0.2 + H / 2, 13.5), WALL, Enum.Material.Concrete)
+	-- Фасад с проёмом под дверь (z от -0.5 до 4.5)
+	block(m, "FrontA", Vector3.new(1, H, 10), CFrame.new(-78.5, 0.2 + H / 2, -5), WALL, Enum.Material.Concrete)
+	block(m, "FrontB", Vector3.new(1, H, 9), CFrame.new(-78.5, 0.2 + H / 2, 9), WALL, Enum.Material.Concrete)
+	block(m, "FrontTop", Vector3.new(1, H - 8.5, 5), CFrame.new(-78.5, 0.2 + 8.5 + (H - 8.5) / 2, 2), WALL, Enum.Material.Concrete)
+	block(m, "Roof", Vector3.new(18, 1, 26), CFrame.new(-86, 0.2 + H + 0.5, 2), Color3.fromRGB(40, 45, 60), Enum.Material.Slate)
+	lamp(m, Vector3.new(-86, 0.2 + H - 1, -3), 30, Color3.fromRGB(230, 240, 255))
+	lamp(m, Vector3.new(-86, 0.2 + H - 1, 8), 30, Color3.fromRGB(230, 240, 255))
+	local stationSign = block(m, "PoliceSign", Vector3.new(0.3, 1.5, 8), CFrame.new(-77.9, 9.6, 2), Color3.fromRGB(80, 140, 255), Enum.Material.SmoothPlastic)
+	stationSign:SetAttribute(Config.NightLightAttribute, true)
+
+	local door = block(doors, "Station_Door", Vector3.new(0.4, 8.3, 5), CFrame.new(-78.5, 0.2 + 4.15, 2), Color3.fromRGB(40, 60, 110), Enum.Material.Metal)
+	door:SetAttribute("Hinge", "Left")
+
+	-- Стойка дежурного: посетитель подходит от входа
+	block(m, "Counter", Vector3.new(1.2, 3.2, 6), CFrame.new(-83.5, 1.8, 2), Color3.fromRGB(120, 85, 55), Enum.Material.Wood)
+	block(m, "CounterTop", Vector3.new(1.8, 0.2, 6.4), CFrame.new(-83.5, 3.5, 2), Color3.fromRGB(200, 200, 205), Enum.Material.Marble)
+	local function marker(name: string, pos: Vector3, look: Vector3, color: Color3)
+		local p = block(stationFolder, name, Vector3.new(2, 0.2, 2), CFrame.lookAt(pos, pos + look), color, Enum.Material.Neon)
+		p.Transparency = 0.4
+		p.CanCollide = false
+		return p
+	end
+	marker("Desk", Vector3.new(-85.3, 0.3, 2), Vector3.new(1, 0, 0), Color3.fromRGB(255, 255, 255))
+
+	-- Кабинеты: столы и места, где офицеры ждут вызова
+	block(m, "OfficeDesk1", Vector3.new(3, 2.6, 2), CFrame.new(-90, 1.5, -6.5), Color3.fromRGB(110, 80, 55), Enum.Material.Wood)
+	block(m, "OfficeDesk2", Vector3.new(3, 2.6, 2), CFrame.new(-90, 1.5, 10.5), Color3.fromRGB(110, 80, 55), Enum.Material.Wood)
+	block(m, "Board", Vector3.new(0.2, 3, 5), CFrame.new(-92.9, 5, -5), Color3.fromRGB(240, 240, 235), Enum.Material.SmoothPlastic)
+	marker("Idle_Office1", Vector3.new(-90, 0.3, -4), Vector3.new(0, 0, -1), Color3.fromRGB(60, 120, 255))
+	marker("Idle_Office2", Vector3.new(-90, 0.3, 8), Vector3.new(0, 0, 1), Color3.fromRGB(60, 120, 255))
+	marker("Idle_Board", Vector3.new(-91, 0.3, -5), Vector3.new(-1, 0, 0), Color3.fromRGB(60, 120, 255))
+	marker("Idle_Window", Vector3.new(-81, 0.3, 11), Vector3.new(1, 0, 0), Color3.fromRGB(60, 120, 255))
+	marker("Idle_Coffee", Vector3.new(-81, 0.3, -7.5), Vector3.new(0, 0, -1), Color3.fromRGB(60, 120, 255))
+	block(m, "CoffeeMachine", Vector3.new(1.5, 2.5, 1), CFrame.new(-81, 1.45, -8.7), Color3.fromRGB(30, 30, 35), Enum.Material.Metal)
+
+	-- Камера: решётка с открытым проходом
+	for z = -1, 4 do
+		if z ~= 3 then
+			block(m, "Bars", Vector3.new(0.2, 8, 0.2), CFrame.new(-89.5, 4.2, z + 0.5), Color3.fromRGB(60, 60, 65), Enum.Material.Metal)
+		end
+	end
+	block(m, "CellBench", Vector3.new(2, 1, 4), CFrame.new(-92.5, 0.7, 1.5), Color3.fromRGB(90, 90, 95), Enum.Material.Metal)
+	marker("Cell", Vector3.new(-91.5, 0.3, 1), Vector3.new(1, 0, 0), Color3.fromRGB(255, 60, 60))
+end
 
 -- Остановки автобуса: на тротуаре, Node — точка дороги, где встаёт автобус
 local function busStop(name: string, pos: Vector3, nodeName: string, order: number, title: string)

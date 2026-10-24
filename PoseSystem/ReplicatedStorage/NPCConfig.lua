@@ -220,6 +220,8 @@ NPCConfig.Moods = {
 	Laugh = "😂",
 	Quest = "❗",
 	Wait = "🚏",
+	Cuffed = "🔒",
+	Police = "🚔",
 	Happy = "❤️",
 }
 

@@ -157,14 +157,16 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 - **Гражданские:** у жителей есть свои машины. Если идти далеко (дом ↔ работа, магазин), житель идёт к машине, иногда кладёт что-то в багажник, садится (дверь открывается и хлопает), едет, паркуется и выходит.
 - **Такси:** возит жителей. Игрок подходит к такси, нажимает **E**, выбирает место в меню и платит **5 монет**.
 - **Автобус:** ходит по маршруту. На остановках открывает двери, люди выходят и заходят. Потом минута отдыха на конечной — и снова. Игрок садится на остановке (**E**), а выходит прыжком.
-- **Полиция:** раз в 1–3 минуты выезжает на вызов с мигалками и сиреной. Офицеры выходят, заходят в здание, через полминуты возвращаются и уезжают на базу. Ночью вызовы чаще.
+- **Полиция:** офицеры ждут в участке: ходят по кабинетам, пьют кофе, а дежурный стоит за стойкой. По вызову идут к машине и едут с мигалками и сиреной. На месте встают у двери порознь, выходит житель, его опрашивают. Иногда задерживают: житель в наручниках (руки за спиной), его везут в участок и сажают в камеру. Потом он выходит. Ночью вызовы чаще.
+- **Дежурный:** подойди к стойке и нажми **E**. Откроется меню с портретом дежурного: подать **заявление** (кража, шум, подозрительный человек, драка, потерялась собака → где) — и по нему реально выезжает наряд. Можно задать **вопросы** («Что нового в городе?», «Кто сидит в камере?») и следить за **статусом своих заявлений** в реальном времени.
+- **Без разворотов:** машины не разворачиваются посреди дороги — только на кольце, разворотной площадке (`Turnaround`) или в тупике.
 - **Анимации:** двери, багажник, сдвижные двери автобуса, крутящиеся колёса, фары ночью, стоп-сигналы, поворотники, мигалки, шашечки такси.
 - **Звуки:** двигатель, гудок, сирена, двери, багажник, щелчки поворотников и фар. У жителей шаги, «бормотание» голосом (у каждого своя высота), смех, крик, храп, лай собак, скрип дверей. Все ID — в `SoundConfig`.
 - Нет своих шаблонов или дорог — строятся машины-заглушки и демо-дороги со светофором, парковками, остановками и участком полиции.
 
 **Как сделать шаблоны машин, дороги и звуки** — в `VEHICLE_SETUP.md`. Там же готовый текст для Claude в Studio.
 
-Файлы: `VehicleConfig`, `SoundConfig` (ModuleScript, ReplicatedStorage), `NPCRegistry`, `VehicleDefaults` (ModuleScript, ServerScriptService), `TrafficServer` (Script, ServerScriptService), `VehicleClient` (LocalScript, StarterPlayerScripts).
+Файлы: `VehicleConfig`, `SoundConfig` (ModuleScript, ReplicatedStorage), `NPCRegistry`, `VehicleDefaults` (ModuleScript, ServerScriptService), `TrafficServer` (Script, ServerScriptService), `VehicleClient`, `PoliceDeskClient` (LocalScript, StarterPlayerScripts).
 
 ## Все клавиши
 
@@ -184,7 +186,7 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 | ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `NPCConfig`, `VehicleConfig`, `SoundConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
 | ServerScriptService | ModuleScript | `AbilityRegistry`, `NPCRegistry`, `VehicleDefaults` |
 | ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCServer`, `NPCDoors`, `NPCDemo`, `DayNightServer`, `TrafficServer` |
-| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient`, `VehicleClient` |
+| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient`, `VehicleClient`, `PoliceDeskClient` |
 
 - `RigAnimator` — общий движок анимаций способностей. Он смешивает анимации разных способностей и не мешает системе поз.
 - `AbilityFx` — частицы, пыль и тряска камеры.

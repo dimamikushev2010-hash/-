@@ -18,6 +18,30 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("NPCConfig"))
 local Sounds = require(ReplicatedStorage:WaitForChild("SoundConfig"))
+local RigAnimator = require(ReplicatedStorage:WaitForChild("RigAnimator"))
+
+-- Руки за спиной (задержанный в наручниках): только руки, ноги шагают как обычно
+local CUFFED_POSE = {
+	LeftShoulder = Vector3.new(-32, 0, 26),
+	RightShoulder = Vector3.new(-32, 0, -26),
+	LeftElbow = Vector3.new(38, 0, 0),
+	RightElbow = Vector3.new(38, 0, 0),
+}
+
+local function cuffedLayer(model: Model)
+	local weight = 0
+	return {
+		Priority = 40,
+		Update = function(rig, dt)
+			local on = model:GetAttribute("Cuffed") == true
+			weight = math.clamp(weight + (on and dt or -dt) * 4, 0, 1)
+			if not on and weight <= 0 then
+				return nil, 0, true
+			end
+			return RigAnimator.Frames(rig, CUFFED_POSE), weight
+		end,
+	}
+end
 local dialogRemote = ReplicatedStorage:WaitForChild("NPCDialog")
 
 local player = Players.LocalPlayer
@@ -225,6 +249,15 @@ local function watchNpc(model: Instance)
 	if not model:IsA("Model") then
 		return
 	end
+	-- Наручники
+	local function onCuffed()
+		if model:GetAttribute("Cuffed") == true and not RigAnimator.HasLayer(model, "Cuffed") then
+			RigAnimator.SetLayer(model, "Cuffed", cuffedLayer(model))
+		end
+	end
+	model:GetAttributeChangedSignal("Cuffed"):Connect(onCuffed)
+	onCuffed()
+
 	-- Звуковые события с сервера: смех, крик, храп...
 	model:GetAttributeChangedSignal("SoundEventId"):Connect(function()
 		local name = model:GetAttribute("SoundEvent")

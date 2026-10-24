@@ -4,7 +4,7 @@
 -- Проще всего: открыть PoseSystem.rbxlx, там всё уже расставлено.
 -- Как расставить точки для жителей — NPC_SETUP.md, транспорт и звуки — VEHICLE_SETUP.md.
 
--- СПИСОК (31 скриптов):
+-- СПИСОК (32 скриптов):
 --    1. ReplicatedStorage > ModuleScript "PoseConfig"
 --    2. ReplicatedStorage > ModuleScript "InvisibilityConfig"
 --    3. ReplicatedStorage > ModuleScript "LaserConfig"
@@ -36,6 +36,7 @@
 --   29. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
 --   30. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
 --   31. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
+--   32. StarterPlayer → StarterPlayerScripts > LocalScript "PoliceDeskClient"
 
 
 ----------------------------------------------------------------------
@@ -672,6 +673,8 @@ NPCConfig.Moods = {
 	Laugh = "😂",
 	Quest = "❗",
 	Wait = "🚏",
+	Cuffed = "🔒",
+	Police = "🚔",
 	Happy = "❤️",
 }
 
@@ -733,6 +736,10 @@ VehicleConfig.YellowTime = 3
 VehicleConfig.AllRedTime = 1.5
 
 -- Поездки жителей
+-- Развороты: машина не разворачивается посреди дороги — только на точках с
+-- атрибутом Turnaround = true (кольцо, разворотная площадка) или в тупике
+VehicleConfig.AllowUTurnFallback = true -- если иначе никак не доехать — разрешить разворот (с предупреждением)
+
 VehicleConfig.TripMinDistance = 55 -- дальше этого житель поедет, а не пойдёт пешком
 VehicleConfig.TaxiChance = 0.4 -- житель без машины возьмёт такси
 VehicleConfig.BusChance = 0.4 -- или поедет на автобусе
@@ -754,6 +761,69 @@ VehicleConfig.PolicePhrases = { "Что тут у вас?", "Полиция! В�
 VehicleConfig.PoliceDonePhrases = { "Всё в порядке.", "Ложная тревога.", "Разобрались!", "Едем на базу." }
 VehicleConfig.PoliceShirt = Color3.fromRGB(30, 45, 90)
 VehicleConfig.PolicePants = Color3.fromRGB(20, 25, 40)
+
+-- Полицейский участок: Workspace > TrafficSystem > PoliceStation
+--   Desk  — стойка дежурного (передняя грань — к посетителям)
+--   Idle  — где офицеры ждут вызова (сколько угодно точек)
+--   Cell  — камера для задержанных
+VehicleConfig.DutyOfficerName = "Дежурный"
+VehicleConfig.StationWanderTime = NumberRange.new(12, 30) -- как часто офицеры переходят с места на место
+VehicleConfig.CellTime = NumberRange.new(60, 100) -- сколько задержанный сидит в камере
+VehicleConfig.QuestionGap = 1.2 -- пауза между репликами при опросе
+VehicleConfig.OfficerSpacing = 1.4 -- насколько офицеры стоят порознь у двери
+
+-- Виды вызовов (и заявлений игрока). Arrest — шанс, что кого-то задержат.
+VehicleConfig.PoliceCallTypes = {
+	{
+		Name = "Кража", Icon = "🕵️", Arrest = 0.45,
+		Officer = { "Здравствуйте, полиция. Поступило сообщение о краже.", "Что именно пропало?" },
+		Resident = { "Да! У меня пропал велосипед прямо со двора!", "Утром был, а сейчас нет..." },
+		Suspect = { "Это не я! Я просто мимо проходил!", "Велосипед? Какой велосипед?.." },
+	},
+	{
+		Name = "Шум", Icon = "🔊", Arrest = 0.25,
+		Officer = { "Добрый день. Жалуются на шум по этому адресу.", "Можно потише, пожалуйста?" },
+		Resident = { "Соседи шумят всю ночь, спать невозможно!", "Музыка орёт с самого утра." },
+		Suspect = { "У меня день рождения, имею право!", "Да я тихо, честное слово..." },
+	},
+	{
+		Name = "Подозрительный человек", Icon = "👤", Arrest = 0.5,
+		Officer = { "Полиция. Сообщили о подозрительном человеке.", "Покажите, пожалуйста, документы." },
+		Resident = { "Он ходил вокруг дома и заглядывал в окна!", "Я его раньше никогда не видел." },
+		Suspect = { "Я просто ищу своего кота!", "Документы? Ой, дома забыл..." },
+	},
+	{
+		Name = "Драка", Icon = "🥊", Arrest = 0.7,
+		Officer = { "Полиция! Что здесь происходит?", "Успокойтесь и расскажите по порядку." },
+		Resident = { "Они начали первыми!", "Он толкнул меня без причины!" },
+		Suspect = { "Он сам полез!", "Да мы просто разговаривали!" },
+	},
+	{
+		Name = "Потерялась собака", Icon = "🐕", Arrest = 0,
+		Officer = { "Здравствуйте. Вы сообщали о пропавшей собаке?", "Опишите её, пожалуйста." },
+		Resident = { "Да, рыжая, с красным ошейником!", "Убежала утром, когда я открыл дверь." },
+		Suspect = { "" },
+	},
+}
+VehicleConfig.PoliceCloseLines = { "Спасибо, мы всё записали.", "Будем держать вас в курсе.", "Если что — звоните." }
+VehicleConfig.ResidentThanks = { "Спасибо вам!", "Хорошо, что вы приехали!", "Буду ждать новостей." }
+VehicleConfig.ArrestLines = { "Вы задержаны. Пройдёмте с нами.", "Руки за спину. Едем в участок." }
+VehicleConfig.ArrestedLines = { "Что?! Я ничего не делал!", "Это ошибка!", "Ладно, ладно, иду..." }
+VehicleConfig.NobodyLines = { "Полиция, откройте!", "Есть кто дома?", "Похоже, никого нет." }
+VehicleConfig.CellLines = { "Выпустите меня!", "Я требую адвоката!", "Ну и скукота тут..." }
+VehicleConfig.BookingLines = { "Оформляем.", "Посидите пока здесь.", "Заполним протокол." }
+
+-- Вопросы дежурному (ответ — случайный из Answers; %s подставляется по смыслу)
+VehicleConfig.DutyGreetings = { "Здравствуйте! Дежурная часть, слушаю вас.", "Добрый день! Чем могу помочь?", "Полиция города. Что случилось?" }
+VehicleConfig.DutyQuestions = {
+	{ Text = "Что нового в городе?", Answers = { "%s" } }, -- подставляется сводка последних вызовов
+	{ Text = "Как стать полицейским?", Answers = { "Сначала научитесь не летать над крышами!", "Приходите, когда подрастёте. А пока — помогайте жителям!" } },
+	{ Text = "Можно летать над городом?", Answers = { "Можно, но аккуратно. И без лазеров!", "Только не над дорогой — водители пугаются." } },
+	{ Text = "Где ближайшая остановка?", Answers = { "Спросите у жителей — они всё знают.", "Автобус ходит по кругу, ловите на остановке у площади." } },
+	{ Text = "Кто сидит в камере?", Answers = { "%s" } }, -- подставляется, кто задержан
+}
+VehicleConfig.ReportAccepted = { "Заявление принято! Высылаем наряд.", "Записал. Наряд уже выезжает.", "Принято. Ожидайте, разберёмся." }
+VehicleConfig.ReportBusy = { "Все наряды заняты, но ваше заявление в очереди.", "Принято, наряд выедет, как только освободится." }
 
 -- Цвета гражданских машин, если в шаблоне есть детали с атрибутом Paint = true
 VehicleConfig.PaintColors = {
@@ -2964,10 +3034,62 @@ spot("Police_1", Vector3.new(-73, 0.1, 0), NORTH, "Police")
 spot("Police_2", Vector3.new(-73, 0.1, 12), NORTH, "Police")
 spot("Bus_Depot", Vector3.new(-74, 0.1, -18), NORTH, "Bus")
 
--- Полицейский участок (декор)
-block(street, "PoliceStation", Vector3.new(10, 9, 26), CFrame.new(-84, 4.5, 2), Color3.fromRGB(60, 80, 140), Enum.Material.Concrete)
-local policeSign = block(street, "PoliceSign", Vector3.new(0.3, 1.5, 8), CFrame.new(-78.8, 7.5, 2), Color3.fromRGB(80, 140, 255), Enum.Material.SmoothPlastic)
-policeSign:SetAttribute(Config.NightLightAttribute, true)
+-- Полицейский участок: здание с дверью, стойка дежурного, кабинеты, камера
+local stationFolder = sub("PoliceStation")
+do
+	local m = Instance.new("Model")
+	m.Name = "PoliceStation"
+	m.Parent = town
+	local WALL = Color3.fromRGB(70, 90, 150)
+	local H = 10
+	block(m, "Floor", Vector3.new(16, 0.2, 24), CFrame.new(-86, 0.1, 2), Color3.fromRGB(190, 190, 200), Enum.Material.Concrete)
+	block(m, "WallBack", Vector3.new(1, H, 24), CFrame.new(-93.5, 0.2 + H / 2, 2), WALL, Enum.Material.Concrete)
+	block(m, "WallLeft", Vector3.new(16, H, 1), CFrame.new(-86, 0.2 + H / 2, -9.5), WALL, Enum.Material.Concrete)
+	block(m, "WallRight", Vector3.new(16, H, 1), CFrame.new(-86, 0.2 + H / 2, 13.5), WALL, Enum.Material.Concrete)
+	-- Фасад с проёмом под дверь (z от -0.5 до 4.5)
+	block(m, "FrontA", Vector3.new(1, H, 10), CFrame.new(-78.5, 0.2 + H / 2, -5), WALL, Enum.Material.Concrete)
+	block(m, "FrontB", Vector3.new(1, H, 9), CFrame.new(-78.5, 0.2 + H / 2, 9), WALL, Enum.Material.Concrete)
+	block(m, "FrontTop", Vector3.new(1, H - 8.5, 5), CFrame.new(-78.5, 0.2 + 8.5 + (H - 8.5) / 2, 2), WALL, Enum.Material.Concrete)
+	block(m, "Roof", Vector3.new(18, 1, 26), CFrame.new(-86, 0.2 + H + 0.5, 2), Color3.fromRGB(40, 45, 60), Enum.Material.Slate)
+	lamp(m, Vector3.new(-86, 0.2 + H - 1, -3), 30, Color3.fromRGB(230, 240, 255))
+	lamp(m, Vector3.new(-86, 0.2 + H - 1, 8), 30, Color3.fromRGB(230, 240, 255))
+	local stationSign = block(m, "PoliceSign", Vector3.new(0.3, 1.5, 8), CFrame.new(-77.9, 9.6, 2), Color3.fromRGB(80, 140, 255), Enum.Material.SmoothPlastic)
+	stationSign:SetAttribute(Config.NightLightAttribute, true)
+
+	local door = block(doors, "Station_Door", Vector3.new(0.4, 8.3, 5), CFrame.new(-78.5, 0.2 + 4.15, 2), Color3.fromRGB(40, 60, 110), Enum.Material.Metal)
+	door:SetAttribute("Hinge", "Left")
+
+	-- Стойка дежурного: посетитель подходит от входа
+	block(m, "Counter", Vector3.new(1.2, 3.2, 6), CFrame.new(-83.5, 1.8, 2), Color3.fromRGB(120, 85, 55), Enum.Material.Wood)
+	block(m, "CounterTop", Vector3.new(1.8, 0.2, 6.4), CFrame.new(-83.5, 3.5, 2), Color3.fromRGB(200, 200, 205), Enum.Material.Marble)
+	local function marker(name: string, pos: Vector3, look: Vector3, color: Color3)
+		local p = block(stationFolder, name, Vector3.new(2, 0.2, 2), CFrame.lookAt(pos, pos + look), color, Enum.Material.Neon)
+		p.Transparency = 0.4
+		p.CanCollide = false
+		return p
+	end
+	marker("Desk", Vector3.new(-85.3, 0.3, 2), Vector3.new(1, 0, 0), Color3.fromRGB(255, 255, 255))
+
+	-- Кабинеты: столы и места, где офицеры ждут вызова
+	block(m, "OfficeDesk1", Vector3.new(3, 2.6, 2), CFrame.new(-90, 1.5, -6.5), Color3.fromRGB(110, 80, 55), Enum.Material.Wood)
+	block(m, "OfficeDesk2", Vector3.new(3, 2.6, 2), CFrame.new(-90, 1.5, 10.5), Color3.fromRGB(110, 80, 55), Enum.Material.Wood)
+	block(m, "Board", Vector3.new(0.2, 3, 5), CFrame.new(-92.9, 5, -5), Color3.fromRGB(240, 240, 235), Enum.Material.SmoothPlastic)
+	marker("Idle_Office1", Vector3.new(-90, 0.3, -4), Vector3.new(0, 0, -1), Color3.fromRGB(60, 120, 255))
+	marker("Idle_Office2", Vector3.new(-90, 0.3, 8), Vector3.new(0, 0, 1), Color3.fromRGB(60, 120, 255))
+	marker("Idle_Board", Vector3.new(-91, 0.3, -5), Vector3.new(-1, 0, 0), Color3.fromRGB(60, 120, 255))
+	marker("Idle_Window", Vector3.new(-81, 0.3, 11), Vector3.new(1, 0, 0), Color3.fromRGB(60, 120, 255))
+	marker("Idle_Coffee", Vector3.new(-81, 0.3, -7.5), Vector3.new(0, 0, -1), Color3.fromRGB(60, 120, 255))
+	block(m, "CoffeeMachine", Vector3.new(1.5, 2.5, 1), CFrame.new(-81, 1.45, -8.7), Color3.fromRGB(30, 30, 35), Enum.Material.Metal)
+
+	-- Камера: решётка с открытым проходом
+	for z = -1, 4 do
+		if z ~= 3 then
+			block(m, "Bars", Vector3.new(0.2, 8, 0.2), CFrame.new(-89.5, 4.2, z + 0.5), Color3.fromRGB(60, 60, 65), Enum.Material.Metal)
+		end
+	end
+	block(m, "CellBench", Vector3.new(2, 1, 4), CFrame.new(-92.5, 0.7, 1.5), Color3.fromRGB(90, 90, 95), Enum.Material.Metal)
+	marker("Cell", Vector3.new(-91.5, 0.3, 1), Vector3.new(1, 0, 0), Color3.fromRGB(255, 60, 60))
+end
 
 -- Остановки автобуса: на тротуаре, Node — точка дороги, где встаёт автобус
 local function busStop(name: string, pos: Vector3, nodeName: string, order: number, title: string)
@@ -3584,7 +3706,8 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 local function shouldStop(npc): boolean
-	return not npc.alive or npc.abort or npc.lock ~= nil
+	-- controlled — жителем управляет другой скрипт (например, полиция): свои дела он бросает
+	return not npc.alive or npc.abort or npc.lock ~= nil or (npc.controlled ~= nil and not npc.externalWalking)
 end
 
 local function stopMoving(npc)
@@ -3813,6 +3936,7 @@ local function freeForChat(npc, now: number): boolean
 		and not npc.sleeping
 		and not npc.inVehicle
 		and not npc.noSocial
+		and not npc.controlled
 end
 
 local function runConversation(a, b, lines)
@@ -3889,7 +4013,7 @@ function react(npc, kind: string, target: BasePart)
 end
 
 local function tryStartChat(npc, now: number)
-	if now < npc.nextSocialCheck or npc.inVehicle or npc.noSocial then
+	if now < npc.nextSocialCheck or npc.inVehicle or npc.noSocial or npc.controlled then
 		return
 	end
 	npc.nextSocialCheck = now + 0.6
@@ -4382,7 +4506,7 @@ local function brain(npc)
 	task.wait(0.5)
 
 	while npc.alive do
-		while npc.alive and npc.lock ~= nil do
+		while npc.alive and (npc.lock ~= nil or npc.controlled ~= nil) do
 			task.wait(0.2)
 		end
 		if not npc.alive then
@@ -4501,6 +4625,10 @@ end
 
 local function startPlayerTalk(npc, player: Player)
 	if not npc.alive or npc.talkingTo or npc.inVehicle or npc.officer then
+		return
+	end
+	if npc.controlled then
+		say(npc, "Извините, не сейчас...", 2)
 		return
 	end
 	local character = player.Character
@@ -4969,9 +5097,9 @@ local function createNPC(spawnPart: BasePart?, opts)
 				say(npc, pick(Config.Phrases.Hurt), 2)
 				sfx(npc, "Hurt")
 			end
-			if npc.inVehicle or npc.officer then
+			if npc.inVehicle or npc.officer or npc.controlled then
 				lastHealth = health
-				return -- в машине не убегает
+				return -- в машине и под присмотром полиции не убегает
 			end
 			npc.fleeUntil = now + 6
 			setMood(npc, "Scared", 6)
@@ -5004,7 +5132,59 @@ end
 
 -- API для транспорта
 Registry.walkTo = function(npc, position: Vector3): boolean
-	return walkTo(npc, position)
+	npc.externalWalking = true
+	local ok = walkTo(npc, position)
+	npc.externalWalking = false
+	return ok
+end
+Registry.emote = function(npc, name: string, duration: number?)
+	if npc.alive then
+		npc.anim.emote(name, duration)
+	end
+end
+Registry.sfx = sfx
+Registry.standUp = standUp
+
+-- Взять жителя под управление (полиция): он бросает свои дела и ждёт команд
+Registry.claim = function(npc, reason: string): boolean
+	if not npc.alive or npc.inVehicle or npc.controlled or npc.officer or npc.lock ~= nil or npc.following or npc.talkingTo then
+		return false
+	end
+	npc.controlled = reason
+	stopMoving(npc)
+	task.wait(0.3)
+	npc.externalWalking = true
+	standUp(npc)
+	npc.externalWalking = false
+	if npc.prompt then
+		npc.prompt.Enabled = false
+	end
+	return true
+end
+Registry.release = function(npc)
+	npc.controlled = nil
+	npc.model:SetAttribute("Cuffed", nil)
+	setMood(npc, nil)
+	npc.abort = true
+	if npc.prompt and npc.alive then
+		npc.prompt.Enabled = true
+	end
+end
+-- Найти жителя: из зоны zone или рядом с точкой
+Registry.findResident = function(zone: string?, near: Vector3, radius: number)
+	local best, bestDist = nil, math.huge
+	for _, npc in pairs(npcs) do
+		if npc.alive and not npc.officer and not npc.controlled and not npc.inVehicle and npc.lock == nil
+			and not npc.following and not npc.talkingTo and not npc.job and not npc.route then
+			local dist = (npc.hrp.Position - near).Magnitude
+			local inZone = zone ~= nil and (npc.homeZone == zone or npc.zone == zone)
+			local score = inZone and dist or dist + 1000
+			if (inZone or dist < radius) and score < bestDist then
+				best, bestDist = npc, score
+			end
+		end
+	end
+	return best
 end
 Registry.say = say
 Registry.setMood = setMood
@@ -5582,41 +5762,72 @@ local function startNode(position: Vector3, look: Vector3): string
 	return best
 end
 
--- Кратчайший путь по точкам (Дейкстра)
-local function route(from: string, to: string): { string }?
+-- Где можно развернуться: точка с Turnaround = true или тупик
+local function canTurnAround(name: string): boolean
+	local node = nodes[name]
+	return node.part:GetAttribute("Turnaround") == true or linkCount(node) <= 1
+end
+
+-- Откуда машина подъехала к точке (сосед «за спиной»)
+local function behindNode(from: string, look: Vector3): string?
+	local forward = flat(look).Magnitude > 0.1 and flat(look).Unit or Vector3.new(0, 0, -1)
+	local best, bestDot = nil, -0.3
+	for nb in pairs(nodes[from].links) do
+		local dir = flat(nodes[nb].pos - nodes[from].pos)
+		if dir.Magnitude > 0.1 then
+			local d = dir.Unit:Dot(forward)
+			if d < bestDot then
+				best, bestDot = nb, d
+			end
+		end
+	end
+	return best
+end
+
+-- Кратчайший путь по точкам (Дейкстра) без разворотов посреди дороги:
+-- вернуться в точку, из которой приехал, можно только там, где разрешён разворот
+local function route(from: string, to: string, prev: string?, allowUTurns: boolean?): { string }?
 	if from == to then
 		return { from }
 	end
-	local dist, prev, done = { [from] = 0 }, {}, {}
+	local function key(n: string, p: string?)
+		return n .. "|" .. (p or "")
+	end
+	local startKey = key(from, prev)
+	local dist, state, back, done = { [startKey] = 0 }, { [startKey] = { node = from, prev = prev } }, {}, {}
 	while true do
-		local best, bestD = nil, math.huge
-		for name, d in pairs(dist) do
-			if not done[name] and d < bestD then
-				best, bestD = name, d
+		local bestKey, bestD = nil, math.huge
+		for k, d in pairs(dist) do
+			if not done[k] and d < bestD then
+				bestKey, bestD = k, d
 			end
 		end
-		if not best then
+		if not bestKey then
 			return nil
 		end
-		if best == to then
-			break
+		local st = state[bestKey]
+		if st.node == to then
+			local path = {}
+			local k = bestKey
+			while k do
+				table.insert(path, 1, state[k].node)
+				k = back[k]
+			end
+			return path
 		end
-		done[best] = true
-		for nb in pairs(nodes[best].links) do
-			local nd = bestD + (nodes[nb].pos - nodes[best].pos).Magnitude
-			if nd < (dist[nb] or math.huge) then
-				dist[nb] = nd
-				prev[nb] = best
+		done[bestKey] = true
+		for nb in pairs(nodes[st.node].links) do
+			if allowUTurns or nb ~= st.prev or canTurnAround(st.node) then
+				local nk = key(nb, st.node)
+				local nd = bestD + (nodes[nb].pos - nodes[st.node].pos).Magnitude
+				if nd < (dist[nk] or math.huge) then
+					dist[nk] = nd
+					state[nk] = { node = nb, prev = st.node }
+					back[nk] = bestKey
+				end
 			end
 		end
 	end
-	local path = { to }
-	local cur = to
-	while prev[cur] do
-		cur = prev[cur]
-		table.insert(path, 1, cur)
-	end
-	return path
 end
 
 ---------------------------------------------------------------------
@@ -5986,20 +6197,6 @@ if #places == 0 then
 	end
 end
 
-local function zonePoints(zone: string?): { BasePart }
-	local list = {}
-	local npcFolder = workspace:FindFirstChild(NPCConfig.FolderName)
-	local pointsFolder = npcFolder and npcFolder:FindFirstChild("Points")
-	if zone and pointsFolder then
-		for _, p in pointsFolder:GetDescendants() do
-			if p:IsA("BasePart") and p:GetAttribute("Zone") == zone and not p:IsA("Seat") then
-				table.insert(list, p)
-			end
-		end
-	end
-	return list
-end
-
 ---------------------------------------------------------------------
 -- Машины: сборка из шаблона
 ---------------------------------------------------------------------
@@ -6367,7 +6564,13 @@ end
 local function drive(car, spec): boolean
 	local fromNode = startNode(car.pos, car.look)
 	local toNode = spec.spot and nearestNode(spec.spot.pos) or spec.node
-	local path = fromNode and toNode and route(fromNode, toNode)
+	local path = fromNode and toNode and route(fromNode, toNode, behindNode(fromNode, car.look))
+	if not path and fromNode and toNode and Config.AllowUTurnFallback then
+		path = route(fromNode, toNode, nil, true)
+		if path then
+			warn("[Traffic] Без разворота не доехать от", fromNode, "до", toNode, "— добавь кольцо или точку с Turnaround = true")
+		end
+	end
 	if not path then
 		warn("[Traffic] Нет пути от", fromNode, "до", toNode, "— проверь атрибуты Links у точек дороги")
 		return false
@@ -6921,14 +7124,90 @@ end
 -- Полиция
 ---------------------------------------------------------------------
 
-local function spawnOfficer(car, index: number)
+local policeRemote = ReplicatedStorage:FindFirstChild("PoliceRemote") or Instance.new("RemoteEvent")
+policeRemote.Name = "PoliceRemote"
+policeRemote.Parent = ReplicatedStorage
+
+-- Участок: стойка дежурного, места ожидания, камера
+local station = { desk = nil, idle = {}, cell = nil }
+local stationFolder = folder("PoliceStation")
+if stationFolder then
+	for _, p in stationFolder:GetDescendants() do
+		if p:IsA("BasePart") then
+			if string.find(p.Name, "^Desk") then
+				station.desk = p
+			elseif string.find(p.Name, "^Cell") then
+				station.cell = p
+			elseif string.find(p.Name, "^Idle") then
+				table.insert(station.idle, p)
+			end
+			hideMarker(p)
+		end
+	end
+end
+
+local function onFloor(part: BasePart): Vector3
+	return Vector3.new(part.Position.X, groundY(part.Position), part.Position.Z)
+end
+
+local function standCFrame(position: Vector3, look: Vector3): CFrame
+	local p = position + Vector3.new(0, 3, 0)
+	local l = flat(look).Magnitude > 0.1 and flat(look).Unit or Vector3.new(0, 0, -1)
+	return CFrame.lookAt(p, p + l)
+end
+
+local callQueue = {} -- вызовы по очереди
+local nextTicket = 0
+local tickets = {} -- [player] = { заявления }
+local recentEvents = {} -- для «Что нового в городе?»
+local jailed = {} -- [npc] = true
+
+local function addEvent(text: string)
+	table.insert(recentEvents, 1, text)
+	if #recentEvents > 4 then
+		table.remove(recentEvents)
+	end
+end
+
+local function ticketList(player: Player)
+	local out = {}
+	for _, t in tickets[player] or {} do
+		table.insert(out, { id = t.id, icon = t.icon, kind = t.kind, place = t.place, status = t.status, done = t.done })
+	end
+	return out
+end
+
+local function setTicket(ticket, status: string, done: boolean?)
+	if not ticket then
+		return
+	end
+	ticket.status = status
+	ticket.done = done == true
+	local player = ticket.player
+	if player and player.Parent then
+		policeRemote:FireClient(player, "Tickets", ticketList(player))
+		toast(player, string.format("🚔 Заявление №%d: %s", ticket.id, status))
+	end
+end
+
+-- Точка вызова для места: ближайший вход в здание (PoliceCalls) или само место
+local function callAt(position: Vector3)
+	local best, bestDist = nil, 45
+	for _, c in policeCalls do
+		local d = (c.pos - position).Magnitude
+		if d < bestDist then
+			best, bestDist = c, d
+		end
+	end
+	return best and { pos = best.pos, zone = best.zone } or { pos = position, zone = nil }
+end
+
+local function spawnOfficer(at: CFrame, title: string?)
 	if not Registry.spawnCustom then
 		return nil
 	end
-	local seat = index == 1 and car.driverSeat or car.seats[1]
-	local pos = doorSide(car, seat or car.body, nil)
-	local officer = Registry.spawnCustom(CFrame.lookAt(pos + Vector3.new(0, 3, 0), pos + Vector3.new(0, 3, 0) + car.look), {
-		prefix = "Офицер",
+	local officer = Registry.spawnCustom(at, {
+		prefix = title or "Офицер",
 		shirt = Config.PoliceShirt,
 		pants = Config.PolicePants,
 		role = "Полиция",
@@ -6943,99 +7222,430 @@ local function spawnOfficer(car, index: number)
 	return officer
 end
 
-local function policeLoop(car)
+-- Офицеры в участке: стоят на местах, иногда переходят, болтают
+local function stationLife(officer)
+	while officer.alive do
+		if not officer.onDuty and #station.idle > 0 then
+			local spot = pick(station.idle)
+			if Registry.walkTo(officer, onFloor(spot)) and not officer.onDuty then
+				Registry.face(officer, spot.CFrame.LookVector)
+				if rng:NextNumber() < 0.2 then
+					Registry.say(officer, pick({ "Тихо сегодня.", "Кофе будешь?", "Ну и смена...", "Где мой рапорт?" }))
+				end
+			end
+		end
+		task.wait(rng:NextNumber(Config.StationWanderTime.Min, Config.StationWanderTime.Max))
+	end
+end
+
+local function newOfficer(car)
+	local at
+	if #station.idle > 0 then
+		local spot = pick(station.idle)
+		at = standCFrame(onFloor(spot), spot.CFrame.LookVector)
+	else
+		at = standCFrame(doorSide(car, car.driverSeat), car.look)
+	end
+	local officer = spawnOfficer(at)
+	if officer then
+		task.spawn(stationLife, officer)
+	end
+	return officer
+end
+
+-- Все садятся по местам; ждём, пока сядут или выйдет время
+local function boardAll(car, people)
+	local done = 0
+	for _, entry in people do
+		task.spawn(function()
+			local who, seat = entry.npc, entry.seat
+			if who and who.alive and seat and not who.inVehicle and Registry.walkTo(who, doorSide(car, seat)) then
+				seatNPC(who, car, seat)
+			end
+			done += 1
+		end)
+	end
+	local deadline = os.clock() + 40
+	while done < #people and os.clock() < deadline do
+		task.wait(0.3)
+	end
+end
+
+local function say(npc, text: string?)
+	if npc and npc.alive and text and text ~= "" then
+		Registry.say(npc, text)
+		task.wait(Config.QuestionGap + #text / 30)
+	end
+end
+
+-- Событие на месте вызова: опрос жителя, иногда задержание
+local function workCall(car, call, officers)
+	local o1, o2 = officers[1], officers[2] or officers[1]
+	local door = call.pos
+	local toRoad = flat(car.pos - door)
+	toRoad = toRoad.Magnitude > 0.5 and toRoad.Unit or Vector3.new(1, 0, 0)
+	local side = toRoad:Cross(Vector3.yAxis)
+
+	-- Встают у двери порознь, лицом к дому
+	local arrived = 0
+	for i, officer in officers do
+		task.spawn(function()
+			if officer and officer.alive then
+				local offset = (i == 1 and 1 or -1) * Config.OfficerSpacing
+				local spot = door + toRoad * 2.4 + side * offset
+				Registry.walkTo(officer, Vector3.new(spot.X, groundY(spot), spot.Z))
+				Registry.face(officer, -toRoad)
+			end
+			arrived += 1
+		end)
+	end
+	local deadline = os.clock() + 30
+	while arrived < #officers and os.clock() < deadline do
+		task.wait(0.3)
+	end
+
+	local kind = call.kind
+	local resident = Registry.findResident(call.zone, door, 60)
+	if resident and not Registry.claim(resident, "police") then
+		resident = nil
+	end
+	if not resident then
+		for _, line in Config.NobodyLines do
+			say(o1, line)
+		end
+		return "Никого не оказалось на месте", false
+	end
+
+	-- Житель выходит к офицерам
+	Registry.setMood(resident, "Police")
+	local meet = door + toRoad * 0.6
+	Registry.walkTo(resident, Vector3.new(meet.X, groundY(meet), meet.Z))
+	Registry.face(resident, toRoad)
+	Registry.emote(o1, "Wave")
+
+	local arrest = rng:NextNumber() < (kind.Arrest or 0) and kind.Suspect and kind.Suspect[1] ~= ""
+	local answers = arrest and kind.Suspect or kind.Resident
+	say(o1, kind.Officer[1])
+	say(resident, answers[1])
+	Registry.emote(o2, "Point")
+	say(o2, kind.Officer[2])
+	Registry.emote(resident, rng:NextNumber() < 0.5 and "Point" or "Wave")
+	say(resident, answers[2])
+
+	if not arrest then
+		say(o1, pick(Config.PoliceCloseLines))
+		say(resident, pick(Config.ResidentThanks))
+		Registry.release(resident)
+		return kind.Name .. ": разобрались на месте", false
+	end
+
+	-- Задержание: наручники, в машину, в участок
+	say(o1, pick(Config.ArrestLines))
+	resident.model:SetAttribute("Cuffed", true)
+	Registry.setMood(resident, "Cuffed")
+	say(resident, pick(Config.ArrestedLines))
+	local rear = car.seats[#car.seats] ~= car.seats[1] and car.seats[#car.seats] or car.seats[2]
+	if not rear then
+		Registry.release(resident)
+		return kind.Name .. ": некуда посадить задержанного", false
+	end
+	boardAll(car, { { npc = resident, seat = rear } })
+	return kind.Name .. ": задержан " .. resident.name, true, resident
+end
+
+local function handleCall(car, call)
+	car.state = "busy"
+	local ticket = call.ticket
+	-- Замена погибших офицеров
+	for i = 1, Config.PoliceOfficersPerCar do
+		local o = car.officers[i]
+		if not o or not o.alive then
+			car.officers[i] = newOfficer(car)
+		end
+	end
+	local officers = {}
+	for _, o in car.officers do
+		if o and o.alive then
+			o.onDuty = true
+			table.insert(officers, o)
+		end
+	end
+	-- Прерываем прогулку по участку
+	for _, o in officers do
+		o.abort = true
+	end
+	task.wait(0.4)
+	for _, o in officers do
+		o.abort = false
+	end
+	if #officers == 0 then
+		table.insert(callQueue, 1, call)
+		car.state = "parked"
+		task.wait(10)
+		return
+	end
+
+	-- Из участка — в машину
+	setTicket(ticket, "Наряд выезжает")
+	local seating = {}
+	for i, o in officers do
+		table.insert(seating, { npc = o, seat = i == 1 and car.driverSeat or car.seats[i - 1] })
+	end
+	boardAll(car, seating)
+
+	car.model:SetAttribute("Siren", true)
+	car.model:SetAttribute("SirenMuted", false)
+	setTicket(ticket, "Наряд в пути 🚨")
+	drive(car, { node = nearestNode(call.pos), curb = 5 })
+	car.model:SetAttribute("SirenMuted", true) -- мигалки горят, сирена молчит
+	setTicket(ticket, "Наряд на месте")
+
+	for _, o in officers do
+		task.spawn(unseatNPC, o)
+	end
+	task.wait(1.4)
+	local summary, arrested, suspect = workCall(car, call, officers)
+	addEvent(summary)
+
+	-- Обратно в машину и в участок
+	local back = {}
+	for i, o in officers do
+		table.insert(back, { npc = o, seat = i == 1 and car.driverSeat or car.seats[i - 1] })
+	end
+	boardAll(car, back)
+	car.model:SetAttribute("Siren", false)
+	car.model:SetAttribute("SirenMuted", false)
+	drive(car, { spot = car.homeSpot })
+
+	for _, o in officers do
+		task.spawn(unseatNPC, o)
+	end
+	if arrested and suspect and suspect.alive then
+		setTicket(ticket, "Задержанный доставлен в участок")
+		task.wait(1)
+		unseatNPC(suspect)
+		if station.cell then
+			-- Ведут в камеру и оформляют
+			task.spawn(function()
+				Registry.walkTo(officers[1], onFloor(station.cell) + station.cell.CFrame.LookVector * 2.5)
+			end)
+			Registry.walkTo(suspect, onFloor(station.cell))
+			Registry.face(suspect, station.cell.CFrame.LookVector)
+			say(officers[1], pick(Config.BookingLines))
+		end
+		jailed[suspect] = true
+		task.spawn(function()
+			local release = os.clock() + rng:NextNumber(Config.CellTime.Min, Config.CellTime.Max)
+			while suspect.alive and os.clock() < release do
+				task.wait(rng:NextNumber(12, 25))
+				if suspect.alive and os.clock() < release then
+					Registry.say(suspect, pick(Config.CellLines))
+				end
+			end
+			jailed[suspect] = nil
+			if suspect.alive then
+				Registry.say(suspect, "Наконец-то свобода!")
+				Registry.release(suspect)
+			end
+		end)
+	elseif arrested and suspect then
+		Registry.release(suspect)
+	end
+	setTicket(ticket, "Закрыто: " .. summary, true)
+	task.wait(2)
+	for _, o in officers do
+		o.onDuty = false
+	end
+	car.state = "parked"
+end
+
+local function policeCarLoop(car)
 	car.officers = {}
 	for i = 1, Config.PoliceOfficersPerCar do
-		car.officers[i] = spawnOfficer(car, i)
+		car.officers[i] = newOfficer(car)
 	end
 	while car.model.Parent do
+		local call = table.remove(callQueue, 1)
+		if call then
+			local ok, err = pcall(handleCall, car, call)
+			if not ok then
+				warn("[Traffic] Ошибка на вызове:", err)
+				for _, o in car.officers do
+					if o then
+						o.onDuty = false
+					end
+				end
+				car.state = "parked"
+			end
+		else
+			task.wait(1)
+		end
+	end
+end
+
+-- Случайные вызовы по городу
+local function dispatcher()
+	while true do
 		local waitTime = rng:NextNumber(Config.PoliceCallInterval.Min, Config.PoliceCallInterval.Max)
 		if isNight() then
 			waitTime *= Config.PoliceNightFactor
 		end
 		task.wait(waitTime)
-		if #policeCalls == 0 then
-			continue
+		if #policeCalls > 0 and #callQueue < 2 then
+			local c = pick(policeCalls)
+			table.insert(callQueue, { pos = c.pos, zone = c.zone, kind = pick(Config.PoliceCallTypes) })
 		end
-		-- Замена погибших офицеров
-		for i = 1, Config.PoliceOfficersPerCar do
-			local o = car.officers[i]
-			if not o or not o.alive then
-				car.officers[i] = spawnOfficer(car, i)
+	end
+end
+
+-- Дежурный и его меню
+local duty = nil
+local reportCooldown = {}
+
+local function dutyAnswer(player: Player, text: string)
+	if duty and duty.alive then
+		Registry.say(duty, text)
+	end
+	policeRemote:FireClient(player, "Say", text)
+end
+
+local function openDesk(player: Player)
+	if not duty or not duty.alive then
+		return
+	end
+	local types = {}
+	for i, k in Config.PoliceCallTypes do
+		types[i] = { name = k.Name, icon = k.Icon }
+	end
+	local placeNames = {}
+	for i, place in places do
+		placeNames[i] = place.name
+	end
+	local questions = {}
+	for i, q in Config.DutyQuestions do
+		questions[i] = q.Text
+	end
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root then
+		Registry.face(duty, root.Position - duty.hrp.Position)
+	end
+	Registry.emote(duty, "Wave")
+	local greeting = pick(Config.DutyGreetings)
+	Registry.say(duty, greeting)
+	policeRemote:FireClient(player, "Open", {
+		officer = duty.model,
+		name = duty.name,
+		greeting = greeting,
+		types = types,
+		places = placeNames,
+		questions = questions,
+		tickets = ticketList(player),
+	})
+end
+
+policeRemote.OnServerEvent:Connect(function(player: Player, action: any, a: any, b: any)
+	if not duty or not duty.alive then
+		return
+	end
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or (root.Position - duty.hrp.Position).Magnitude > 20 then
+		return
+	end
+	if action == "Report" and type(a) == "number" and type(b) == "number" then
+		local kind, place = Config.PoliceCallTypes[a], places[b]
+		if not kind or not place then
+			return
+		end
+		local now = os.clock()
+		local active = 0
+		for _, t in tickets[player] or {} do
+			if not t.done then
+				active += 1
 			end
 		end
-		local call = pick(policeCalls)
-		car.state = "busy"
-
-		-- По машинам
-		local seated = 0
-		for i, officer in car.officers do
-			task.spawn(function()
-				local seat = i == 1 and car.driverSeat or car.seats[i - 1]
-				if officer and officer.alive and seat and Registry.walkTo(officer, doorSide(car, seat)) then
-					seatNPC(officer, car, seat)
-				end
-				seated += 1
-			end)
+		if now < (reportCooldown[player] or 0) or active >= 3 then
+			dutyAnswer(player, "Подождите, мы ещё работаем по вашим заявлениям.")
+			return
 		end
-		local deadline = os.clock() + 25
-		while seated < #car.officers and os.clock() < deadline do
-			task.wait(0.3)
+		reportCooldown[player] = now + 15
+		nextTicket += 1
+		local ticket = { id = nextTicket, icon = kind.Icon, kind = kind.Name, place = place.name, status = "Принято", player = player }
+		tickets[player] = tickets[player] or {}
+		table.insert(tickets[player], 1, ticket)
+		if #tickets[player] > 6 then
+			table.remove(tickets[player])
 		end
-
-		car.model:SetAttribute("Siren", true)
-		car.model:SetAttribute("SirenMuted", false)
-		drive(car, { node = nearestNode(call.pos), curb = 5 })
-		car.model:SetAttribute("SirenMuted", true) -- мигалки горят, сирена молчит
-
-		-- Выходят и идут в здание
-		local inside = zonePoints(call.zone)
-		local done = 0
-		for _, officer in car.officers do
-			task.spawn(function()
-				if officer and officer.alive then
-					unseatNPC(officer)
-					if Registry.walkTo(officer, call.pos) then
-						Registry.say(officer, pick(Config.PolicePhrases))
-						if #inside > 0 then
-							Registry.walkTo(officer, pick(inside).Position)
-						end
-						task.wait(rng:NextNumber(Config.PoliceInsideTime.Min, Config.PoliceInsideTime.Max))
-						Registry.say(officer, pick(Config.PoliceDonePhrases))
-						Registry.walkTo(officer, call.pos)
-					end
-				end
-				done += 1
-			end)
-		end
-		while done < #car.officers do
-			task.wait(0.5)
-		end
-
-		-- Обратно в машину и на базу
-		seated = 0
-		for i, officer in car.officers do
-			task.spawn(function()
-				local seat = i == 1 and car.driverSeat or car.seats[i - 1]
-				if officer and officer.alive and seat and Registry.walkTo(officer, doorSide(car, seat)) then
-					seatNPC(officer, car, seat)
-				end
-				seated += 1
-			end)
-		end
-		deadline = os.clock() + 40
-		while seated < #car.officers and os.clock() < deadline do
-			task.wait(0.3)
-		end
-		car.model:SetAttribute("Siren", false)
-		car.model:SetAttribute("SirenMuted", false)
-		drive(car, { spot = car.homeSpot })
-		for _, officer in car.officers do
-			if officer and officer.inVehicle then
-				task.spawn(unseatNPC, officer)
+		local call = callAt(place.pos)
+		call.kind = kind
+		call.ticket = ticket
+		-- Заявления игроков — вперёд очереди
+		table.insert(callQueue, 1, call)
+		local free = false
+		for _, car in cars do
+			if car.kind == "Police" and car.state == "parked" then
+				free = true
 			end
 		end
-		car.state = "parked"
+		dutyAnswer(player, string.format("%s Номер заявления: %d.", pick(free and Config.ReportAccepted or Config.ReportBusy), ticket.id))
+		Registry.emote(duty, "Point")
+		policeRemote:FireClient(player, "Tickets", ticketList(player))
+	elseif action == "Ask" and type(a) == "number" then
+		local q = Config.DutyQuestions[a]
+		if not q then
+			return
+		end
+		local answer = pick(q.Answers)
+		if string.find(answer, "%%s") then
+			local filler
+			if a == 1 then
+				filler = #recentEvents > 0 and ("Последние вызовы: " .. table.concat(recentEvents, "; ") .. ".") or "Всё спокойно, вызовов не было."
+			else
+				local names = {}
+				for npc in pairs(jailed) do
+					table.insert(names, npc.name)
+				end
+				filler = #names > 0 and ("Сейчас в камере: " .. table.concat(names, ", ") .. ".") or "Камера пустая. Пока что."
+			end
+			answer = string.format(answer, filler)
+		end
+		dutyAnswer(player, answer)
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	tickets[player] = nil
+	reportCooldown[player] = nil
+end)
+
+local function spawnDuty()
+	if not station.desk then
+		return
+	end
+	duty = spawnOfficer(standCFrame(onFloor(station.desk), station.desk.CFrame.LookVector), Config.DutyOfficerName)
+	if duty then
+		duty.onDuty = true
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "DutyPrompt"
+		prompt.ActionText = "Обратиться"
+		prompt.ObjectText = "Дежурный"
+		prompt.HoldDuration = 0
+		prompt.MaxActivationDistance = 12
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = duty.hrp
+		prompt.Triggered:Connect(openDesk)
+		-- Дежурный всегда возвращается за стойку
+		task.spawn(function()
+			while duty and duty.alive do
+				task.wait(5)
+				local home = onFloor(station.desk)
+				if (flat(duty.hrp.Position - home)).Magnitude > 2 then
+					Registry.walkTo(duty, home)
+				end
+				Registry.face(duty, station.desk.CFrame.LookVector)
+			end
+		end)
 	end
 end
 
@@ -7166,8 +7776,20 @@ end
 for i = 1, math.min(Config.Count.Police, #spots.Police) do
 	local car = spawnCar("Police", spots.Police[i])
 	if car then
-		task.spawn(policeLoop, car)
+		task.spawn(policeCarLoop, car)
 	end
+end
+if #spots.Police > 0 then
+	task.spawn(dispatcher)
+	task.spawn(function()
+		-- Дежурный: возрождается, если с ним что-то случилось
+		while true do
+			if not duty or not duty.alive then
+				spawnDuty()
+			end
+			task.wait(20)
+		end
+	end)
 end
 
 -- Поток машин: свои водители, катаются всё время
@@ -9504,6 +10126,30 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("NPCConfig"))
 local Sounds = require(ReplicatedStorage:WaitForChild("SoundConfig"))
+local RigAnimator = require(ReplicatedStorage:WaitForChild("RigAnimator"))
+
+-- Руки за спиной (задержанный в наручниках): только руки, ноги шагают как обычно
+local CUFFED_POSE = {
+	LeftShoulder = Vector3.new(-32, 0, 26),
+	RightShoulder = Vector3.new(-32, 0, -26),
+	LeftElbow = Vector3.new(38, 0, 0),
+	RightElbow = Vector3.new(38, 0, 0),
+}
+
+local function cuffedLayer(model: Model)
+	local weight = 0
+	return {
+		Priority = 40,
+		Update = function(rig, dt)
+			local on = model:GetAttribute("Cuffed") == true
+			weight = math.clamp(weight + (on and dt or -dt) * 4, 0, 1)
+			if not on and weight <= 0 then
+				return nil, 0, true
+			end
+			return RigAnimator.Frames(rig, CUFFED_POSE), weight
+		end,
+	}
+end
 local dialogRemote = ReplicatedStorage:WaitForChild("NPCDialog")
 
 local player = Players.LocalPlayer
@@ -9711,6 +10357,15 @@ local function watchNpc(model: Instance)
 	if not model:IsA("Model") then
 		return
 	end
+	-- Наручники
+	local function onCuffed()
+		if model:GetAttribute("Cuffed") == true and not RigAnimator.HasLayer(model, "Cuffed") then
+			RigAnimator.SetLayer(model, "Cuffed", cuffedLayer(model))
+		end
+	end
+	model:GetAttributeChangedSignal("Cuffed"):Connect(onCuffed)
+	onCuffed()
+
 	-- Звуковые события с сервера: смех, крик, храп...
 	model:GetAttributeChangedSignal("SoundEventId"):Connect(function()
 		local name = model:GetAttribute("SoundEvent")
@@ -10734,4 +11389,518 @@ remote.OnClientEvent:Connect(function(action, model, names, price)
 	gui.Enabled = true
 	scale.Scale = 0.85
 	TweenService:Create(scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+end)
+
+----------------------------------------------------------------------
+-- 32. StarterPlayer → StarterPlayerScripts > LocalScript "PoliceDeskClient"
+----------------------------------------------------------------------
+
+-- LocalScript: StarterPlayer > StarterPlayerScripts > PoliceDeskClient
+-- Меню дежурного в полицейском участке:
+--   * живой портрет дежурного, его реплики печатаются в облачке;
+--   * «Заявление»: что случилось → где → отправить (по заявлению реально выезжает наряд);
+--   * «Вопросы»: спросить дежурного о городе;
+--   * «Мои заявления»: статус каждого заявления обновляется в реальном времени.
+-- Фон размывается, окно плавно появляется, кнопки откликаются на наведение.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local remote = ReplicatedStorage:WaitForChild("PoliceRemote")
+local player = Players.LocalPlayer
+
+local W, H = 700, 450
+local C = {
+	bg = Color3.fromRGB(16, 22, 38),
+	panel = Color3.fromRGB(24, 32, 54),
+	card = Color3.fromRGB(34, 45, 74),
+	cardHover = Color3.fromRGB(48, 64, 104),
+	accent = Color3.fromRGB(70, 140, 255),
+	accent2 = Color3.fromRGB(40, 90, 210),
+	text = Color3.fromRGB(235, 240, 250),
+	dim = Color3.fromRGB(150, 165, 195),
+	gold = Color3.fromRGB(255, 205, 90),
+	green = Color3.fromRGB(80, 210, 120),
+	orange = Color3.fromRGB(255, 160, 60),
+	yellow = Color3.fromRGB(250, 220, 80),
+	red = Color3.fromRGB(240, 90, 90),
+}
+local FAST = TweenInfo.new(0.15, Enum.EasingStyle.Quad)
+local POP = TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+local function new(className: string, props, parent: Instance?)
+	local inst = Instance.new(className)
+	for k, v in pairs(props or {}) do
+		(inst :: any)[k] = v
+	end
+	if parent then
+		inst.Parent = parent
+	end
+	return inst
+end
+local function corner(parent: Instance, r: number)
+	new("UICorner", { CornerRadius = UDim.new(0, r) }, parent)
+end
+local function pad(parent: Instance, p: number)
+	new("UIPadding", { PaddingTop = UDim.new(0, p), PaddingBottom = UDim.new(0, p), PaddingLeft = UDim.new(0, p), PaddingRight = UDim.new(0, p) }, parent)
+end
+local function label(parent: Instance, text: string, size: number, color: Color3?, font: Enum.Font?, props)
+	local l = new("TextLabel", {
+		BackgroundTransparency = 1,
+		Text = text,
+		TextSize = size,
+		TextColor3 = color or C.text,
+		Font = font or Enum.Font.GothamMedium,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextWrapped = true,
+		Size = UDim2.new(1, 0, 0, size + 6),
+	}, parent)
+	for k, v in pairs(props or {}) do
+		(l :: any)[k] = v
+	end
+	return l
+end
+
+-- Кнопка с откликом на наведение и нажатие
+local function button(parent: Instance, text: string, props, onClick)
+	local b = new("TextButton", {
+		AutoButtonColor = false,
+		BackgroundColor3 = C.card,
+		Text = text,
+		TextColor3 = C.text,
+		Font = Enum.Font.GothamMedium,
+		TextSize = 16,
+		TextWrapped = true,
+		Size = UDim2.new(1, 0, 0, 40),
+	}, parent)
+	for k, v in pairs(props or {}) do
+		(b :: any)[k] = v
+	end
+	corner(b, 10)
+	local base = b.BackgroundColor3
+	local scale = new("UIScale", {}, b)
+	b.MouseEnter:Connect(function()
+		TweenService:Create(b, FAST, { BackgroundColor3 = base:Lerp(Color3.new(1, 1, 1), 0.12) }):Play()
+		TweenService:Create(scale, FAST, { Scale = 1.03 }):Play()
+	end)
+	b.MouseLeave:Connect(function()
+		TweenService:Create(b, FAST, { BackgroundColor3 = base }):Play()
+		TweenService:Create(scale, FAST, { Scale = 1 }):Play()
+	end)
+	b.Activated:Connect(function()
+		scale.Scale = 0.94
+		TweenService:Create(scale, POP, { Scale = 1 }):Play()
+		onClick()
+	end)
+	return b
+end
+
+---------------------------------------------------------------------
+-- Окно
+---------------------------------------------------------------------
+
+local gui = new("ScreenGui", { Name = "PoliceDesk", ResetOnSpawn = false, Enabled = false, IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Sibling }, player:WaitForChild("PlayerGui"))
+local shade = new("Frame", { BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1) }, gui)
+
+-- Обычный Frame (не CanvasGroup): внутри ViewportFrame с портретом
+local card = new("Frame", {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromOffset(W, H),
+	BackgroundColor3 = C.bg,
+	ClipsDescendants = true,
+}, gui)
+corner(card, 18)
+new("UIStroke", { Color = C.accent, Thickness = 2, Transparency = 0.3 }, card)
+local cardScale = new("UIScale", {}, card)
+
+-- Шапка с градиентом
+local header = new("Frame", { Size = UDim2.new(1, 0, 0, 64), BackgroundColor3 = C.accent2, BorderSizePixel = 0 }, card)
+new("UIGradient", { Color = ColorSequence.new(Color3.fromRGB(40, 90, 210), Color3.fromRGB(20, 40, 110)), Rotation = 10 }, header)
+local badge = new("TextLabel", { BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.85, Size = UDim2.fromOffset(46, 46), Position = UDim2.fromOffset(14, 9), Text = "🚔", TextSize = 26, Font = Enum.Font.GothamBold }, header)
+corner(badge, 23)
+label(header, "Дежурная часть", 22, C.text, Enum.Font.GothamBold, { Position = UDim2.fromOffset(72, 10), Size = UDim2.new(1, -140, 0, 26) })
+local subtitle = label(header, "", 15, Color3.fromRGB(200, 215, 255), Enum.Font.Gotham, { Position = UDim2.fromOffset(72, 36), Size = UDim2.new(1, -140, 0, 20) })
+
+-- Левая колонка: портрет и реплика
+local left = new("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 80), Size = UDim2.fromOffset(220, H - 96) }, card)
+local portrait = new("ViewportFrame", {
+	Size = UDim2.fromOffset(220, 200),
+	BackgroundColor3 = C.panel,
+	Ambient = Color3.fromRGB(170, 175, 190),
+	LightColor = Color3.fromRGB(255, 245, 230),
+	LightDirection = Vector3.new(-1, -1, -1),
+}, left)
+corner(portrait, 14)
+new("UIGradient", { Color = ColorSequence.new(Color3.fromRGB(60, 80, 130), Color3.fromRGB(25, 32, 55)), Rotation = 90 }, portrait)
+local world = new("WorldModel", {}, portrait)
+local camera = new("Camera", { FieldOfView = 30 }, portrait)
+portrait.CurrentCamera = camera
+
+local bubble = new("Frame", { Position = UDim2.fromOffset(0, 212), Size = UDim2.fromOffset(220, H - 96 - 212), BackgroundColor3 = Color3.fromRGB(245, 247, 252) }, left)
+corner(bubble, 14)
+pad(bubble, 12)
+local speech = label(bubble, "", 15, Color3.fromRGB(30, 35, 50), Enum.Font.GothamMedium, { Size = UDim2.fromScale(1, 1), TextYAlignment = Enum.TextYAlignment.Top })
+new("Frame", { BackgroundColor3 = bubble.BackgroundColor3, Size = UDim2.fromOffset(16, 16), Rotation = 45, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 212), ZIndex = 0 }, left)
+
+-- Правая колонка: вкладки и содержимое
+local right = new("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(252, 80), Size = UDim2.new(1, -268, 1, -96) }, card)
+local tabsRow = new("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 38) }, right)
+new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8) }, tabsRow)
+local content = new("ScrollingFrame", {
+	Position = UDim2.fromOffset(0, 48),
+	Size = UDim2.new(1, 0, 1, -48),
+	BackgroundColor3 = C.panel,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 5,
+	ScrollBarImageColor3 = C.accent,
+	CanvasSize = UDim2.new(),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+}, right)
+corner(content, 14)
+pad(content, 12)
+
+local closeButton = button(header, "✕", { Size = UDim2.fromOffset(40, 40), Position = UDim2.new(1, -52, 0, 12), BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.85, TextSize = 20, Font = Enum.Font.GothamBold }, function() end)
+
+---------------------------------------------------------------------
+-- Состояние
+---------------------------------------------------------------------
+
+local data = nil
+local officerModel: Model? = nil
+local currentTab = "report"
+local step, chosenType, chosenPlace = 1, nil, nil
+local typingToken = 0
+local blur: BlurEffect? = nil
+local tabButtons = {}
+local render -- объявлена ниже
+
+local function typeText(text: string)
+	typingToken += 1
+	local token = typingToken
+	speech.Text = text
+	speech.MaxVisibleGraphemes = 0
+	local length = utf8.len(text) or #text
+	task.spawn(function()
+		local start = os.clock()
+		while token == typingToken do
+			local shown = math.floor((os.clock() - start) * 50)
+			speech.MaxVisibleGraphemes = math.min(shown, length)
+			if shown >= length then
+				speech.MaxVisibleGraphemes = -1
+				break
+			end
+			task.wait()
+		end
+	end)
+end
+
+local function clearContent()
+	for _, c in content:GetChildren() do
+		if not c:IsA("UICorner") and not c:IsA("UIPadding") then
+			c:Destroy()
+		end
+	end
+end
+
+local function list(parent: Instance, gap: number)
+	return new("UIListLayout", { Padding = UDim.new(0, gap), SortOrder = Enum.SortOrder.LayoutOrder }, parent)
+end
+
+local function statusColor(status: string, done: boolean): Color3
+	if done then
+		return C.green
+	elseif string.find(status, "пути") or string.find(status, "выезжает") then
+		return C.orange
+	elseif string.find(status, "месте") or string.find(status, "доставлен") then
+		return C.yellow
+	end
+	return C.accent
+end
+
+-- Шаги заявления: 1 Что → 2 Где → 3 Отправить
+local function stepper(parent: Instance)
+	local row = new("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 30), LayoutOrder = 0 }, parent)
+	new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), VerticalAlignment = Enum.VerticalAlignment.Center }, row)
+	for i, name in { "Что случилось", "Где", "Отправить" } do
+		local active, passed = i == step, i < step
+		local dot = new("TextLabel", {
+			Size = UDim2.fromOffset(24, 24),
+			BackgroundColor3 = (active or passed) and C.accent or C.card,
+			Text = passed and "✓" or tostring(i),
+			TextColor3 = C.text,
+			TextSize = 13,
+			Font = Enum.Font.GothamBold,
+		}, row)
+		corner(dot, 12)
+		new("TextLabel", {
+			BackgroundTransparency = 1,
+			AutomaticSize = Enum.AutomaticSize.X,
+			Size = UDim2.fromOffset(0, 24),
+			Text = name,
+			TextSize = 13,
+			Font = active and Enum.Font.GothamBold or Enum.Font.Gotham,
+			TextColor3 = active and C.text or C.dim,
+		}, row)
+		if i < 3 then
+			new("Frame", { Size = UDim2.fromOffset(14, 2), BackgroundColor3 = passed and C.accent or C.card, BorderSizePixel = 0 }, row)
+		end
+	end
+end
+
+local function renderReport()
+	list(content, 10)
+	stepper(content)
+	if step == 1 then
+		label(content, "Что случилось?", 17, C.text, Enum.Font.GothamBold, { LayoutOrder = 1 })
+		local grid = new("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 2 }, content)
+		new("UIGridLayout", { CellSize = UDim2.new(0.5, -5, 0, 70), CellPadding = UDim2.fromOffset(10, 10), SortOrder = Enum.SortOrder.LayoutOrder }, grid)
+		for i, t in data.types do
+			local b = button(grid, "", { LayoutOrder = i }, function()
+				chosenType = i
+				step = 2
+				render()
+			end)
+			label(b, t.icon, 26, nil, Enum.Font.GothamBold, { Position = UDim2.fromOffset(12, 10), Size = UDim2.fromOffset(40, 40), TextXAlignment = Enum.TextXAlignment.Center })
+			label(b, t.name, 15, nil, Enum.Font.GothamMedium, { Position = UDim2.fromOffset(58, 0), Size = UDim2.new(1, -64, 1, 0), TextYAlignment = Enum.TextYAlignment.Center })
+		end
+	elseif step == 2 then
+		local t = data.types[chosenType]
+		label(content, string.format("%s %s — где это случилось?", t.icon, t.name), 17, C.text, Enum.Font.GothamBold, { LayoutOrder = 1 })
+		for i, name in data.places do
+			button(content, "📍  " .. name, { LayoutOrder = 1 + i, TextXAlignment = Enum.TextXAlignment.Left }, function()
+				chosenPlace = i
+				step = 3
+				render()
+			end)
+		end
+		button(content, "← Назад", { LayoutOrder = 100, BackgroundColor3 = C.panel, TextColor3 = C.dim, Size = UDim2.new(0, 120, 0, 32) }, function()
+			step = 1
+			render()
+		end)
+	else
+		local t = data.types[chosenType]
+		local summary = new("Frame", { BackgroundColor3 = C.card, Size = UDim2.new(1, 0, 0, 96), LayoutOrder = 1 }, content)
+		corner(summary, 12)
+		new("UIStroke", { Color = C.accent, Transparency = 0.5 }, summary)
+		label(summary, t.icon, 40, nil, Enum.Font.GothamBold, { Position = UDim2.fromOffset(14, 20), Size = UDim2.fromOffset(56, 56), TextXAlignment = Enum.TextXAlignment.Center })
+		label(summary, t.name, 19, C.text, Enum.Font.GothamBold, { Position = UDim2.fromOffset(84, 18), Size = UDim2.new(1, -96, 0, 26) })
+		label(summary, "📍 " .. data.places[chosenPlace], 16, C.dim, Enum.Font.Gotham, { Position = UDim2.fromOffset(84, 50), Size = UDim2.new(1, -96, 0, 22) })
+		local send = button(content, "Подать заявление", { LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 50), BackgroundColor3 = C.accent, Font = Enum.Font.GothamBold, TextSize = 18 }, function()
+			remote:FireServer("Report", chosenType, chosenPlace)
+			step, chosenType, chosenPlace = 1, nil, nil
+			currentTab = "tickets"
+			render()
+		end)
+		-- Кнопка «дышит», чтобы притягивать взгляд
+		local glow = new("UIStroke", { Color = Color3.fromRGB(150, 200, 255), Thickness = 2 }, send)
+		TweenService:Create(glow, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = 0.9 }):Play()
+		button(content, "← Изменить", { LayoutOrder = 3, BackgroundColor3 = C.panel, TextColor3 = C.dim, Size = UDim2.new(0, 140, 0, 32) }, function()
+			step = 2
+			render()
+		end)
+	end
+end
+
+local function renderQuestions()
+	list(content, 8)
+	label(content, "Спросить дежурного", 17, C.text, Enum.Font.GothamBold, { LayoutOrder = 0 })
+	for i, q in data.questions do
+		button(content, "❓  " .. q, { LayoutOrder = i, TextXAlignment = Enum.TextXAlignment.Left }, function()
+			remote:FireServer("Ask", i)
+		end)
+	end
+end
+
+local function renderTickets()
+	list(content, 8)
+	label(content, "Мои заявления", 17, C.text, Enum.Font.GothamBold, { LayoutOrder = 0 })
+	if #data.tickets == 0 then
+		label(content, "Пока нет заявлений. Если что-то случилось — подайте заявление.", 15, C.dim, Enum.Font.Gotham, { LayoutOrder = 1, Size = UDim2.new(1, 0, 0, 44) })
+	end
+	for i, t in data.tickets do
+		local row = new("Frame", { BackgroundColor3 = C.card, Size = UDim2.new(1, 0, 0, 64), LayoutOrder = i }, content)
+		corner(row, 12)
+		label(row, t.icon, 26, nil, Enum.Font.GothamBold, { Position = UDim2.fromOffset(10, 14), Size = UDim2.fromOffset(36, 36), TextXAlignment = Enum.TextXAlignment.Center })
+		label(row, string.format("№%d · %s", t.id, t.kind), 15, C.text, Enum.Font.GothamBold, { Position = UDim2.fromOffset(54, 8), Size = UDim2.new(1, -64, 0, 20) })
+		label(row, "📍 " .. t.place, 13, C.dim, Enum.Font.Gotham, { Position = UDim2.fromOffset(54, 26), Size = UDim2.new(1, -64, 0, 16) })
+		local color = statusColor(t.status, t.done)
+		local chip = new("TextLabel", {
+			Position = UDim2.fromOffset(54, 43),
+			AutomaticSize = Enum.AutomaticSize.X,
+			Size = UDim2.fromOffset(0, 16),
+			BackgroundColor3 = color,
+			BackgroundTransparency = 0.75,
+			TextColor3 = color,
+			Text = "  " .. t.status .. "  ",
+			TextSize = 12,
+			Font = Enum.Font.GothamBold,
+		}, row)
+		corner(chip, 8)
+		if not t.done then
+			-- Активное заявление мигает статусом
+			TweenService:Create(chip, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { BackgroundTransparency = 0.55 }):Play()
+		end
+	end
+end
+
+local TABS = {
+	{ id = "report", text = "📝 Заявление" },
+	{ id = "questions", text = "❓ Вопросы" },
+	{ id = "tickets", text = "📋 Мои заявления" },
+}
+
+function render()
+	if not data then
+		return
+	end
+	for _, t in TABS do
+		local b = tabButtons[t.id]
+		if b then
+			local active = currentTab == t.id
+			TweenService:Create(b, FAST, { BackgroundColor3 = active and C.accent or C.card, TextColor3 = active and C.text or C.dim }):Play()
+		end
+	end
+	clearContent()
+	if currentTab == "report" then
+		renderReport()
+	elseif currentTab == "questions" then
+		renderQuestions()
+	else
+		renderTickets()
+	end
+	content.CanvasPosition = Vector2.zero
+end
+
+for i, t in TABS do
+	local b = button(tabsRow, t.text, { Size = UDim2.new(1 / 3, -6, 1, 0), TextSize = 14, LayoutOrder = i }, function()
+		currentTab = t.id
+		render()
+	end)
+	tabButtons[t.id] = b
+end
+
+---------------------------------------------------------------------
+-- Портрет дежурного
+---------------------------------------------------------------------
+
+local function setPortrait(model: Model?)
+	world:ClearAllChildren()
+	if not model then
+		return
+	end
+	local ok, clone = pcall(function()
+		model.Archivable = true
+		return model:Clone()
+	end)
+	if not ok or not clone then
+		return
+	end
+	for _, d in clone:GetDescendants() do
+		if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("ProximityPrompt") or d:IsA("BillboardGui") or d:IsA("Sound") then
+			d:Destroy()
+		elseif d:IsA("BasePart") then
+			d.Anchored = true
+		end
+	end
+	local humanoid = clone:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	end
+	clone:PivotTo(CFrame.new())
+	clone.Parent = world
+	local head = clone:FindFirstChild("Head")
+	if head then
+		local focus = head.Position - Vector3.new(0, 0.6, 0)
+		camera.CFrame = CFrame.lookAt(focus + head.CFrame.LookVector * 7 + Vector3.new(0, 0.3, 0), focus)
+	end
+end
+
+---------------------------------------------------------------------
+-- Открыть / закрыть
+---------------------------------------------------------------------
+
+local function fitScale()
+	local view = workspace.CurrentCamera.ViewportSize
+	return math.min(1, (view.X - 24) / W, (view.Y - 24) / H)
+end
+
+local function close()
+	if not gui.Enabled then
+		return
+	end
+	TweenService:Create(cardScale, FAST, { Scale = 0.6 * fitScale() }):Play()
+	TweenService:Create(shade, FAST, { BackgroundTransparency = 1 }):Play()
+	if blur then
+		local b = blur
+		blur = nil
+		local fade = TweenService:Create(b, FAST, { Size = 0 })
+		fade:Play()
+		fade.Completed:Once(function()
+			b:Destroy()
+		end)
+	end
+	task.delay(0.16, function()
+		gui.Enabled = false
+		world:ClearAllChildren()
+	end)
+	data = nil
+end
+closeButton.Activated:Connect(close)
+
+local function open(payload)
+	data = payload
+	officerModel = payload.officer
+	subtitle.Text = (payload.name or "Дежурный") .. " · на связи"
+	currentTab, step, chosenType, chosenPlace = "report", 1, nil, nil
+	setPortrait(officerModel)
+	typeText(payload.greeting or "")
+	render()
+
+	gui.Enabled = true
+	if not blur then
+		blur = new("BlurEffect", { Size = 0, Name = "PoliceDeskBlur" }, Lighting)
+		TweenService:Create(blur, TweenInfo.new(0.3), { Size = 14 }):Play()
+	end
+	shade.BackgroundTransparency = 1
+	TweenService:Create(shade, TweenInfo.new(0.3), { BackgroundTransparency = 0.55 }):Play()
+	cardScale.Scale = 0.75 * fitScale()
+	TweenService:Create(cardScale, POP, { Scale = fitScale() }):Play()
+end
+
+remote.OnClientEvent:Connect(function(action, payload)
+	if action == "Open" then
+		open(payload)
+	elseif action == "Say" and data then
+		typeText(payload)
+	elseif action == "Tickets" and data then
+		data.tickets = payload
+		if currentTab == "tickets" then
+			render()
+		end
+	end
+end)
+
+-- Отошёл от стойки — окно закрывается; портрет чуть «дышит»
+RunService.RenderStepped:Connect(function()
+	if not gui.Enabled or not data then
+		return
+	end
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local officerRoot = officerModel and officerModel:FindFirstChild("HumanoidRootPart")
+	if not root or not officerRoot or (root.Position - officerRoot.Position).Magnitude > 18 then
+		close()
+		return
+	end
+	local head = world:FindFirstChildWhichIsA("Model") and world:FindFirstChildWhichIsA("Model"):FindFirstChild("Head")
+	if head then
+		local t = os.clock()
+		local focus = head.Position - Vector3.new(0, 0.6, 0)
+		local offset = Vector3.new(math.sin(t * 0.6) * 0.25, 0.3 + math.sin(t * 0.9) * 0.08, 0)
+		camera.CFrame = CFrame.lookAt(focus + head.CFrame.LookVector * 7 + offset, focus)
+	end
 end)

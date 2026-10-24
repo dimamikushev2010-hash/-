@@ -568,7 +568,8 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 local function shouldStop(npc): boolean
-	return not npc.alive or npc.abort or npc.lock ~= nil
+	-- controlled — жителем управляет другой скрипт (например, полиция): свои дела он бросает
+	return not npc.alive or npc.abort or npc.lock ~= nil or (npc.controlled ~= nil and not npc.externalWalking)
 end
 
 local function stopMoving(npc)
@@ -797,6 +798,7 @@ local function freeForChat(npc, now: number): boolean
 		and not npc.sleeping
 		and not npc.inVehicle
 		and not npc.noSocial
+		and not npc.controlled
 end
 
 local function runConversation(a, b, lines)
@@ -873,7 +875,7 @@ function react(npc, kind: string, target: BasePart)
 end
 
 local function tryStartChat(npc, now: number)
-	if now < npc.nextSocialCheck or npc.inVehicle or npc.noSocial then
+	if now < npc.nextSocialCheck or npc.inVehicle or npc.noSocial or npc.controlled then
 		return
 	end
 	npc.nextSocialCheck = now + 0.6
@@ -1366,7 +1368,7 @@ local function brain(npc)
 	task.wait(0.5)
 
 	while npc.alive do
-		while npc.alive and npc.lock ~= nil do
+		while npc.alive and (npc.lock ~= nil or npc.controlled ~= nil) do
 			task.wait(0.2)
 		end
 		if not npc.alive then
@@ -1485,6 +1487,10 @@ end
 
 local function startPlayerTalk(npc, player: Player)
 	if not npc.alive or npc.talkingTo or npc.inVehicle or npc.officer then
+		return
+	end
+	if npc.controlled then
+		say(npc, "Извините, не сейчас...", 2)
 		return
 	end
 	local character = player.Character
@@ -1953,9 +1959,9 @@ local function createNPC(spawnPart: BasePart?, opts)
 				say(npc, pick(Config.Phrases.Hurt), 2)
 				sfx(npc, "Hurt")
 			end
-			if npc.inVehicle or npc.officer then
+			if npc.inVehicle or npc.officer or npc.controlled then
 				lastHealth = health
-				return -- в машине не убегает
+				return -- в машине и под присмотром полиции не убегает
 			end
 			npc.fleeUntil = now + 6
 			setMood(npc, "Scared", 6)
@@ -1988,7 +1994,59 @@ end
 
 -- API для транспорта
 Registry.walkTo = function(npc, position: Vector3): boolean
-	return walkTo(npc, position)
+	npc.externalWalking = true
+	local ok = walkTo(npc, position)
+	npc.externalWalking = false
+	return ok
+end
+Registry.emote = function(npc, name: string, duration: number?)
+	if npc.alive then
+		npc.anim.emote(name, duration)
+	end
+end
+Registry.sfx = sfx
+Registry.standUp = standUp
+
+-- Взять жителя под управление (полиция): он бросает свои дела и ждёт команд
+Registry.claim = function(npc, reason: string): boolean
+	if not npc.alive or npc.inVehicle or npc.controlled or npc.officer or npc.lock ~= nil or npc.following or npc.talkingTo then
+		return false
+	end
+	npc.controlled = reason
+	stopMoving(npc)
+	task.wait(0.3)
+	npc.externalWalking = true
+	standUp(npc)
+	npc.externalWalking = false
+	if npc.prompt then
+		npc.prompt.Enabled = false
+	end
+	return true
+end
+Registry.release = function(npc)
+	npc.controlled = nil
+	npc.model:SetAttribute("Cuffed", nil)
+	setMood(npc, nil)
+	npc.abort = true
+	if npc.prompt and npc.alive then
+		npc.prompt.Enabled = true
+	end
+end
+-- Найти жителя: из зоны zone или рядом с точкой
+Registry.findResident = function(zone: string?, near: Vector3, radius: number)
+	local best, bestDist = nil, math.huge
+	for _, npc in pairs(npcs) do
+		if npc.alive and not npc.officer and not npc.controlled and not npc.inVehicle and npc.lock == nil
+			and not npc.following and not npc.talkingTo and not npc.job and not npc.route then
+			local dist = (npc.hrp.Position - near).Magnitude
+			local inZone = zone ~= nil and (npc.homeZone == zone or npc.zone == zone)
+			local score = inZone and dist or dist + 1000
+			if (inZone or dist < radius) and score < bestDist then
+				best, bestDist = npc, score
+			end
+		end
+	end
+	return best
 end
 Registry.say = say
 Registry.setMood = setMood
