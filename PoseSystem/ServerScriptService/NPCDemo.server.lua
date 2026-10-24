@@ -93,6 +93,7 @@ local function lamp(parent: Instance, pos: Vector3, range: number, color: Color3
 	local bulb = block(parent, "Lamp", Vector3.new(1.2, 1.2, 1.2), CFrame.new(pos), color or Color3.fromRGB(255, 235, 190), Enum.Material.Neon)
 	bulb.Shape = Enum.PartType.Ball
 	bulb.CanCollide = false
+	bulb:SetAttribute(Config.NightLightAttribute, true) -- горит только ночью
 	local light = Instance.new("PointLight")
 	light.Range = range
 	light.Brightness = 1.6
@@ -128,6 +129,12 @@ local function house(ox: number, oz: number, zone: string, wallColor: Color3)
 	local window = block(model, "Window", Vector3.new(6, 4, 0.2), CFrame.new(at(0, 6, -8.9)), Color3.fromRGB(170, 220, 255), Enum.Material.Glass)
 	window.Transparency = 0.3
 	window.CanCollide = false
+	window:SetAttribute(Config.NightLightAttribute, true) -- ночью окно светится
+	local windowLight = Instance.new("SurfaceLight")
+	windowLight.Face = Enum.NormalId.Back
+	windowLight.Range = 14
+	windowLight.Color = Color3.fromRGB(255, 220, 160)
+	windowLight.Parent = window
 	lamp(model, at(0, floorTop + H - 1, 0), 28)
 
 	-- Дверь (её открывают жители и игроки)

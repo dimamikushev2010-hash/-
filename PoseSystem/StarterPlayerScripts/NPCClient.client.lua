@@ -1,6 +1,7 @@
 -- LocalScript: StarterPlayer > StarterPlayerScripts > NPCClient
 -- Клиент жителей:
 --   * облачка с репликами над головой: «выпрыгивают», текст печатается по буквам, потом тают;
+--   * значок настроения над головой (💤 💬 🎵 😊 😱 ...), покачивается;
 --   * окно разговора с жителем: имя, его ответ и кнопки тем.
 
 local Players = game:GetService("Players")
@@ -125,9 +126,70 @@ local function showBubble(model: Model, text: string, duration: number)
 	end)
 end
 
+---------------------------------------------------------------------
+-- Значок настроения
+---------------------------------------------------------------------
+
+local moods = {} -- [npc model] = billboard
+
+local function showMood(model: Model)
+	local emoji = model:GetAttribute("Mood")
+	local old = moods[model]
+	if old then
+		moods[model] = nil
+		local label = old:FindFirstChildOfClass("TextLabel")
+		if label then
+			local fade = TweenService:Create(label, TweenInfo.new(0.2), { TextTransparency = 1 })
+			fade:Play()
+			fade.Completed:Once(function()
+				old:Destroy()
+			end)
+		else
+			old:Destroy()
+		end
+	end
+	local head = model:FindFirstChild("Head")
+	if type(emoji) ~= "string" or emoji == "" or not head then
+		return
+	end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "Mood"
+	billboard.Adornee = head
+	billboard.Size = UDim2.fromOffset(38, 38)
+	billboard.StudsOffset = Vector3.new(0, 4, 0)
+	billboard.MaxDistance = 60
+	billboard.LightInfluence = 0
+	billboard.Parent = bubbleGui
+
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Text = emoji
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBold
+	label.Parent = billboard
+
+	local scale = Instance.new("UIScale")
+	scale.Scale = 0.3
+	scale.Parent = label
+	TweenService:Create(scale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	-- Плавно покачивается вверх-вниз
+	TweenService:Create(billboard, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+		StudsOffset = Vector3.new(0, 4.35, 0),
+	}):Play()
+	moods[model] = billboard
+end
+
 local function watchNpc(model: Instance)
 	if not model:IsA("Model") then
 		return
+	end
+	model:GetAttributeChangedSignal("Mood"):Connect(function()
+		showMood(model)
+	end)
+	if model:GetAttribute("Mood") then
+		showMood(model)
 	end
 	model:GetAttributeChangedSignal("SayId"):Connect(function()
 		local text = model:GetAttribute("SayText")
@@ -136,9 +198,15 @@ local function watchNpc(model: Instance)
 		end
 	end)
 	model.AncestryChanged:Connect(function()
-		if not model.Parent and bubbles[model] then
-			bubbles[model].billboard:Destroy()
-			bubbles[model] = nil
+		if not model.Parent then
+			if bubbles[model] then
+				bubbles[model].billboard:Destroy()
+				bubbles[model] = nil
+			end
+			if moods[model] then
+				moods[model]:Destroy()
+				moods[model] = nil
+			end
 		end
 	end)
 end

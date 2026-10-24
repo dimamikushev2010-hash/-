@@ -5,7 +5,12 @@
 --   * в точках занимаются делами: стоят, смотрят в окно, сидят, лежат, танцуют, ждут собеседника;
 --   * болтают друг с другом (облачка с текстом и жесты), машут проходящим игрокам;
 --   * с ними можно поговорить (кнопка E) и выбрать тему;
---   * получив урон, вскрикивают и убегают; погибнув — возрождаются на своей точке.
+--   * получив урон, вскрикивают и убегают; погибнув — возрождаются на своей точке;
+--   * ночью идут домой спать (💤), утром просыпаются (DayNightServer);
+--   * реагируют на суперспособности: показывают на летящего, смеются над кубом,
+--     оглядываются на невидимку, разбегаются от лазеров;
+--   * помнят игроков по имени и могут пойти следом («Пойдём со мной!»);
+--   * над головой значок настроения.
 -- Анимации — стандартные анимации Roblox (их видят все), сидение/лежание на полу —
 -- через систему поз (PoseClient).
 
@@ -43,6 +48,24 @@ pcall(function()
 	PhysicsService:RegisterCollisionGroup(COLLISION_GROUP)
 	PhysicsService:CollisionGroupSetCollidable(COLLISION_GROUP, COLLISION_GROUP, false)
 end)
+
+-- Атрибуты суперспособностей (если таких скриптов нет — берём стандартные имена)
+local function abilityAttribute(moduleName: string, default: string): string
+	local module = ReplicatedStorage:FindFirstChild(moduleName)
+	if module then
+		local ok, cfg = pcall(require, module)
+		if ok and type(cfg) == "table" and cfg.ActiveAttribute then
+			return cfg.ActiveAttribute
+		end
+	end
+	return default
+end
+local ATTR_FLYING = abilityAttribute("FlightConfig", "Flying")
+local ATTR_CUBE = abilityAttribute("CubeConfig", "CubeForm")
+local ATTR_INVISIBLE = abilityAttribute("InvisibilityConfig", "Invisible")
+local ATTR_LASER = abilityAttribute("LaserConfig", "LaserActive")
+
+local memory = {} -- [имя жителя] = { [UserId] = true } — с кем уже знакомы
 
 local rng = Random.new()
 local function pick(list)
@@ -257,6 +280,24 @@ local function say(npc, text: string, duration: number?)
 	npc.model:SetAttribute("SayId", (npc.model:GetAttribute("SayId") or 0) + 1)
 end
 
+-- Значок настроения над головой (ключ из NPCConfig.Moods, nil — убрать)
+local function setMood(npc, mood: string?, duration: number?)
+	npc.moodToken = (npc.moodToken or 0) + 1
+	local token = npc.moodToken
+	npc.model:SetAttribute("Mood", mood and Config.Moods[mood] or nil)
+	if duration then
+		task.delay(duration, function()
+			if npc.moodToken == token and npc.model.Parent then
+				npc.model:SetAttribute("Mood", nil)
+			end
+		end)
+	end
+end
+
+local function isNight(): boolean
+	return workspace:GetAttribute("IsNight") == true
+end
+
 local function shouldStop(npc): boolean
 	return not npc.alive or npc.abort or npc.lock ~= nil
 end
@@ -328,6 +369,8 @@ end
 -- Общение
 ---------------------------------------------------------------------
 
+local react -- объявлена ниже
+
 local function freeForChat(npc, now: number): boolean
 	return npc.alive
 		and npc.lock == nil
@@ -335,10 +378,13 @@ local function freeForChat(npc, now: number): boolean
 		and npc.model:GetAttribute("Pose") ~= "Lie"
 		and not npc.humanoid.Sit
 		and now >= npc.fleeUntil
+		and not npc.sleeping
 end
 
 local function runConversation(a, b, lines)
 	a.lock, b.lock = "chat", "chat"
+	setMood(a, "Talk")
+	setMood(b, "Talk")
 	stopMoving(a)
 	stopMoving(b)
 	task.spawn(face, a, b.hrp.Position - a.hrp.Position)
@@ -365,10 +411,44 @@ local function runConversation(a, b, lines)
 	for _, npc in { a, b } do
 		if npc.lock == "chat" then
 			npc.lock = nil
+			setMood(npc, nil)
 		end
 		npc.chatCooldown = now + rng:NextNumber(30, 60)
 		npc.abort = true -- после разговора выбираем новое дело
 	end
+end
+
+-- Реакция на суперспособность игрока
+function react(npc, kind: string, target: BasePart)
+	if not npc.alive then
+		return
+	end
+	say(npc, pick(Config.Phrases[kind]), 2.5)
+	if kind == "Laser" then
+		setMood(npc, "Scared", 6)
+		npc.fleeUntil = os.clock() + 5
+		npc.abort = true
+		return
+	end
+	-- Остановиться и посмотреть
+	npc.lock = "react"
+	stopMoving(npc)
+	if kind == "Invisible" then
+		setMood(npc, "Wow", 3)
+		for _ = 1, 2 do
+			face(npc, (npc.hrp.CFrame * CFrame.Angles(0, rng:NextNumber(-2, 2), 0)).LookVector, 0.5)
+			task.wait(0.4)
+		end
+	else
+		setMood(npc, kind == "Cube" and "Laugh" or "Wow", 3)
+		face(npc, target.Position - npc.hrp.Position, 0.3)
+		npc.anim.emote(kind == "Cube" and "Laugh" or "Point")
+		task.wait(2)
+	end
+	if npc.lock == "react" then
+		npc.lock = nil
+	end
+	npc.abort = true
 end
 
 local function tryStartChat(npc, now: number)
@@ -377,19 +457,45 @@ local function tryStartChat(npc, now: number)
 	end
 	npc.nextSocialCheck = now + 0.6
 
-	-- Помахать проходящему игроку
 	for _, player in Players:GetPlayers() do
 		local character = player.Character
 		local hrp = character and character:FindFirstChild("HumanoidRootPart")
-		if hrp and (hrp.Position - npc.hrp.Position).Magnitude < Config.GreetDistance then
-			if now >= (npc.greeted[player] or 0) then
-				npc.greeted[player] = now + 45
-				if rng:NextNumber() < Config.GreetPlayerChance then
-					task.spawn(function()
-						npc.anim.emote("Wave")
-						say(npc, pick(Config.Phrases.Greet), 2.5)
-					end)
-				end
+		if not hrp or npc.sleeping then
+			continue
+		end
+		local dist = (hrp.Position - npc.hrp.Position).Magnitude
+		local invisible = character:GetAttribute(ATTR_INVISIBLE) == true
+
+		-- Реакция на суперспособности
+		if dist < Config.ReactDistance and now >= (npc.reacted[player] or 0) and npc.lock == nil then
+			local kind
+			if character:GetAttribute(ATTR_LASER) == true then
+				kind = "Laser"
+			elseif character:GetAttribute(ATTR_FLYING) == true then
+				kind = "Flying"
+			elseif character:GetAttribute(ATTR_CUBE) == true and dist < 18 then
+				kind = "Cube"
+			elseif invisible and dist < 8 then
+				kind = "Invisible"
+			end
+			if kind then
+				npc.reacted[player] = now + Config.ReactCooldown
+				task.spawn(react, npc, kind, hrp)
+				continue
+			end
+		end
+
+		-- Помахать проходящему игроку (знакомого — назвать по имени)
+		if not invisible and dist < Config.GreetDistance and now >= (npc.greeted[player] or 0) then
+			npc.greeted[player] = now + 45
+			if rng:NextNumber() < Config.GreetPlayerChance then
+				local known = memory[npc.name] and memory[npc.name][player.UserId]
+				local text = known and string.format(pick(Config.Phrases.KnownGreet) :: string, player.DisplayName)
+					or pick(Config.Phrases.Greet)
+				task.spawn(function()
+					npc.anim.emote("Wave")
+					say(npc, text, 2.5)
+				end)
 			end
 		end
 	end
@@ -584,6 +690,7 @@ local function doActivity(npc, point)
 		pause(npc, duration)
 	elseif activity == "Dance" then
 		face(npc, part.CFrame.LookVector)
+		setMood(npc, "Dance", duration)
 		local t = npc.anim.emote(rng:NextNumber() < 0.5 and "Dance" or "Dance2", duration)
 		if not pause(npc, duration) and t then
 			t:Stop(0.3)
@@ -625,6 +732,68 @@ local function fleePoint(npc)
 	return best
 end
 
+---------------------------------------------------------------------
+-- Ночь: домой спать
+---------------------------------------------------------------------
+
+local function sleepPoint(npc)
+	for _, wanted in { "Lie", "Sit", "Idle" } do
+		for _, p in pairs(points) do
+			if p.zone == npc.homeZone and p.activity == wanted and p.occupants < p.capacity
+				and not (p.part:IsA("Seat") and p.part.Occupant) then
+				return p
+			end
+		end
+	end
+	return nil
+end
+
+local function goSleep(npc): boolean
+	local point = sleepPoint(npc)
+	if not point then
+		return false
+	end
+	if not npc.saidNight then
+		npc.saidNight = true
+		say(npc, pick(Config.Phrases.Night))
+	end
+	point.occupants += 1
+	npc.point = point
+	local arrived = walkTo(npc, point.part.Position)
+	if arrived and not shouldStop(npc) then
+		npc.zone = npc.homeZone
+		npc.sleeping = true
+		setMood(npc, "Sleep")
+		if point.part:IsA("Seat") then
+			point.part:Sit(npc.humanoid)
+		else
+			face(npc, point.part.CFrame.LookVector)
+			npc.humanoid.WalkSpeed = 0
+			setPose(npc, point.activity == "Lie" and "Lie" or "Sit")
+		end
+		local nextSnore = os.clock() + rng:NextNumber(3, 8)
+		while isNight() and not shouldStop(npc) do
+			if os.clock() > nextSnore then
+				say(npc, pick(Config.Phrases.Sleep), 2.5)
+				nextSnore = os.clock() + rng:NextNumber(6, 14)
+			end
+			task.wait(0.5)
+		end
+		npc.sleeping = false
+		setMood(npc, nil)
+		if npc.alive then
+			standUp(npc)
+			if not isNight() then
+				npc.saidNight = false
+				say(npc, pick(Config.Phrases.Morning))
+				npc.anim.emote("Cheer")
+			end
+		end
+	end
+	point.occupants = math.max(0, point.occupants - 1)
+	return true
+end
+
 local function brain(npc)
 	-- Просыпаемся: лёжа → на колени → встаём
 	setPose(npc, "Lie")
@@ -650,6 +819,7 @@ local function brain(npc)
 		if now < npc.fleeUntil then
 			-- Убегаем подальше
 			standUp(npc)
+			setMood(npc, "Scared", 5)
 			npc.humanoid.WalkSpeed = Config.RunSpeed
 			local target = fleePoint(npc)
 			if target then
@@ -658,6 +828,11 @@ local function brain(npc)
 				task.wait(1)
 			end
 			npc.humanoid.WalkSpeed = npc.speed
+			continue
+		end
+
+		-- Ночью у кого есть дом — идут спать
+		if isNight() and npc.homeZone and goSleep(npc) then
 			continue
 		end
 
@@ -696,6 +871,7 @@ local function endPlayerTalk(npc, sayBye: boolean)
 	end
 	if npc.lock == "player" then
 		npc.lock = nil
+		setMood(npc, nil)
 	end
 	npc.abort = true
 	npc.chatCooldown = os.clock() + 10
@@ -721,13 +897,25 @@ local function startPlayerTalk(npc, player: Player)
 		return
 	end
 
+	local wasSleeping = npc.sleeping
 	npc.lock = "player"
 	npc.talkingTo = player
 	npc.lastTalk = os.clock()
 	npc.prompt.Enabled = false
 	stopMoving(npc)
+	setMood(npc, "Talk")
 
-	local greeting = pick(Config.PlayerGreeting)
+	memory[npc.name] = memory[npc.name] or {}
+	local known = memory[npc.name][player.UserId]
+	memory[npc.name][player.UserId] = true
+	local greeting
+	if wasSleeping then
+		greeting = pick(Config.Phrases.Grumpy)
+	elseif known then
+		greeting = string.format(pick(Config.Phrases.KnownGreet) :: string, player.DisplayName)
+	else
+		greeting = pick(Config.PlayerGreeting)
+	end
 	local topics = {}
 	for i, topic in Config.PlayerTopics do
 		topics[i] = topic.Text
@@ -761,6 +949,78 @@ local function startPlayerTalk(npc, player: Player)
 	end)
 end
 
+---------------------------------------------------------------------
+-- «Пойдём со мной!»
+---------------------------------------------------------------------
+
+local function stopFollow(npc, sayBye: boolean)
+	if not npc.following then
+		return
+	end
+	npc.following = nil
+	if npc.lock == "follow" then
+		npc.lock = nil
+	end
+	setMood(npc, nil)
+	if npc.alive then
+		npc.humanoid.WalkSpeed = npc.speed
+		npc.prompt.ActionText = Config.TalkPromptText
+		npc.prompt.Enabled = true
+		if sayBye then
+			say(npc, pick(Config.Phrases.FollowEnd))
+			npc.anim.emote("Wave")
+		end
+	end
+	npc.abort = true
+end
+
+local function startFollow(npc, player: Player)
+	npc.talkingTo = nil
+	npc.lock = "follow"
+	npc.following = player
+	setMood(npc, "Follow")
+	npc.prompt.ActionText = "Отпустить"
+	npc.prompt.Enabled = true
+	dialogRemote:FireClient(player, "Close", npc.model)
+
+	task.spawn(function()
+		local deadline = os.clock() + Config.FollowTime
+		local lastPos, lastMove = npc.hrp.Position, os.clock()
+		while npc.alive and npc.following == player and os.clock() < deadline do
+			local c = player.Character
+			local r = c and c:FindFirstChild("HumanoidRootPart")
+			if not r or (r.Position - npc.hrp.Position).Magnitude > 90 or os.clock() < npc.fleeUntil then
+				break
+			end
+			local offset = flat(r.Position - npc.hrp.Position)
+			local dist = offset.Magnitude
+			if dist > Config.FollowDistance then
+				npc.humanoid.WalkSpeed = dist > 16 and Config.RunSpeed or math.max(npc.speed, 13)
+				local goal = r.Position - offset.Unit * (Config.FollowDistance - 1)
+				-- Застрял за стеной — идём по найденному пути
+				if os.clock() - lastMove > 1.5 then
+					local path = PathfindingService:CreatePath({ AgentRadius = Config.AgentRadius, AgentHeight = Config.AgentHeight, AgentCanJump = true })
+					if pcall(path.ComputeAsync, path, npc.hrp.Position, r.Position) and path.Status == Enum.PathStatus.Success then
+						local wps = path:GetWaypoints()
+						goal = (wps[math.min(3, #wps)] or wps[#wps]).Position
+					end
+					npc.humanoid.Jump = true
+					lastMove = os.clock()
+				end
+				npc.humanoid:MoveTo(goal)
+			else
+				stopMoving(npc)
+				lastMove = os.clock()
+			end
+			if (npc.hrp.Position - lastPos).Magnitude > 0.5 then
+				lastPos, lastMove = npc.hrp.Position, os.clock()
+			end
+			task.wait(0.25)
+		end
+		stopFollow(npc, npc.alive)
+	end)
+end
+
 dialogRemote.OnServerEvent:Connect(function(player: Player, action: any, model: any, index: any)
 	local npc = typeof(model) == "Instance" and npcs[model] or nil
 	if not npc or npc.talkingTo ~= player then
@@ -783,6 +1043,13 @@ dialogRemote.OnServerEvent:Connect(function(player: Player, action: any, model: 
 			npc.anim.emote(topic.Emote)
 		end
 		dialogRemote:FireClient(player, "Answer", model, answer)
+		if topic.Follow then
+			task.delay(0.8, function()
+				if npc.alive and npc.talkingTo == player then
+					startFollow(npc, player)
+				end
+			end)
+		end
 	end
 end)
 
@@ -791,7 +1058,11 @@ Players.PlayerRemoving:Connect(function(player)
 		if npc.talkingTo == player then
 			endPlayerTalk(npc, false)
 		end
+		if npc.following == player then
+			stopFollow(npc, false)
+		end
 		npc.greeted[player] = nil
+		npc.reacted[player] = nil
 	end
 end)
 
@@ -895,6 +1166,11 @@ function spawnNPC(spawnPart: BasePart)
 		name = name,
 		spawn = spawnPart,
 		zone = spawnPart:GetAttribute("Zone"),
+		homeZone = (spawnPart:GetAttribute("Zone") ~= Config.OutdoorZone) and spawnPart:GetAttribute("Zone") or nil,
+		sleeping = false,
+		saidNight = false,
+		following = nil,
+		reacted = {},
 		speed = speed,
 		anim = newAnimator(humanoid),
 		prompt = prompt,
@@ -914,7 +1190,11 @@ function spawnNPC(spawnPart: BasePart)
 	npcs[model] = npc
 
 	prompt.Triggered:Connect(function(player)
-		startPlayerTalk(npc, player)
+		if npc.following == player then
+			stopFollow(npc, true)
+		elseif not npc.following then
+			startPlayerTalk(npc, player)
+		end
 	end)
 
 	local lastHealth = humanoid.Health
@@ -926,6 +1206,7 @@ function spawnNPC(spawnPart: BasePart)
 				say(npc, pick(Config.Phrases.Hurt), 2)
 			end
 			npc.fleeUntil = now + 6
+			setMood(npc, "Scared", 6)
 			if npc.talkingTo then
 				endPlayerTalk(npc, false)
 			end

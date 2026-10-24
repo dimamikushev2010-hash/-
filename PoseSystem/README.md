@@ -134,11 +134,16 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 - **С жителем можно поговорить**: подойди и нажми **E**. Откроется окно с темами разговора, житель отвечает, жестикулирует и может станцевать.
 - **Получив урон** (например, от лазеров), житель вскрикивает и убегает. Погибший возрождается через 12 секунд.
 - **Анимации**: стандартные анимации Roblox (ходьба, бег, жесты, танцы, сидение на стуле) и позы из системы поз (сидеть и лежать на полу). Их видят все игроки.
+- **День и ночь**: время идёт само, одни сутки длятся 12 минут. Вечером зажигаются фонари и окна, жители говорят «Пора домой» и идут спать к себе домой: ложатся, над головой 💤 и «Хррр...». Утром просыпаются: «Доброе утро!». Разбудишь — ворчат.
+- **Реакции на суперспособности**: на летящего показывают пальцем («Смотрите, он летает!»), над кубом смеются, рядом с невидимкой оглядываются («Кто здесь?..»), от лазеров разбегаются с криком «Бегите!».
+- **«Пойдём со мной!»**: в разговоре можно позвать жителя с собой, и он полторы минуты ходит следом, а если отстаёт — бежит. Нажми **E** ещё раз, чтобы отпустить.
+- **Память**: житель запоминает, с кем говорил, и потом здоровается по имени: «О, Дима! Рад снова видеть!».
+- **Значок настроения** над головой: 💤 спит, 💬 болтает, 🎵 танцует, 😊 идёт с тобой, 😱 испугался, 😮 удивился, 😂 смеётся.
 - Если на карте нет своей папки `NPCSystem`, автоматически строится **демо-городок**: два дома с дверями и мебелью, улица с фонтаном, скамейками и фонарями.
 
 **Как расставить точки на своей карте** — в `NPC_SETUP.md`. Там же готовый текст для Claude в Studio.
 
-Файлы: `NPCConfig` (ModuleScript, ReplicatedStorage), `NPCServer`, `NPCDoors`, `NPCDemo` (Script, ServerScriptService), `NPCClient` (LocalScript, StarterPlayerScripts). Все настройки, фразы и диалоги — в `NPCConfig`.
+Файлы: `NPCConfig` (ModuleScript, ReplicatedStorage), `NPCServer`, `NPCDoors`, `NPCDemo`, `DayNightServer` (Script, ServerScriptService), `NPCClient` (LocalScript, StarterPlayerScripts). Все настройки, фразы и диалоги — в `NPCConfig`.
 
 ## Все клавиши
 
@@ -157,7 +162,7 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 |---|---|---|
 | ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `NPCConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
 | ServerScriptService | ModuleScript | `AbilityRegistry` |
-| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCServer`, `NPCDoors`, `NPCDemo` |
+| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCServer`, `NPCDoors`, `NPCDemo`, `DayNightServer` |
 | StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient` |
 
 - `RigAnimator` — общий движок анимаций способностей. Он смешивает анимации разных способностей и не мешает системе поз.
