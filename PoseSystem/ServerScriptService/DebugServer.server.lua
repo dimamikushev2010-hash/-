@@ -3,7 +3,9 @@
 --   * Output: собирает все сообщения сервера (print, warn, ошибки скриптов) и события игры;
 --   * Мир: время (час, ускорение, пауза), погода, вызов полиции, монеты, кулдауны, телепорт;
 --   * Жители и машины: что делает каждый и куда идёт/едет;
---   * Проверка: ищет ошибки разметки карты и установки скриптов.
+--   * Проверка: ищет ошибки разметки карты и установки скриптов;
+--   * Диагностика: застревания, ошибки скриптов по группам, журнал жителей, проверка путей,
+--     счётчики событий, кто тормозит (секундомер DebugConfig.connect).
 -- Каждое действие сервер проверяет сам: обычный игрок ничего не сможет вызвать.
 
 local Players = game:GetService("Players")
@@ -14,6 +16,9 @@ local ServerStorage = game:GetService("ServerStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local StarterPlayer = game:GetService("StarterPlayer")
 local DataStoreService = game:GetService("DataStoreService")
+local ScriptContext = game:GetService("ScriptContext")
+local PathfindingService = game:GetService("PathfindingService")
+local StatsService = game:GetService("Stats")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("DebugConfig"))
@@ -69,7 +74,31 @@ local KIND = {
 	[Enum.MessageType.MessageError] = "error",
 }
 
+local function partsIn(folder: Instance?): { BasePart }
+	local out = {}
+	if folder then
+		for _, d in folder:GetDescendants() do
+			if d:IsA("BasePart") then
+				table.insert(out, d)
+			end
+		end
+	end
+	return out
+end
+
+-- Счётчики за сессию
+local counters = {}
+local function count(name: string, n: number?)
+	counters[name] = (counters[name] or 0) + (n or 1)
+end
+Registry.debugCount = count
+
 local function addLog(kind: string, text: string)
+	if kind == "error" then
+		count("Errors")
+	elseif kind == "warn" then
+		count("Warnings")
+	end
 	local entry = { t = workspace:GetServerTimeNow(), kind = kind, text = text, src = "S" }
 	table.insert(logs, entry)
 	if #logs > Config.LogLimit then
@@ -85,6 +114,25 @@ LogService.MessageOut:Connect(function(message, messageType)
 	addLog(KIND[messageType] or "info", message)
 end)
 
+-- Ошибки скриптов по группам: одинаковые — в одну строку со счётчиком
+local errorGroups = {} -- [текст] = { message, script, line, stack, count, first, last }
+local errorOrder = {}
+ScriptContext.Error:Connect(function(message, stack, source)
+	local g = errorGroups[message]
+	local now = workspace:GetServerTimeNow()
+	if not g then
+		local scriptName = source and source:GetFullName() or "?"
+		g = { message = message, script = scriptName, line = tonumber(string.match(message, ":(%d+):")) or 0, stack = stack, count = 0, first = now, last = now, src = "S" }
+		errorGroups[message] = g
+		table.insert(errorOrder, message)
+		if #errorOrder > 60 then
+			errorGroups[table.remove(errorOrder, 1)] = nil
+		end
+	end
+	g.count += 1
+	g.last = now
+end)
+
 -- События игры (полиция, достижения, погода, время) — отдельным цветом
 Registry.debugEvent = function(text: string)
 	addLog("event", text)
@@ -93,9 +141,11 @@ workspace:GetAttributeChangedSignal("Period"):Connect(function()
 	addLog("event", string.format("🕗 Период: %s (%s)", tostring(workspace:GetAttribute("Period")), tostring(workspace:GetAttribute("Hour"))))
 end)
 workspace:GetAttributeChangedSignal("Weather"):Connect(function()
+	count("WeatherChange")
 	addLog("event", "🌦 Погода: " .. tostring(workspace:GetAttribute("WeatherName")))
 end)
 workspace:GetAttributeChangedSignal("Day"):Connect(function()
+	count("Days")
 	addLog("event", "📅 Новый день: " .. tostring(workspace:GetAttribute("Day")))
 end)
 
@@ -149,21 +199,192 @@ local function perf()
 	}
 end
 
----------------------------------------------------------------------
--- Проверка карты и установки
----------------------------------------------------------------------
+-- Кто тормозит: секундомер скриптов сервера за последнюю секунду
+local lastTimings = {}
+task.spawn(function()
+	while true do
+		local start = os.clock()
+		task.wait(1)
+		lastTimings = Config.takeTimings(os.clock() - start)
+	end
+end)
 
-local function partsIn(folder: Instance?): { BasePart }
-	local out = {}
-	if folder then
-		for _, d in folder:GetDescendants() do
-			if d:IsA("BasePart") then
-				table.insert(out, d)
-			end
+local MEMORY_TAGS = { "Script", "Physics", "Animation", "Gui", "Sounds", "Instances", "LuaHeap", "Navigation", "GraphicsParts" }
+local function engineStats()
+	local out = { memory = {} }
+	for _, prop in { "HeartbeatTimeMs", "PhysicsStepTimeMs", "InstanceCount", "PrimitivesCount", "MovingPrimitivesCount", "ContactsCount", "DataSendKbps", "DataReceiveKbps" } do
+		local ok, v = pcall(function()
+			return (StatsService :: any)[prop]
+		end)
+		if ok and type(v) == "number" then
+			out[prop] = math.floor(v * 100) / 100
+		end
+	end
+	for _, tagName in MEMORY_TAGS do
+		local ok, v = pcall(function()
+			return StatsService:GetMemoryUsageMbForTag((Enum.DeveloperMemoryTag :: any)[tagName])
+		end)
+		if ok and type(v) == "number" then
+			out.memory[tagName] = math.floor(v * 10) / 10
 		end
 	end
 	return out
 end
+
+---------------------------------------------------------------------
+-- Журнал жителей и детектор застреваний
+---------------------------------------------------------------------
+
+local journals = {} -- [model] = { { hour, action } }
+local lastAction = {} -- [model] = текст
+local anchors = {} -- [model или машина] = { pos, since }
+local stuckNow = {} -- [model] = true
+local stuckHistory = {} -- последние случаи
+local npcCache, carCache = {}, {}
+
+local function hourText(): string
+	local h = workspace:GetAttribute("Hour") or Lighting.ClockTime
+	return string.format("%02d:%02d", math.floor(h), math.floor((h % 1) * 60))
+end
+
+local function checkStuck(key: Instance, pos: Vector3, moving: boolean, limit: number, minMove: number, describe: () -> string)
+	local a = anchors[key]
+	local now = os.clock()
+	if not moving then
+		anchors[key] = nil
+		stuckNow[key] = nil
+		return false
+	end
+	if not a or (pos - a.pos).Magnitude > minMove then
+		anchors[key] = { pos = pos, since = now }
+		if stuckNow[key] then
+			stuckNow[key] = nil
+			addLog("event", "✅ Поехал/пошёл дальше: " .. describe())
+		end
+		return false
+	end
+	if now - a.since > limit and not stuckNow[key] then
+		stuckNow[key] = true
+		count("Stuck")
+		local text = describe()
+		addLog("warn", "🚨 Застрял: " .. text)
+		table.insert(stuckHistory, 1, { t = workspace:GetServerTimeNow(), text = text, model = key, pos = pos })
+		if #stuckHistory > 30 then
+			table.remove(stuckHistory)
+		end
+	end
+	return stuckNow[key] == true
+end
+
+task.spawn(function()
+	while true do
+		task.wait(1)
+		local list = Registry.debugNPCs and Registry.debugNPCs() or {}
+		local alive = {}
+		for _, n in list do
+			local m = n.model
+			alive[m] = true
+			if lastAction[m] ~= n.action then
+				lastAction[m] = n.action
+				local j = journals[m] or {}
+				journals[m] = j
+				table.insert(j, { hour = hourText(), action = n.action, t = workspace:GetServerTimeNow() })
+				if #j > 25 then
+					table.remove(j, 1)
+				end
+			end
+			local moving = n.goal ~= nil and not n.seated and (n.goal - n.pos).Magnitude > 4
+			n.stuck = checkStuck(m, n.pos, moving, Config.Stuck.NPCSeconds, Config.Stuck.NPCMinMove, function()
+				return string.format("житель %s — %s (%.0f, %.0f, %.0f)", n.name, n.action, n.pos.X, n.pos.Y, n.pos.Z)
+			end)
+		end
+		for m in pairs(journals) do
+			if not alive[m] and not m.Parent then
+				journals[m], lastAction[m], anchors[m], stuckNow[m] = nil, nil, nil, nil
+			end
+		end
+		npcCache = list
+		local cars = Registry.debugCars and Registry.debugCars() or {}
+		for _, c in cars do
+			local moving = c.driving and not c.atStop
+			c.stuck = checkStuck(c.model, c.pos, moving, Config.Stuck.CarSeconds, 1.5, function()
+				return string.format("машина %s #%d → %s (%.0f, %.0f, %.0f)", tostring(c.kind), c.id, tostring(c.to), c.pos.X, c.pos.Y, c.pos.Z)
+			end)
+		end
+		carCache = cars
+	end
+end)
+
+---------------------------------------------------------------------
+-- Проверка путей жителей (по одной, с паузами — не грузит ПК)
+---------------------------------------------------------------------
+
+local pathCheck = { running = false, done = 0, total = 0, bad = {} }
+
+local function runPathCheck(requester: Player)
+	if pathCheck.running then
+		return
+	end
+	local npcRoot = workspace:FindFirstChild(NPCConfig.FolderName)
+	if not npcRoot then
+		remote:FireClient(requester, "PathResult", { done = 0, total = 0, bad = {}, error = "Нет папки " .. NPCConfig.FolderName })
+		return
+	end
+	local spawnsByZone, anySpawn = {}, nil
+	for _, sp in partsIn(npcRoot:FindFirstChild("Spawns")) do
+		local z = sp:GetAttribute("Zone") or NPCConfig.OutdoorZone
+		spawnsByZone[z] = spawnsByZone[z] or sp
+		if z == NPCConfig.OutdoorZone or not anySpawn then
+			anySpawn = sp
+		end
+	end
+	local points = partsIn(npcRoot:FindFirstChild("Points"))
+	if #points > Config.PathCheckMax then
+		points = { table.unpack(points, 1, Config.PathCheckMax) }
+	end
+	pathCheck = { running = true, done = 0, total = #points, bad = {} }
+	local path = PathfindingService:CreatePath({
+		AgentRadius = NPCConfig.AgentRadius or 2,
+		AgentHeight = NPCConfig.AgentHeight or 5,
+		AgentCanJump = true,
+		Costs = { Door = 1 },
+	})
+	for i, p in points do
+		local zone = p:GetAttribute("Zone") or NPCConfig.OutdoorZone
+		local from = spawnsByZone[zone] or anySpawn
+		if from then
+			local goal = p:IsA("Seat") and (p.Position + p.CFrame.LookVector * 2.5) or p.Position
+			local ok = pcall(function()
+				path:ComputeAsync(from.Position + Vector3.new(0, 2, 0), goal + Vector3.new(0, 1, 0))
+			end)
+			if not ok or path.Status ~= Enum.PathStatus.Success then
+				table.insert(pathCheck.bad, {
+					name = p:GetFullName(),
+					zone = zone,
+					activity = p:IsA("Seat") and "Seat" or tostring(p:GetAttribute("Activity")),
+					from = from.Name,
+					pos = p.Position,
+					part = p,
+				})
+			end
+		end
+		pathCheck.done = i
+		if i % 5 == 0 and requester.Parent then
+			remote:FireClient(requester, "PathProgress", { done = i, total = #points, bad = #pathCheck.bad })
+		end
+		task.wait(Config.PathCheckDelay)
+	end
+	pathCheck.running = false
+	count("PathChecks")
+	addLog(#pathCheck.bad == 0 and "event" or "warn", string.format("🧭 Проверка путей: %d из %d точек недоступны", #pathCheck.bad, #points))
+	if requester.Parent then
+		remote:FireClient(requester, "PathResult", pathCheck)
+	end
+end
+
+---------------------------------------------------------------------
+-- Проверка карты и установки
+---------------------------------------------------------------------
 
 local EXPECTED = {
 	{ ReplicatedStorage, { "PoseConfig", "InvisibilityConfig", "LaserConfig", "FlightConfig", "CubeConfig", "NPCConfig", "VehicleConfig", "SoundConfig", "WeatherConfig", "CityConfig", "DebugConfig", "AbilityButton", "RigAnimator", "AbilityFx" } },
@@ -568,6 +789,13 @@ function ACTIONS.Teleport(player, arg)
 	end
 	return err
 end
+function ACTIONS.TeleportPos(player, arg)
+	if typeof(arg) == "Vector3" then
+		teleport(player, arg - Vector3.new(0, 3, 0))
+		return "Персонаж перенесён к камере"
+	end
+	return "Нужна позиция"
+end
 function ACTIONS.TeleportTo(player, arg)
 	if typeof(arg) == "Instance" and arg:IsDescendantOf(workspace) then
 		local pivot = arg:IsA("Model") and arg:GetPivot() or (arg :: BasePart).CFrame
@@ -613,7 +841,7 @@ end
 -- Запросы клиента
 ---------------------------------------------------------------------
 
-local lastAction = {}
+local lastRequest = {}
 
 remote.OnServerEvent:Connect(function(player: Player, request: any, a: any, b: any)
 	if not admins[player] then
@@ -634,8 +862,29 @@ remote.OnServerEvent:Connect(function(player: Player, request: any, a: any, b: a
 		})
 	elseif request == "Snapshot" then
 		remote:FireClient(player, "Snapshot", {
-			npcs = Registry.debugNPCs and Registry.debugNPCs() or {},
-			cars = Registry.debugCars and Registry.debugCars() or {},
+			npcs = npcCache,
+			cars = carCache,
+			perf = perf(),
+		})
+	elseif request == "Journal" and typeof(a) == "Instance" then
+		remote:FireClient(player, "Journal", { model = a, entries = journals[a] or {} })
+	elseif request == "PathCheck" then
+		task.spawn(runPathCheck, player)
+	elseif request == "Diag" then
+		local errors = {}
+		for _, key in errorOrder do
+			table.insert(errors, errorGroups[key])
+		end
+		local stuck = {}
+		for _, h in stuckHistory do
+			table.insert(stuck, { t = h.t, text = h.text, model = h.model, pos = h.pos, now = stuckNow[h.model] == true })
+		end
+		remote:FireClient(player, "Diag", {
+			counters = counters,
+			errors = errors,
+			stuck = stuck,
+			timings = lastTimings,
+			stats = engineStats(),
 			perf = perf(),
 		})
 	elseif request == "Nodes" then
@@ -644,10 +893,10 @@ remote.OnServerEvent:Connect(function(player: Player, request: any, a: any, b: a
 		remote:FireClient(player, "Check", runChecks())
 	elseif request == "Action" and type(a) == "string" and ACTIONS[a] then
 		local now = os.clock()
-		if now - (lastAction[player] or 0) < 0.2 then
+		if now - (lastRequest[player] or 0) < 0.2 then
 			return
 		end
-		lastAction[player] = now
+		lastRequest[player] = now
 		local ok, result = pcall(ACTIONS[a], player, b)
 		local text = ok and tostring(result) or ("Ошибка: " .. tostring(result))
 		addLog("debug", "[Debug] " .. player.Name .. ": " .. a .. " → " .. text)
@@ -672,5 +921,5 @@ Players.PlayerAdded:Connect(onPlayer)
 Players.PlayerRemoving:Connect(function(player)
 	admins[player] = nil
 	tested[player] = nil
-	lastAction[player] = nil
+	lastRequest[player] = nil
 end)

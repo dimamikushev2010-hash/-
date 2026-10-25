@@ -7,6 +7,7 @@
 
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("WeatherConfig"))
@@ -111,7 +112,7 @@ task.spawn(function()
 end)
 
 local accumulator = 0
-RunService.Heartbeat:Connect(function(dt)
+DebugTimer.connect(RunService.Heartbeat, "WeatherServer", function(dt)
 	accumulator += dt
 	if accumulator < 0.5 then
 		return

@@ -7,6 +7,7 @@
 
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("NPCConfig"))
@@ -100,7 +101,7 @@ local function publishTime()
 	end
 end
 publishTime()
-RunService.Heartbeat:Connect(function(dt)
+DebugTimer.connect(RunService.Heartbeat, "DayNightServer", function(dt)
 	-- Обновляем время 4 раза в секунду: этого хватает для плавности и не нагружает сеть
 	pending += dt
 	if pending < 0.25 then

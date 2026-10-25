@@ -9,6 +9,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
@@ -382,7 +383,7 @@ end
 
 local tracked = {} -- [character] = { flying, trails, landUntil, prevVy }
 
-RunService.RenderStepped:Connect(function(dt)
+DebugTimer.connect(RunService.RenderStepped, "FlightClient", function(dt)
 	-- Свой полёт
 	local myCharacter = player.Character
 	local myFlying = myCharacter ~= nil and myCharacter:GetAttribute(Config.ActiveAttribute) == true

@@ -12,6 +12,7 @@
 
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("NPCConfig"))
@@ -156,7 +157,7 @@ local function nearestNpc(state): Vector3?
 end
 
 local scanTimer = 0
-RunService.Heartbeat:Connect(function(dt)
+DebugTimer.connect(RunService.Heartbeat, "NPCDoors", function(dt)
 	scanTimer += dt
 	local scan = scanTimer >= 0.15
 	if scan then

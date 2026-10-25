@@ -6,6 +6,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local ContextActionService = game:GetService("ContextActionService")
@@ -426,7 +427,7 @@ end)
 -- Каждый кадр
 ---------------------------------------------------------------------
 
-RunService.RenderStepped:Connect(function(dt)
+DebugTimer.connect(RunService.RenderStepped, "CityLifeClient", function(dt)
 	local now = os.clock()
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?

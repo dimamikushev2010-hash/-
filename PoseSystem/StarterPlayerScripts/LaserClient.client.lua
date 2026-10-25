@@ -10,6 +10,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local UserInputService = game:GetService("UserInputService")
 local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -357,7 +358,7 @@ end, false, table.unpack(Config.Keys))
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-RunService.RenderStepped:Connect(function(dt)
+DebugTimer.connect(RunService.RenderStepped, "LaserClient", function(dt)
 	local t = os.clock()
 	local myCharacter = player.Character
 	local myActive = myCharacter ~= nil and myCharacter:GetAttribute(Config.ActiveAttribute) == true

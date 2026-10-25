@@ -153,6 +153,9 @@ end
 
 local function addStat(player: Player, stat: string, amount: number?)
 	local p = profileOf(player)
+	if Registry.debugCount then
+		Registry.debugCount(stat, amount or 1)
+	end
 	local before = p.stats[stat] or 0
 	local after = before + (amount or 1)
 	p.stats[stat] = after

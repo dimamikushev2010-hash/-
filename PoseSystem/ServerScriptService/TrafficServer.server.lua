@@ -13,6 +13,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PhysicsService = game:GetService("PhysicsService")
@@ -966,6 +967,9 @@ local function spawnCar(kind: string, spot)
 		car.body:SetNetworkOwner(nil)
 	end)
 	table.insert(cars, car)
+	if Registry.debugCount then
+		Registry.debugCount("CarSpawn")
+	end
 	return car
 end
 
@@ -1238,7 +1242,7 @@ local function stepCar(car, dt: number)
 end
 
 local lightTimer = 0
-RunService.Heartbeat:Connect(function(dt)
+DebugTimer.connect(RunService.Heartbeat, "TrafficServer", function(dt)
 	updateSignals(dt)
 	for _, car in cars do
 		if car.model.Parent then
@@ -1895,6 +1899,12 @@ local function handleCall(car, call)
 	end
 	task.wait(1.4)
 	local summary, arrested, suspect = workCall(car, call, officers)
+	if Registry.debugCount then
+		Registry.debugCount("PoliceCall")
+		if arrested then
+			Registry.debugCount("ArrestAny")
+		end
+	end
 	addEvent(summary)
 
 	-- Обратно в машину и в участок
@@ -2508,6 +2518,8 @@ function Registry.debugCars()
 				route = route,
 				driver = car.driver and car.driver.name or nil,
 				siren = car.model:GetAttribute("Siren") == true,
+				driving = car.onRoad == true and car.driveDone == false,
+				atStop = car.atStop ~= nil or car.atTerminal == true,
 				model = car.model,
 			})
 		end

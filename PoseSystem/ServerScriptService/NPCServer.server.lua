@@ -1001,8 +1001,7 @@ end
 -- Ходьба
 ---------------------------------------------------------------------
 
-local function walkTo(npc, target: Vector3): boolean
-	npc.debugGoal = target
+local function walkPath(npc, target: Vector3): boolean
 	local humanoid, hrp = npc.humanoid, npc.hrp
 	local path = PathfindingService:CreatePath({
 		AgentRadius = Config.AgentRadius,
@@ -1090,6 +1089,19 @@ local function walkTo(npc, target: Vector3): boolean
 		end
 	end
 	return (flat(target - hrp.Position)).Magnitude < 4
+end
+
+-- Обёртка для меню отладки: пока житель идёт, видна его цель (детектор застреваний, «Пути жителей»)
+local function walkTo(npc, target: Vector3): boolean
+	npc.debugGoal = target
+	npc.debugWalkSince = os.clock()
+	local ok = walkPath(npc, target)
+	npc.debugGoal = nil
+	npc.debugWalkSince = nil
+	if not ok and Registry.debugCount then
+		Registry.debugCount("NPCPathFail")
+	end
+	return ok
 end
 
 ---------------------------------------------------------------------
@@ -1544,7 +1556,6 @@ local function brain(npc)
 				npc.zone = point.zone
 			end
 			npc.debugAction = string.format("📍 %s (%s)", point.part:IsA("Seat") and "Сидит на стуле" or tostring(point.activity), tostring(point.zone or "Street"))
-			npc.debugGoal = nil
 			doActivity(npc, point)
 		end
 		point.occupants = math.max(0, point.occupants - 1)
@@ -1833,6 +1844,10 @@ local spawnNPC
 local function onDied(npc)
 	if not npc.alive then
 		return
+	end
+	if Registry.debugCount then
+		Registry.debugCount("NPCDeath")
+		Registry.debugEvent("💀 Погиб житель: " .. tostring(npc.name))
 	end
 	npc.alive = false
 	if npc.talkingTo then
@@ -2430,6 +2445,8 @@ Registry.debugNPCs = function()
 				model = model,
 				pos = npc.hrp.Position,
 				goal = npc.debugGoal,
+				walkingFor = npc.debugWalkSince and (os.clock() - npc.debugWalkSince) or nil,
+				seated = npc.humanoid.SeatPart ~= nil,
 				action = action,
 				zone = npc.zone,
 				home = npc.homeZone,

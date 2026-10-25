@@ -4,6 +4,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("LaserConfig"))
@@ -116,7 +117,7 @@ local function isFriendly(attacker: Player, victimModel: Model): boolean
 end
 
 local accumulator = 0
-RunService.Heartbeat:Connect(function(dt)
+DebugTimer.connect(RunService.Heartbeat, "LaserServer", function(dt)
 	accumulator += dt
 	if accumulator < Config.DamageInterval then
 		return

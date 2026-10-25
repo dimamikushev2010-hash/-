@@ -15,6 +15,7 @@
 --   done = true — слой закончился и будет удалён.
 
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 
 local RigAnimator = {}
 
@@ -216,7 +217,7 @@ local function byPriority(a, b)
 end
 
 -- PreSimulation идёт после стандартных анимаций: наши значения перекрывают их
-RunService.PreSimulation:Connect(function(dt)
+DebugTimer.connect(RunService.PreSimulation, "RigAnimator", function(dt)
 	local now = os.clock()
 	for character, entry in pairs(entries) do
 		if not character.Parent or next(entry.layers) == nil then

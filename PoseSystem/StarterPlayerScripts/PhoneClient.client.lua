@@ -7,6 +7,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local ContextActionService = game:GetService("ContextActionService")
@@ -1346,7 +1347,7 @@ end)
 ---------------------------------------------------------------------
 
 local clockTimer, slowTimer = 0, 0
-RunService.RenderStepped:Connect(function(dt)
+DebugTimer.connect(RunService.RenderStepped, "PhoneClient", function(dt)
 	if not isOpen then
 		return
 	end

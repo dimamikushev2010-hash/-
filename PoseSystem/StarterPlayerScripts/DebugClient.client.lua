@@ -7,13 +7,17 @@
 --   🚗 Машины    — тип, состояние, скорость, куда едет; следить, телепорт
 --   🗺 Метки     — показать на карте дороги, точки, двери, парковки, пути жителей, маршруты машин
 --   🖥 Output    — сообщения сервера и клиента, фильтры, копирование
---   ✅ Проверка  — автопроверка разметки карты и установки скриптов
+--   ✅ Проверка  — автопроверка разметки карты и установки скриптов, проверка путей жителей
+--   🩺 Диагностика — застревания, ошибки скриптов по группам, счётчики, кто тормозит
+--   📜 История   — все обновления с датами и подробностями
+-- F3 — свободная камера.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local ContextActionService = game:GetService("ContextActionService")
 local LogService = game:GetService("LogService")
+local ScriptContext = game:GetService("ScriptContext")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("DebugConfig"))
@@ -178,13 +182,15 @@ do
 end
 
 local TABS = {
-	{ id = "news", text = "📋 Новое" },
+	{ id = "news", text = "📋 Проверки" },
+	{ id = "history", text = "📜 История" },
 	{ id = "world", text = "🌍 Мир" },
 	{ id = "npcs", text = "🧑 Жители" },
 	{ id = "cars", text = "🚗 Машины" },
 	{ id = "overlay", text = "🗺 Метки" },
 	{ id = "output", text = "🖥 Output" },
 	{ id = "check", text = "✅ Проверка" },
+	{ id = "diag", text = "🩺 Диагностика" },
 }
 local tabBar = new("ScrollingFrame", { Position = UDim2.fromOffset(8, 38), Size = UDim2.new(1, -16, 0, 32), BackgroundTransparency = 1, ScrollBarThickness = 0, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.X, ScrollingDirection = Enum.ScrollingDirection.X }, win)
 new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, tabBar)
@@ -217,6 +223,16 @@ local outputFilter, outputPaused, outputSearch = "all", false, ""
 local followTarget = nil
 local overlays = {} -- [слой] = true
 local npcSearch = ""
+local selectedNPC = nil -- житель, чей журнал открыт
+local journal = {}
+local historyVersion = nil -- открытая страница истории
+local diag = nil -- данные диагностики сервера
+local pathState = nil -- проверка путей: { done, total, bad }
+local clientErrors, clientErrorOrder = {}, {}
+local clientTimings = {}
+local diagCopy = false
+local freeCam -- объявлена ниже
+overlays.Stuck = true -- застрявшие подсвечены всегда
 local render -- объявлена ниже
 
 local function addLog(entry)
@@ -249,6 +265,30 @@ LogService.MessageOut:Connect(function(message, messageType)
 	addLog({ t = workspace:GetServerTimeNow(), kind = CLIENT_KIND[messageType] or "info", text = message, src = "C" })
 	outputDirty = true
 	updateBadge()
+end)
+
+ScriptContext.Error:Connect(function(message, stack, source)
+	local g = clientErrors[message]
+	local now = workspace:GetServerTimeNow()
+	if not g then
+		g = { message = message, script = source and source:GetFullName() or "?", line = tonumber(string.match(message, ":(%d+):")) or 0, stack = stack, count = 0, first = now, last = now, src = "C" }
+		clientErrors[message] = g
+		table.insert(clientErrorOrder, message)
+		if #clientErrorOrder > 40 then
+			clientErrors[table.remove(clientErrorOrder, 1)] = nil
+		end
+	end
+	g.count += 1
+	g.last = now
+end)
+
+-- Секундомер скриптов клиента: раз в секунду
+task.spawn(function()
+	while true do
+		local start = os.clock()
+		task.wait(1)
+		clientTimings = Config.takeTimings(os.clock() - start)
+	end
 end)
 
 local function showResult(text: string)
@@ -285,6 +325,8 @@ local LAYERS = {
 	{ id = "NPCPaths", name = "🧭 Пути жителей (живые)", color = Color3.fromRGB(80, 255, 200) },
 	{ id = "CarRoutes", name = "🚗 Маршруты машин (живые)", color = Color3.fromRGB(255, 90, 90) },
 	{ id = "NPCLabels", name = "🏷 Ярлыки над жителями (живые)", color = Color3.fromRGB(255, 255, 255) },
+	{ id = "Stuck", name = "🚨 Застрявшие жители и машины (живые)", color = Color3.fromRGB(255, 60, 60) },
+	{ id = "PathBad", name = "❌ Недоступные точки (проверка путей)", color = Color3.fromRGB(255, 40, 40) },
 }
 local LAYER_COLOR = {}
 for _, l in LAYERS do
@@ -440,7 +482,37 @@ local function drawRoads(nodes)
 	end
 end
 
+local function drawPathBad()
+	local f = layerFolder("PathBad")
+	f:ClearAllChildren()
+	if not overlays.PathBad or not pathState then
+		return
+	end
+	for _, b in pathState.bad or {} do
+		if b.part and b.part.Parent then
+			markPart(f, b.part, LAYER_COLOR.PathBad, "❌ не дойти: " .. tostring(b.activity) .. " (" .. tostring(b.zone) .. ")")
+		end
+		new("Part", { Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, Shape = Enum.PartType.Ball, Size = Vector3.new(1.6, 1.6, 1.6), Position = b.pos + Vector3.new(0, 3, 0), Material = Enum.Material.Neon, Color = LAYER_COLOR.PathBad }, f)
+	end
+end
+
 local function drawDynamic()
+	if overlays.Stuck then
+		local f = layerFolder("Stuck")
+		f:ClearAllChildren()
+		for _, n in snapshot.npcs or {} do
+			if n.stuck and n.model and n.model:FindFirstChild("Head") then
+				new("Highlight", { Adornee = n.model, FillColor = LAYER_COLOR.Stuck, OutlineColor = LAYER_COLOR.Stuck, FillTransparency = 0.6, DepthMode = Enum.HighlightDepthMode.AlwaysOnTop }, f)
+				tag(f, n.model.Head, nil, "🚨 ЗАСТРЯЛ: " .. n.name, LAYER_COLOR.Stuck, 4.5)
+			end
+		end
+		for _, c in snapshot.cars or {} do
+			if c.stuck and c.model and c.model.PrimaryPart then
+				new("Highlight", { Adornee = c.model, FillColor = LAYER_COLOR.Stuck, OutlineColor = LAYER_COLOR.Stuck, FillTransparency = 0.6, DepthMode = Enum.HighlightDepthMode.AlwaysOnTop }, f)
+				tag(f, c.model.PrimaryPart, nil, "🚨 ЗАСТРЯЛА: " .. tostring(c.kind) .. " #" .. c.id, LAYER_COLOR.Stuck, 5)
+			end
+		end
+	end
 	if overlays.NPCPaths then
 		local f = layerFolder("NPCPaths")
 		f:ClearAllChildren()
@@ -484,7 +556,9 @@ end
 local function setOverlay(id: string, on: boolean)
 	overlays[id] = on or nil
 	if on then
-		if id == "NPCPaths" or id == "CarRoutes" or id == "NPCLabels" then
+		if id == "PathBad" then
+			drawPathBad()
+		elseif id == "NPCPaths" or id == "CarRoutes" or id == "NPCLabels" or id == "Stuck" then
 			remote:FireServer("Snapshot")
 		else
 			buildStatic(id)
@@ -555,9 +629,7 @@ local function renderNews()
 	label(top, "▶ — подготовить проверку (время, погода, телепорт...). ✓ — работает, 🐞 — баг. Отметки сохраняются.", 12, C.dim, false, { LayoutOrder = 1 })
 	for order, e in Config.Changelog do
 		local s = section(body, "v" .. e.Version .. " — " .. e.Title, order)
-		for _, item in e.Items or {} do
-			label(s, "• " .. item, 12, C.dim, false, { LayoutOrder = 1 })
-		end
+		label(s, (e.Date and (e.Date .. " · ") or "") .. (e.Summary or ""), 12, C.dim, false, { LayoutOrder = 1 })
 		for i, t in e.Tests or {} do
 			local key = testKey(e, i)
 			local state = tested[key]
@@ -575,6 +647,13 @@ local function renderNews()
 					elseif t.Action == "Tab" then
 						currentTab = t.Arg
 						render()
+					elseif t.Action == "PathCheck" then
+						remote:FireServer("PathCheck")
+						pathState = { done = 0, total = 0, bad = {}, running = true }
+						currentTab = "check"
+						render()
+					elseif t.Action == "FreeCam" then
+						freeCam(true)
 					else
 						action(t.Action, t.Arg)
 					end
@@ -642,6 +721,13 @@ local function renderWorld()
 		action("ResetCity")
 	end)
 
+	local cam = section(body, "🎥 Камера", 6)
+	local cf = hflow(cam, 1)
+	btn(cf, "🎥 Свободная камера (F3)", { BackgroundColor3 = C.accent }, function()
+		freeCam(true)
+	end)
+	label(cam, "WASD — лететь, Пробел / Ctrl — вверх / вниз, Shift — быстрее, правая кнопка мыши — обзор, колесо — скорость.", 11, C.dim, false, { LayoutOrder = 2 })
+
 	local tp = section(body, "📍 Телепорт", 5)
 	local tf = hflow(tp, 1)
 	btn(tf, "👮 Дежурный", {}, function()
@@ -669,19 +755,56 @@ local function renderNPCs()
 		npcSearch = box.Text
 		render()
 	end)
+	if selectedNPC then
+		local sel = nil
+		for _, n in list do
+			if n.model == selectedNPC then
+				sel = n
+			end
+		end
+		local j = section(body, "📖 Журнал: " .. (sel and (sel.title or sel.name) or "житель пропал"), 1)
+		local jf = hflow(j, 1)
+		btn(jf, "✕ Закрыть", {}, function()
+			selectedNPC = nil
+			render()
+		end)
+		if sel then
+			btn(jf, "👁 Следить", {}, function()
+				follow(sel.model, sel.name)
+			end)
+			label(j, "Сейчас: " .. sel.action .. (sel.stuck and "   🚨 ЗАСТРЯЛ" or ""), 12, sel.stuck and C.error or C.debug, true, { LayoutOrder = 2 })
+			if sel.goal then
+				label(j, string.format("Цель: (%.0f, %.0f, %.0f), до неё %.0f стадов, идёт %.0f с", sel.goal.X, sel.goal.Y, sel.goal.Z, (sel.goal - sel.pos).Magnitude, sel.walkingFor or 0), 11, C.dim, false, { LayoutOrder = 3 })
+			end
+		end
+		for k = #journal, 1, -1 do
+			local e = journal[k]
+			label(j, e.hour .. "  " .. e.action, 12, k == #journal and C.text or C.dim, k == #journal, { LayoutOrder = 10 + (#journal - k), Font = Enum.Font.Code })
+		end
+		if #journal == 0 then
+			label(j, "Пока пусто — журнал пишется, пока сервер работает.", 11, C.dim, false, { LayoutOrder = 10 })
+		end
+	end
 	local q = string.lower(npcSearch)
 	for i, n in list do
 		local hay = string.lower(n.name .. " " .. (n.title or "") .. " " .. n.action .. " " .. tostring(n.zone) .. " " .. tostring(n.home))
 		if q == "" or string.find(hay, q, 1, true) then
-			local row = new("Frame", { BackgroundColor3 = C.panel, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = i + 1 }, body)
+			local row = new("Frame", { BackgroundColor3 = n.stuck and Color3.fromRGB(70, 26, 28) or C.panel, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = i + 2 }, body)
 			corner(row, 8)
-			new("UIPadding", { PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 76) }, row)
+			new("UIPadding", { PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 110) }, row)
 			vlist(row, 2)
-			label(row, string.format("%s%s%s  %s", n.officer and "👮 " or "", n.title or n.name, n.quest and " ❗" or "", tostring(n.mood or "")), 13, C.text, true)
+			label(row, string.format("%s%s%s  %s%s", n.officer and "👮 " or "", n.title or n.name, n.quest and " ❗" or "", tostring(n.mood or ""), n.stuck and "   🚨 ЗАСТРЯЛ" or ""), 13, n.stuck and C.error or C.text, true)
 			label(row, n.action, 12, C.debug, false)
 			label(row, string.format("зона: %s · дом: %s · ❤ %s", tostring(n.zone or "Street"), tostring(n.home or "—"), tostring(n.health)), 11, C.dim, false)
-			local bf = new("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 72, 0.5, 0), Size = UDim2.fromOffset(66, 26), BackgroundTransparency = 1 }, row)
+			local bf = new("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 106, 0.5, 0), Size = UDim2.fromOffset(100, 26), BackgroundTransparency = 1 }, row)
 			new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4) }, bf)
+			btn(bf, "📖", { Size = UDim2.fromOffset(30, 26), AutomaticSize = Enum.AutomaticSize.None, BackgroundColor3 = selectedNPC == n.model and C.accent or C.panel2 }, function()
+				selectedNPC = n.model
+				journal = {}
+				remote:FireServer("Journal", n.model)
+				body.CanvasPosition = Vector2.zero
+				render()
+			end)
 			btn(bf, "👁", { Size = UDim2.fromOffset(30, 26), AutomaticSize = Enum.AutomaticSize.None }, function()
 				follow(n.model, n.name)
 			end)
@@ -697,13 +820,13 @@ local function renderCars()
 	local list = snapshot.cars or {}
 	section(body, string.format("🚗 Машин: %d", #list), 0)
 	for i, car in list do
-		local row = new("Frame", { BackgroundColor3 = C.panel, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = i }, body)
+		local row = new("Frame", { BackgroundColor3 = car.stuck and Color3.fromRGB(70, 26, 28) or C.panel, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = i }, body)
 		corner(row, 8)
 		new("UIPadding", { PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 76) }, row)
 		vlist(row, 2)
-		local stuck = car.state == "busy" and car.speed < 0.1
-		label(row, string.format("%s %s #%d %s", CAR_ICON[car.kind] or "🚗", tostring(car.kind), car.id, car.siren and "🚨" or ""), 13, C.text, true)
-		label(row, string.format("состояние: %s · скорость: %s%s", tostring(car.state), tostring(car.speed), stuck and "  (стоит)" or ""), 12, stuck and C.warn or C.debug, false)
+		local standing = car.driving and car.speed < 0.1 and not car.atStop
+		label(row, string.format("%s %s #%d %s%s", CAR_ICON[car.kind] or "🚗", tostring(car.kind), car.id, car.siren and "🚨" or "", car.stuck and "   🚨 ЗАСТРЯЛА" or ""), 13, car.stuck and C.error or C.text, true)
+		label(row, string.format("состояние: %s · скорость: %s%s%s", tostring(car.state), tostring(car.speed), car.driving and " · в пути" or "", standing and "  (стоит)" or ""), 12, standing and C.warn or C.debug, false)
 		label(row, string.format("едет к: %s · водитель: %s", tostring(car.to or "—"), tostring(car.driver or "—")), 11, C.dim, false)
 		local bf = new("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 72, 0.5, 0), Size = UDim2.fromOffset(66, 26), BackgroundTransparency = 1 }, row)
 		new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4) }, bf)
@@ -864,6 +987,36 @@ local function renderCheck()
 	btn(top, checks and "🔄 Проверить ещё раз" or "▶ Запустить проверку", { LayoutOrder = 2, BackgroundColor3 = C.accent }, function()
 		remote:FireServer("Check")
 	end)
+
+	-- Проверка путей жителей
+	local ps = section(body, "🧭 Проверка путей жителей", -1)
+	label(ps, "От дома (точки появления зоны) к каждой точке жителей прокладывается путь. По одной проверке раз в 0.15 с — ПК не грузится, можно играть дальше.", 12, C.dim, false, { LayoutOrder = 1 })
+	local running = pathState and pathState.running
+	btn(ps, running and string.format("⏳ Проверено %d из %d… (недоступных: %d)", pathState.done or 0, pathState.total or 0, pathState.badCount or #(pathState.bad or {})) or "▶ Проверить пути", { LayoutOrder = 2, BackgroundColor3 = running and C.panel2 or C.accent }, function()
+		if not running then
+			remote:FireServer("PathCheck")
+			pathState = { done = 0, total = 0, bad = {}, running = true }
+			render()
+		end
+	end)
+	if pathState and not running then
+		if pathState.error then
+			label(ps, "❌ " .. pathState.error, 12, C.error, true, { LayoutOrder = 3 })
+		elseif #(pathState.bad or {}) == 0 then
+			label(ps, string.format("✅ Все %d точек доступны", pathState.total or 0), 13, C.ok, true, { LayoutOrder = 3 })
+		else
+			label(ps, string.format("❌ Недоступно %d из %d точек. Они отмечены красным на карте (слой «Недоступные точки»).", #pathState.bad, pathState.total or 0), 12, C.error, true, { LayoutOrder = 3 })
+			for i, b in pathState.bad do
+				local row = new("Frame", { BackgroundColor3 = C.panel2, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 3 + i }, ps)
+				corner(row, 8)
+				new("UIPadding", { PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 44) }, row)
+				label(row, string.format("%s · %s · от %s\n%s", tostring(b.activity), tostring(b.zone), tostring(b.from), b.name), 11, C.text, false)
+				btn(row, "📍", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 40, 0.5, 0), Size = UDim2.fromOffset(30, 26), AutomaticSize = Enum.AutomaticSize.None }, function()
+					remote:FireServer("Action", "TeleportPos", b.pos + Vector3.new(0, 3, 0))
+				end)
+			end
+		end
+	end
 	if not checks then
 		return
 	end
@@ -887,7 +1040,244 @@ local function renderCheck()
 	end
 end
 
-local RENDER = { news = renderNews, world = renderWorld, npcs = renderNPCs, cars = renderCars, overlay = renderOverlay, output = renderOutput, check = renderCheck }
+-- 📜 История обновлений: список и страница каждого обновления
+local function renderHistory()
+	if historyVersion then
+		local e = nil
+		for _, entry in Config.Changelog do
+			if entry.Version == historyVersion then
+				e = entry
+			end
+		end
+		if not e then
+			historyVersion = nil
+			renderHistory()
+			return
+		end
+		local nav = hflow(body, 0)
+		btn(nav, "‹ Все обновления", {}, function()
+			historyVersion = nil
+			render()
+		end)
+		local head = section(body, "v" .. e.Version .. " — " .. e.Title, 1)
+		label(head, "📅 " .. tostring(e.Date or "—"), 12, C.dim, false, { LayoutOrder = 1 })
+		label(head, e.Summary or "", 13, C.text, false, { LayoutOrder = 2 })
+		local details = section(body, "Что добавлено", 2)
+		for i, d in e.Details or {} do
+			label(details, d.Title, 13, C.debug, true, { LayoutOrder = i * 2 })
+			label(details, d.Text, 12, C.text, false, { LayoutOrder = i * 2 + 1 })
+		end
+		if e.Files then
+			local files = section(body, "📁 Файлы (скрипты)", 3)
+			label(files, table.concat(e.Files, ", "), 12, C.dim, false, { LayoutOrder = 1, Font = Enum.Font.Code })
+		end
+		local tests = section(body, "✅ Что проверить", 4)
+		for i, t in e.Tests or {} do
+			local state = tested[testKey(e, i)]
+			label(tests, (state == "ok" and "✓ " or state == "bug" and "🐞 " or "○ ") .. t.Text, 12, state == "ok" and C.ok or state == "bug" and C.error or C.text, false, { LayoutOrder = i })
+		end
+		btn(tests, "Перейти к проверкам ›", { LayoutOrder = 100, BackgroundColor3 = C.accent }, function()
+			currentTab = "news"
+			render()
+		end)
+		return
+	end
+	section(body, string.format("📜 История обновлений — %d", #Config.Changelog), 0)
+	for i, e in Config.Changelog do
+		local total, done, bugs = 0, 0, 0
+		for k in e.Tests or {} do
+			total += 1
+			local st = tested[testKey(e, k)]
+			done += st == "ok" and 1 or 0
+			bugs += st == "bug" and 1 or 0
+		end
+		local card = new("TextButton", { BackgroundColor3 = C.panel, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = "", AutoButtonColor = true, LayoutOrder = i }, body)
+		corner(card, 10)
+		new("UIPadding", { PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8), PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 26) }, card)
+		vlist(card, 3)
+		label(card, string.format("v%s — %s", e.Version, e.Title), 14, i == 1 and C.debug or C.text, true, { LayoutOrder = 1 })
+		label(card, string.format("📅 %s   ✓ %d/%d%s", tostring(e.Date or "—"), done, total, bugs > 0 and ("   🐞 " .. bugs) or ""), 11, C.dim, false, { LayoutOrder = 2 })
+		label(card, e.Summary or "", 12, C.text, false, { LayoutOrder = 3 })
+		label(card, "›", 20, C.dim, true, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 20, 0.5, 0), Size = UDim2.fromOffset(16, 24), AutomaticSize = Enum.AutomaticSize.None })
+		card.Activated:Connect(function()
+			historyVersion = e.Version
+			body.CanvasPosition = Vector2.zero
+			render()
+		end)
+	end
+end
+
+-- 🩺 Диагностика
+local COUNTER_NAMES = {
+	{ "PoliceCall", "🚔 Вызовов полиции" }, { "ArrestAny", "🔒 Задержаний" }, { "Report", "📝 Заявлений игроков" }, { "Arrest", "🕵️ Задержаний по заявлениям" },
+	{ "Taxi", "🚕 Поездок на такси" }, { "Bus", "🚌 Посадок в автобус" }, { "CarSpawn", "🚗 Машин создано" },
+	{ "Quest", "❗ Заданий выполнено" }, { "Friend", "❤️ Новых друзей" }, { "Delivery", "📦 Доставок" }, { "Buy", "🛍 Покупок" }, { "Photo", "📷 Фото" },
+	{ "NPCDeath", "💀 Смертей жителей" }, { "NPCPathFail", "🧭 Жители не дошли до цели" }, { "Stuck", "🚨 Застреваний" },
+	{ "Errors", "❌ Ошибок (сервер)" }, { "Warnings", "⚠️ Предупреждений (сервер)" }, { "WeatherChange", "🌦 Смен погоды" }, { "Days", "📅 Игровых дней" },
+	{ "Fly", "🦅 Секунд полёта" }, { "Invisible", "👻 Невидимостей" }, { "Laser", "🔴 Лазеров" }, { "Cube", "🧊 Кубов" }, { "Walk", "🚶 Стадов пешком" },
+}
+
+local function allErrors()
+	local list = {}
+	for _, g in diag and diag.errors or {} do
+		table.insert(list, g)
+	end
+	for _, key in clientErrorOrder do
+		table.insert(list, clientErrors[key])
+	end
+	table.sort(list, function(a, b)
+		return a.last > b.last
+	end)
+	return list
+end
+
+local function diagReport(): string
+	local lines = { "=== ОТЧЁТ ОТЛАДКИ ===", "Время игры: " .. tostring(diag and diag.perf and diag.perf.hour), "" }
+	local errors = allErrors()
+	table.insert(lines, string.format("ОШИБКИ СКРИПТОВ (%d разных):", #errors))
+	for _, g in errors do
+		table.insert(lines, string.format("[%s] ×%d  %s", g.src, g.count, g.message))
+		table.insert(lines, "   скрипт: " .. tostring(g.script) .. "  строка: " .. tostring(g.line))
+		for stackLine in string.gmatch(g.stack or "", "[^\n]+") do
+			table.insert(lines, "   " .. stackLine)
+		end
+	end
+	table.insert(lines, "")
+	table.insert(lines, "ЗАСТРЕВАНИЯ:")
+	for _, st in diag and diag.stuck or {} do
+		table.insert(lines, string.format("  %s %s%s", timeOf(st.t), st.text, st.now and " (сейчас)" or ""))
+	end
+	table.insert(lines, "")
+	table.insert(lines, "СЧЁТЧИКИ:")
+	for _, c in COUNTER_NAMES do
+		local v = diag and diag.counters and diag.counters[c[1]]
+		if v then
+			table.insert(lines, string.format("  %s: %s", c[2], tostring(math.floor(v))))
+		end
+	end
+	return table.concat(lines, "\n")
+end
+
+local function timingRows(parent: Instance, timings, order: number)
+	local list = {}
+	for name, t in pairs(timings or {}) do
+		table.insert(list, { name = name, ms = t.ms, peak = t.peak, calls = t.calls })
+	end
+	table.sort(list, function(a, b)
+		return a.ms > b.ms
+	end)
+	if #list == 0 then
+		label(parent, "Нет данных", 11, C.dim, false, { LayoutOrder = order })
+	end
+	for i, t in list do
+		-- 1000 мс в секунду = 100% одного ядра; больше 30 мс/с — заметно
+		local color = t.ms > 30 and C.error or t.ms > 10 and C.warn or C.ok
+		local row = new("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 30), LayoutOrder = order + i }, parent)
+		label(row, string.format("%s — %.2f мс/с · пик %.2f мс · %d вызовов", t.name, t.ms, t.peak, t.calls), 11, C.text, false, { Size = UDim2.new(1, 0, 0, 14), AutomaticSize = Enum.AutomaticSize.None })
+		local back = new("Frame", { Position = UDim2.fromOffset(0, 18), Size = UDim2.new(1, 0, 0, 6), BackgroundColor3 = C.panel2, BorderSizePixel = 0 }, row)
+		corner(back, 3)
+		local fill = new("Frame", { Size = UDim2.fromScale(math.clamp(t.ms / 50, 0.01, 1), 1), BackgroundColor3 = color, BorderSizePixel = 0 }, back)
+		corner(fill, 3)
+	end
+end
+
+local function renderDiag()
+	if not diag then
+		label(body, "Загрузка…", 12, C.dim, false)
+		remote:FireServer("Diag")
+		return
+	end
+	local tools = hflow(body, 0)
+	btn(tools, diagCopy and "📄 Обычный вид" or "📋 Скопировать для Claude", { BackgroundColor3 = C.accent }, function()
+		diagCopy = not diagCopy
+		render()
+	end)
+	btn(tools, "🔄 Обновить", {}, function()
+		remote:FireServer("Diag")
+	end)
+	if diagCopy then
+		local area = new("TextBox", {
+			Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C.panel, TextColor3 = C.text,
+			Font = Enum.Font.Code, TextSize = 12, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+			ClearTextOnFocus = false, TextEditable = false, MultiLine = true, Text = diagReport(), LayoutOrder = 1,
+		}, body)
+		corner(area, 8)
+		new("UIPadding", { PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8) }, area)
+		label(body, "Нажми в поле, Ctrl+A, Ctrl+C — и вставь в сообщение Claude.", 11, C.dim, false, { LayoutOrder = 2 })
+		return
+	end
+
+	-- Застревания
+	local stuck = section(body, string.format("🚨 Застревания (%d)", #(diag.stuck or {})), 1)
+	if #(diag.stuck or {}) == 0 then
+		label(stuck, "✅ Никто не застревал", 12, C.ok, false, { LayoutOrder = 1 })
+	end
+	for i, st in diag.stuck or {} do
+		local row = new("Frame", { BackgroundColor3 = st.now and Color3.fromRGB(70, 26, 28) or C.panel2, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = i }, stuck)
+		corner(row, 8)
+		new("UIPadding", { PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 76) }, row)
+		label(row, string.format("%s  %s%s", timeOf(st.t), st.text, st.now and "  (сейчас)" or ""), 11, st.now and C.error or C.dim, st.now)
+		local bf = new("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 72, 0.5, 0), Size = UDim2.fromOffset(66, 26), BackgroundTransparency = 1 }, row)
+		new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4) }, bf)
+		btn(bf, "👁", { Size = UDim2.fromOffset(30, 26), AutomaticSize = Enum.AutomaticSize.None }, function()
+			follow(st.model, "застрявший")
+		end)
+		btn(bf, "📍", { Size = UDim2.fromOffset(30, 26), AutomaticSize = Enum.AutomaticSize.None }, function()
+			remote:FireServer("Action", "TeleportPos", st.pos + Vector3.new(0, 4, 0))
+		end)
+	end
+
+	-- Ошибки скриптов
+	local errors = allErrors()
+	local es = section(body, string.format("❌ Ошибки скриптов (%d разных)", #errors), 2)
+	if #errors == 0 then
+		label(es, "✅ Ошибок нет", 12, C.ok, false, { LayoutOrder = 1 })
+	end
+	for i, g in errors do
+		local row = new("Frame", { BackgroundColor3 = C.panel2, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = i }, es)
+		corner(row, 8)
+		new("UIPadding", { PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8) }, row)
+		vlist(row, 2)
+		label(row, string.format("×%d  %s  %s:%s", g.count, g.src == "C" and "💻 клиент" or "🖥 сервер", tostring(g.script), tostring(g.line)), 12, C.error, true)
+		label(row, g.message, 12, C.text, false, { Font = Enum.Font.Code })
+		label(row, string.format("первая %s · последняя %s", timeOf(g.first), timeOf(g.last)), 11, C.dim, false)
+		if g.stack and g.stack ~= "" then
+			label(row, g.stack, 10, C.dim, false, { Font = Enum.Font.Code })
+		end
+	end
+
+	-- Счётчики
+	local cs = section(body, "🔢 Счётчики за сессию", 3)
+	local grid = new("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 1 }, cs)
+	new("UIGridLayout", { CellSize = UDim2.new(0.5, -4, 0, 22), CellPadding = UDim2.fromOffset(8, 2), SortOrder = Enum.SortOrder.LayoutOrder }, grid)
+	for i, c in COUNTER_NAMES do
+		local v = diag.counters and diag.counters[c[1]] or 0
+		label(grid, string.format("%s: %s", c[2], tostring(math.floor(v))), 11, v > 0 and ((c[1] == "Errors" or c[1] == "Stuck" or c[1] == "NPCPathFail") and C.error or C.text) or C.dim, v > 0, { LayoutOrder = i, AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(1, 0, 1, 0) })
+	end
+
+	-- Кто тормозит
+	local ts = section(body, "🐢 Кто тормозит — сервер", 4)
+	label(ts, "Сколько миллисекунд в секунду тратит каждый скрипт. До 10 — отлично, 10–30 — заметно, больше 30 — тормозит. Жители (NPCServer) работают по своим таймерам, их нагрузка видна по серверному FPS и HeartbeatTimeMs.", 11, C.dim, false, { LayoutOrder = 1 })
+	timingRows(ts, diag.timings, 10)
+	local st = diag.stats or {}
+	local engine = {}
+	for _, k in { "HeartbeatTimeMs", "PhysicsStepTimeMs", "InstanceCount", "PrimitivesCount", "MovingPrimitivesCount", "ContactsCount", "DataSendKbps", "DataReceiveKbps" } do
+		if st[k] then
+			table.insert(engine, k .. ": " .. tostring(st[k]))
+		end
+	end
+	label(ts, "Движок: " .. table.concat(engine, " · "), 11, C.dim, false, { LayoutOrder = 100 })
+	local mem = {}
+	for k, v in pairs(st.memory or {}) do
+		table.insert(mem, k .. " " .. tostring(v))
+	end
+	table.sort(mem)
+	label(ts, "Память (МБ): " .. table.concat(mem, " · "), 11, C.dim, false, { LayoutOrder = 101 })
+	local tc = section(body, "🐢 Кто тормозит — твой клиент", 5)
+	timingRows(tc, clientTimings, 10)
+end
+
+local RENDER = { news = renderNews, history = renderHistory, world = renderWorld, npcs = renderNPCs, cars = renderCars, overlay = renderOverlay, output = renderOutput, check = renderCheck, diag = renderDiag }
 local tabButtons = {}
 for i, t in TABS do
 	tabButtons[t.id] = btn(tabBar, t.text, { LayoutOrder = i, Size = UDim2.fromOffset(0, 30), TextSize = 12 }, function()
@@ -949,6 +1339,33 @@ remote.OnClientEvent:Connect(function(kind, payload)
 		if currentTab == "check" then
 			render()
 		end
+	elseif kind == "Journal" then
+		if payload.model == selectedNPC then
+			journal = payload.entries or {}
+			if win.Visible and currentTab == "npcs" and not UserInputService:GetFocusedTextBox() then
+				render()
+			end
+		end
+	elseif kind == "PathProgress" then
+		pathState = { running = true, done = payload.done, total = payload.total, badCount = payload.bad, bad = {} }
+		if win.Visible and currentTab == "check" then
+			render()
+		end
+	elseif kind == "PathResult" then
+		pathState = payload
+		pathState.running = false
+		if #(payload.bad or {}) > 0 then
+			overlays.PathBad = true
+		end
+		drawPathBad()
+		if win.Visible and currentTab == "check" then
+			render()
+		end
+	elseif kind == "Diag" then
+		diag = payload
+		if win.Visible and currentTab == "diag" and not diagCopy and not UserInputService:GetFocusedTextBox() then
+			render()
+		end
 	elseif kind == "Result" then
 		showResult(payload)
 		if win.Visible and currentTab == "world" then
@@ -966,6 +1383,113 @@ remote:FireServer("Hello")
 ---------------------------------------------------------------------
 -- Открыть / закрыть, обновления
 ---------------------------------------------------------------------
+
+---------------------------------------------------------------------
+-- 🎥 Свободная камера (F3): летаешь сквозь стены, персонаж стоит на месте
+---------------------------------------------------------------------
+
+local fc = { on = false, speed = 40, yaw = 0, pitch = 0, pos = Vector3.zero, saved = nil }
+local camBar = new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 56), Size = UDim2.fromOffset(560, 40), BackgroundColor3 = C.bg, BackgroundTransparency = 0.1, Visible = false }, gui)
+corner(camBar, 12)
+new("UIStroke", { Color = C.accent, Thickness = 1.5 }, camBar)
+local camInfo = label(camBar, "", 12, C.text, true, { Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -200, 1, 0), AutomaticSize = Enum.AutomaticSize.None, TextYAlignment = Enum.TextYAlignment.Center })
+local MOVE_KEYS = { Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D, Enum.KeyCode.Space, Enum.KeyCode.LeftControl, Enum.KeyCode.LeftShift, Enum.KeyCode.Up, Enum.KeyCode.Down, Enum.KeyCode.Left, Enum.KeyCode.Right }
+
+function freeCam(on: boolean)
+	if on == fc.on then
+		if on then
+			freeCam(false)
+		end
+		return
+	end
+	fc.on = on
+	camBar.Visible = on
+	if on then
+		if followTarget then
+			stopFollow()
+		end
+		fc.saved = { type = camera.CameraType, subject = camera.CameraSubject }
+		local cf = camera.CFrame
+		fc.pos = cf.Position
+		local look = cf.LookVector
+		fc.yaw = math.atan2(-look.X, -look.Z)
+		fc.pitch = math.asin(math.clamp(look.Y, -1, 1))
+		camera.CameraType = Enum.CameraType.Scriptable
+		-- Глушим управление персонажем, пока летает камера
+		ContextActionService:BindActionAtPriority("DebugFreeCamSink", function()
+			return Enum.ContextActionResult.Sink
+		end, false, Enum.ContextActionPriority.High.Value + 50, table.unpack(MOVE_KEYS))
+	else
+		ContextActionService:UnbindAction("DebugFreeCamSink")
+		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+		camera.CameraType = (fc.saved and fc.saved.type) or Enum.CameraType.Custom
+		if camera.CameraType == Enum.CameraType.Scriptable then
+			camera.CameraType = Enum.CameraType.Custom
+		end
+		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		camera.CameraSubject = humanoid or (fc.saved and fc.saved.subject)
+	end
+end
+btn(camBar, "📍 Сюда", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -54, 0.5, 0), BackgroundColor3 = C.accent }, function()
+	remote:FireServer("Action", "TeleportPos", fc.pos)
+	freeCam(false)
+end)
+btn(camBar, "✕", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(32, 28), AutomaticSize = Enum.AutomaticSize.None }, function()
+	freeCam(false)
+end)
+ContextActionService:BindAction("DebugFreeCam", function(_, state)
+	if state == Enum.UserInputState.Begin then
+		freeCam(not fc.on)
+	end
+	return Enum.ContextActionResult.Sink
+end, false, Config.FreeCamKey)
+UserInputService.InputChanged:Connect(function(input)
+	if fc.on and input.UserInputType == Enum.UserInputType.MouseWheel then
+		fc.speed = math.clamp(fc.speed * (input.Position.Z > 0 and 1.25 or 0.8), 5, 400)
+	end
+end)
+RunService.RenderStepped:Connect(function(dt)
+	if not fc.on then
+		return
+	end
+	if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
+		local d = UserInputService:GetMouseDelta()
+		fc.yaw -= d.X * 0.004
+		fc.pitch = math.clamp(fc.pitch - d.Y * 0.004, -1.5, 1.5)
+	else
+		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+	end
+	local rot = CFrame.Angles(0, fc.yaw, 0) * CFrame.Angles(fc.pitch, 0, 0)
+	local move = Vector3.zero
+	local function down(k)
+		return UserInputService:IsKeyDown(k) and not UserInputService:GetFocusedTextBox()
+	end
+	if down(Enum.KeyCode.W) or down(Enum.KeyCode.Up) then
+		move += rot.LookVector
+	end
+	if down(Enum.KeyCode.S) or down(Enum.KeyCode.Down) then
+		move -= rot.LookVector
+	end
+	if down(Enum.KeyCode.D) or down(Enum.KeyCode.Right) then
+		move += rot.RightVector
+	end
+	if down(Enum.KeyCode.A) or down(Enum.KeyCode.Left) then
+		move -= rot.RightVector
+	end
+	if down(Enum.KeyCode.Space) then
+		move += Vector3.yAxis
+	end
+	if down(Enum.KeyCode.LeftControl) then
+		move -= Vector3.yAxis
+	end
+	local speed = fc.speed * (down(Enum.KeyCode.LeftShift) and 3 or 1)
+	if move.Magnitude > 0 then
+		fc.pos += move.Unit * speed * dt
+	end
+	camera.CFrame = CFrame.new(fc.pos) * rot
+	camInfo.Text = string.format("🎥 Свободная камера · скорость %d (колесо) · (%.0f, %.0f, %.0f)", fc.speed, fc.pos.X, fc.pos.Y, fc.pos.Z)
+end)
 
 local function fit()
 	local view = camera.ViewportSize
@@ -990,7 +1514,7 @@ ContextActionService:BindAction("DebugMenu", function(_, state)
 end, false, Config.Key)
 
 local fpsFrames, fpsTimer, clientFps = 0, 0, 60
-local snapTimer, outputTimer = 0, 0
+local snapTimer, outputTimer, diagTimer = 0, 0, 0
 RunService.RenderStepped:Connect(function(dt)
 	fpsFrames += 1
 	fpsTimer += dt
@@ -1005,9 +1529,18 @@ RunService.RenderStepped:Connect(function(dt)
 	-- Живые данные: только когда они на экране
 	local live = overlays.NPCPaths or overlays.CarRoutes or overlays.NPCLabels or (win.Visible and (currentTab == "npcs" or currentTab == "cars"))
 	snapTimer -= dt
-	if (live or win.Visible) and snapTimer <= 0 then
-		snapTimer = live and 1 or 2 -- строке внизу хватает раза в 2 секунды
+	if (live or win.Visible or overlays.Stuck) and snapTimer <= 0 then
+		-- живые слои — раз в секунду, строка внизу — раз в 2 с, только подсветка застрявших — раз в 3 с
+		snapTimer = live and 1 or win.Visible and 2 or 3
 		remote:FireServer("Snapshot")
+		if selectedNPC and win.Visible and currentTab == "npcs" then
+			remote:FireServer("Journal", selectedNPC)
+		end
+	end
+	diagTimer -= dt
+	if win.Visible and currentTab == "diag" and diagTimer <= 0 then
+		diagTimer = 2
+		remote:FireServer("Diag")
 	end
 	outputTimer -= dt
 	if outputDirty and outputTimer <= 0 and win.Visible and currentTab == "output" and not outputPaused and not copyMode and not UserInputService:GetFocusedTextBox() then

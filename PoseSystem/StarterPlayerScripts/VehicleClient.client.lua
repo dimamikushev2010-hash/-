@@ -8,6 +8,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -307,7 +308,7 @@ task.spawn(function()
 	end)
 end)
 
-RunService.RenderStepped:Connect(function(dt)
+DebugTimer.connect(RunService.RenderStepped, "VehicleClient", function(dt)
 	local now = os.clock()
 	for model, state in pairs(vehicles) do
 		if state.body.Parent then

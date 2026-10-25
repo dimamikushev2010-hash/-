@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local ContextActionService = game:GetService("ContextActionService")
 
 local AbilityButton = {}
@@ -260,7 +261,7 @@ function AbilityButton.Create(opts)
 		return Enum.ContextActionResult.Pass
 	end, false, table.unpack(opts.Keys))
 
-	RunService.Heartbeat:Connect(function()
+	DebugTimer.connect(RunService.Heartbeat, "AbilityButton", function()
 		local now = workspace:GetServerTimeNow()
 		local character = player.Character
 		local active = character ~= nil and character:GetAttribute(opts.ActiveAttribute) == true

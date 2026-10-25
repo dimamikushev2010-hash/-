@@ -8,6 +8,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("CubeConfig"))
@@ -151,7 +152,7 @@ local function updateCube(state, dt: number, now: number)
 	end
 end
 
-RunService.RenderStepped:Connect(function(dt)
+DebugTimer.connect(RunService.RenderStepped, "CubeClient", function(dt)
 	local now = os.clock()
 	for _, p in Players:GetPlayers() do
 		local character = p.Character

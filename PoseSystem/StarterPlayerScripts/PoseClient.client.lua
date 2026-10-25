@@ -9,6 +9,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local UserInputService = game:GetService("UserInputService")
 local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -378,7 +379,7 @@ CollectionService:GetInstanceAddedSignal(NPC_TAG):Connect(function(npc)
 	task.spawn(addController, npc)
 end)
 
-RunService.PreSimulation:Connect(function(dt)
+DebugTimer.connect(RunService.PreSimulation, "PoseClient", function(dt)
 	-- PreSimulation идёт ПОСЛЕ стандартных анимаций, поэтому наша поза их перекрывает
 	local now = os.clock()
 	for _, ctrl in pairs(controllers) do

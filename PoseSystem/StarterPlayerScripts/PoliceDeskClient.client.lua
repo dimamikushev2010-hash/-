@@ -8,6 +8,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -488,7 +489,7 @@ remote.OnClientEvent:Connect(function(action, payload)
 end)
 
 -- Отошёл от стойки — окно закрывается; портрет чуть «дышит»
-RunService.RenderStepped:Connect(function()
+DebugTimer.connect(RunService.RenderStepped, "PoliceDeskClient", function()
 	if not gui.Enabled or not data then
 		return
 	end

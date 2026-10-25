@@ -11,6 +11,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local CollectionService = game:GetService("CollectionService")
 local TweenService = game:GetService("TweenService")
 local TextService = game:GetService("TextService")
@@ -806,7 +807,7 @@ local function updateDog(model: Model, dog, dt: number, now: number)
 	end
 end
 
-RunService.RenderStepped:Connect(function(dt)
+DebugTimer.connect(RunService.RenderStepped, "NPCClient", function(dt)
 	local now = os.clock()
 	for _, model in CollectionService:GetTagged(Config.Tag) do
 		if model:GetAttribute("DogColor") and not dogs[model] and model:FindFirstChild("HumanoidRootPart") then
@@ -859,7 +860,7 @@ end)
 local steps = {} -- [npc] = пройденное расстояние
 local STEP_LENGTH = 2.6
 
-RunService.Heartbeat:Connect(function(dt)
+DebugTimer.connect(RunService.Heartbeat, "NPCClient:Heartbeat", function(dt)
 	local camera = workspace.CurrentCamera
 	for _, model in CollectionService:GetTagged(Config.Tag) do
 		local hrp = model:FindFirstChild("HumanoidRootPart")

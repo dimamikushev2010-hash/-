@@ -10,6 +10,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local TweenService = game:GetService("TweenService")
 local ContextActionService = game:GetService("ContextActionService")
 local Lighting = game:GetService("Lighting")
@@ -417,7 +418,7 @@ end, false, table.unpack(Config.Keys))
 -- Кадровый цикл: плавность эффектов и таймеры
 ---------------------------------------------------------------------
 
-RunService.Heartbeat:Connect(function(dt)
+DebugTimer.connect(RunService.Heartbeat, "InvisibilityClient", function(dt)
 	for _, v in pairs(visuals) do
 		local step = dt / v.fadeTime
 		if v.alpha ~= v.target then

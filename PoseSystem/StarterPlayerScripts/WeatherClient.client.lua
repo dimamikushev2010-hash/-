@@ -6,6 +6,7 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -203,7 +204,7 @@ end
 ---------------------------------------------------------------------
 
 local hudTimer, roofTimer, indoors = 0, 0, false
-RunService.RenderStepped:Connect(function(dt)
+DebugTimer.connect(RunService.RenderStepped, "WeatherClient", function(dt)
 	local camPos = camera.CFrame.Position
 	local intensity = workspace:GetAttribute("Rain") or 0
 
