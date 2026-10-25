@@ -80,6 +80,8 @@ SoundConfig.Weapons = {
 	Gavel = { Id = "", Volume = 0.8 }, -- молоток судьи
 	Busted = { Id = "", Volume = 0.6 }, -- звук ареста
 	Wanted = { Id = "", Volume = 0.4 }, -- звезда розыска
+	CameraBreak = { Id = "", Volume = 0.6 }, -- камера наблюдения разбита (glass break, electric spark)
+	Typing = { Id = "", Volume = 0.25 }, -- адвокат печатает ответ (keyboard typing)
 }
 
 -- Голоса жителей: у каждого своя высота (случайная в этом диапазоне).

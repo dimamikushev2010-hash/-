@@ -9,6 +9,8 @@
 --   * ⭐ 1–5: от звёзд зависит, сколько машин приедет. Полиция едет туда, где тебя видели, и прочёсывает район.
 --   * Не видели долго — ушёл от погони. Стрелял в полицию — отстреливаются.
 -- Арест: наручники → машина → отдел (фото, отпечатки, допрос) → КПЗ → суд → тюрьма; оружие и часть денег конфискуют.
+-- Для суда копится «дело»: кто звонил в 911, видела ли полиция, сопротивлялся ли при аресте.
+-- Если запущен CourtServer — КПЗ (адвокат, звонок, залог) и суд (свидетели, камеры) ведёт он.
 --
 -- Метки (необязательно, без них этапы проходят в участке):
 --   TrafficSystem > PoliceStation: Mugshot, Fingerprint, Interview, Holding
@@ -63,6 +65,18 @@ local function event(text: string)
 		Registry.debugEvent(text)
 	end
 end
+-- Камеры наблюдения (CourtServer): записывают, если видят
+local function camera(player: Player, why: string, pos: Vector3)
+	if Registry.cameraCrime then
+		Registry.cameraCrime(player, why, pos)
+	end
+end
+local CAMERA_WHY = {
+	Murder = "убийство человека",
+	Injury = "выстрел в человека",
+	PoliceAttack = "нападение на полицию",
+	PoliceKill = "убийство полицейского",
+}
 
 -- Набор полиции из TrafficServer
 local kit = nil
@@ -161,6 +175,12 @@ local function st(player: Player)
 			lastCall = {},
 			trespass = 0,
 			surrender = 0,
+			-- Дело для суда
+			witnesses = {}, -- { npc, name, why } — кто дозвонился в 911
+			crimes = {}, -- что сообщали в полицию (без повторов)
+			policeSaw = false, -- полиция видела преступление сама
+			fled = false, -- убегал от полиции после «Руки вверх!»
+			resisted = false, -- задержан раненым или стрелял в полицию
 		}
 		states[player] = s
 	end
@@ -203,6 +223,9 @@ local function report(player: Player, level: number, pos: Vector3, exact: boolea
 	if s.mode ~= "free" and s.mode ~= "wanted" then
 		return
 	end
+	if why and why ~= "меню отладки" and not table.find(s.crimes, why) then
+		table.insert(s.crimes, why)
+	end
 	local noise = exact and 0 or W.ReportNoise
 	local offset = Vector3.new(rng:NextNumber(-1, 1), 0, rng:NextNumber(-1, 1)) * noise
 	s.reportPos = pos + offset
@@ -238,6 +261,13 @@ local function witnessCall(npc, player: Player, level: number, pos: Vector3, why
 		s.calls -= 1
 		if done and player.Parent then
 			event(string.format("📞 %s звонит в 911: %s", npc.name, why))
+			local known = false
+			for _, w in s.witnesses do
+				known = known or w.npc == npc
+			end
+			if not known then
+				table.insert(s.witnesses, { npc = npc, name = npc.name, why = why })
+			end
 			report(player, level, pos, false, why)
 		end
 	end)
@@ -254,6 +284,7 @@ local function policeWitness(player: Player, level: number, pos: Vector3, why: s
 			local s = st(player)
 			s.lastSeen = now()
 			s.knownPos = pos
+			s.policeSaw = true
 			report(player, level, pos, true, why)
 			say(o, pick(L.PoliceSee), 2)
 			return true
@@ -327,6 +358,7 @@ local function onAimed(npc, player: Player, from: Vector3)
 	if rng:NextNumber() < W.CallChance.Aiming then
 		task.delay(2, witnessCall, npc, player, W.Aiming, from, "в людей целятся из оружия")
 	end
+	camera(player, "целится в человека", from)
 end
 
 -- Слышал выстрелы
@@ -370,6 +402,7 @@ Registry.gunshot = function(player: Player, pos: Vector3)
 	end
 	local root = character:FindFirstChild("HumanoidRootPart")
 	local from = root and root.Position or pos
+	camera(player, "стрельба", from)
 	for _, npc in residents() do
 		local d = (npc.hrp.Position - pos).Magnitude
 		if d < W.HearShots then
@@ -411,10 +444,12 @@ Registry.wantedCrime = function(player: Player, kind: string, pos: Vector3, vict
 		return
 	end
 	local from = character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart.Position or pos
+	camera(player, CAMERA_WHY[kind] or "стрельба", from)
 	-- Нападение на полицию — сразу и точно; полиция видела сама — тоже
 	if kind == "PoliceAttack" or kind == "PoliceKill" then
 		s.lastSeen = now()
 		s.knownPos = from
+		s.policeSaw = true
 		report(player, level, from, true, kind == "PoliceKill" and "убит полицейский" or "нападение на полицию")
 		return
 	end
@@ -429,6 +464,27 @@ Registry.wantedCrime = function(player: Player, kind: string, pos: Vector3, vict
 				onBody(npc, player, from, pos)
 			else
 				onShots(npc, player, from, true)
+			end
+		end
+	end
+end
+
+-- Мелкое преступление на глазах у людей (например, сломал камеру — CourtServer)
+Registry.crimeSeen = function(player: Player, kind: string, pos: Vector3, why: string)
+	local character = player.Character
+	if not character then
+		return
+	end
+	local level = W[kind] or 1
+	if policeWitness(player, level, pos, why) then
+		return
+	end
+	for _, npc in residents() do
+		if (npc.hrp.Position - pos).Magnitude < W.SightRange and sees(npc, character, W.SightRange, -0.2) and canReact(npc, kind, 20) then
+			say(npc, pick(L[kind] or L.Trespass), 2.5)
+			if rng:NextNumber() < (W.CallChance[kind] or 0.5) then
+				task.delay(1.5, witnessCall, npc, player, level, pos, why)
+				return
 			end
 		end
 	end
@@ -492,6 +548,7 @@ task.spawn(function()
 			local aimDir = character:GetAttribute("AimDir")
 			local head = character:FindFirstChild("Head")
 			if armed then
+				camera(player, "человек с оружием", root.Position)
 				for _, npc in residents() do
 					local d = (npc.hrp.Position - root.Position).Magnitude
 					if d < W.SightRange and sees(npc, character, W.SightRange, -0.1) then
@@ -536,6 +593,7 @@ task.spawn(function()
 						scream(owner)
 						Registry.scare(owner, root.Position, "distance", 12, 12)
 						witnessCall(owner, player, W.Trespass, root.Position, "проникновение в дом")
+						camera(player, "проникновение в дом", root.Position)
 					end
 				else
 					s.trespass = math.max(0, s.trespass - 0.3)
@@ -789,8 +847,10 @@ function officerLoop(unit, officer)
 				walking = false
 			end
 			local dist = (root.Position - officer.hrp.Position).Magnitude
-			local hostile = s.stars >= W.ShootOnSight or s.attackedPolice
 			local armed = character:GetAttribute("AimGun") == true
+			-- Руки вверх без оружия — не стреляют, а задерживают (даже на 3★)
+			local handsUp = character:GetAttribute("HandsUp") == true and not armed
+			local hostile = (s.stars >= W.ShootOnSight or s.attackedPolice) and not handsUp
 			if hostile then
 				drawGun(officer, true)
 				faceTo(officer, root.Position)
@@ -820,6 +880,11 @@ function officerLoop(unit, officer)
 					officer.humanoid.WalkSpeed = 18
 					officer.humanoid:MoveTo(root.Position - flat(root.Position - officer.hrp.Position).Unit * 2.5)
 					calm = 0
+					-- Убегает после «Руки вверх!» — сопротивление аресту (учтут в суде)
+					local away = flat(root.Position - officer.hrp.Position)
+					if dist < 25 and away.Magnitude > 0.1 and flat(root.AssemblyLinearVelocity):Dot(away.Unit) > 12 then
+						s.fled = true
+					end
 				else
 					officer.humanoid:MoveTo(officer.hrp.Position)
 					faceTo(officer, root.Position)
@@ -926,6 +991,11 @@ local function clearWanted(player: Player, why: string?)
 	s.stars = 0
 	s.kills, s.policeKills, s.injuries = 0, 0, 0
 	s.attackedPolice = false
+	s.witnesses, s.crimes = {}, {}
+	s.policeSaw, s.fled, s.resisted = false, false, false
+	if Registry.cameraClear then
+		Registry.cameraClear(player)
+	end
 	s.knownPos, s.reportPos = nil, nil
 	s.trespass = 0
 	if s.mode == "wanted" then
@@ -975,8 +1045,9 @@ function damagePlayer(player: Player, amount: number)
 		return
 	end
 	if s.mode == "wanted" and humanoid.Health - amount <= W.DownedHealth then
-		-- Не убивают — задерживают
+		-- Не убивают — задерживают (раненым — значит, сопротивлялся)
 		humanoid.Health = W.DownedHealth
+		s.resisted = true
 		local best, unitBest, bestD = nil, nil, math.huge
 		for _, u in s.units do
 			for _, o in u.officers do
@@ -1063,11 +1134,16 @@ end
 
 local stageDone = {} -- [player] = данные ответа клиента
 
-local function stage(player: Player, name: string, data, seconds: number, waitClient: boolean?)
+-- Показать этап (не ждёт)
+local function stageStart(player: Player, name: string, data, seconds: number)
 	player:SetAttribute("JusticeStage", name)
 	player:SetAttribute("JusticeEnd", serverNow() + seconds)
 	stageDone[player] = nil
 	remote:FireClient(player, "Stage", name, data or {}, seconds)
+end
+
+local function stage(player: Player, name: string, data, seconds: number, waitClient: boolean?)
+	stageStart(player, name, data, seconds)
 	local deadline = now() + seconds
 	while player.Parent and now() < deadline do
 		if waitClient and stageDone[player] then
@@ -1206,9 +1282,9 @@ local function setCuffed(player: Player, on: boolean)
 	end
 end
 
-local function release(player: Player)
+local function release(player: Player, at: BasePart?, sub: string?)
 	local s = st(player)
-	local exit = justicePart("Prison", "PrisonExit") or justicePart("Prison", "PrisonDoor")
+	local exit = at or justicePart("Prison", "PrisonExit") or justicePart("Prison", "PrisonDoor")
 	fade(player, 1.5)
 	setCuffed(player, false)
 	local shield = player.Character and player.Character:FindFirstChild("JusticeShield")
@@ -1234,7 +1310,7 @@ local function release(player: Player)
 	s.mode = "free"
 	clearWanted(player, nil)
 	player:SetAttribute("JusticeStage", nil)
-	remote:FireClient(player, "Stage", "Released", {}, 4)
+	remote:FireClient(player, "Stage", "Released", { sub = sub }, 4)
 	event("🔓 " .. player.Name .. " вышел на свободу")
 end
 
@@ -1358,6 +1434,27 @@ local function justiceFlow(player: Player, unit, officer)
 		end
 	end
 
+	-- Дело для суда (CourtServer)
+	local witnesses = {}
+	for _, w in s.witnesses do
+		table.insert(witnesses, w)
+	end
+	local case = {
+		number = number,
+		stars = s.finalStars,
+		kills = s.finalKills,
+		injuries = s.injuries,
+		policeKills = s.policeKills,
+		crimes = table.clone(s.crimes),
+		witnesses = witnesses,
+		policeSaw = s.policeSaw,
+		confessed = confessed,
+		modifier = modifier,
+		surrendered = s.surrendered == true,
+		resisted = s.fled or s.resisted or s.attackedPolice,
+		baseSentence = sentenceOf(s, 1),
+	}
+
 	-- 5. КПЗ — ждёт суда
 	s.mode = "holding"
 	publish(player)
@@ -1370,13 +1467,22 @@ local function justiceFlow(player: Player, unit, officer)
 		hum.JumpPower = 0
 		hum.JumpHeight = 0
 	end
-	local holdEnd = now() + J.HoldingTime
+	local holdDone = false
 	if holding then
 		confine(player, holding.Position, 8, function()
-			return now() >= holdEnd
+			return holdDone
 		end)
 	end
-	stage(player, "Holding", {}, J.HoldingTime)
+	if Registry.courtHolding then
+		-- Один звонок, адвокат, залог — CourtServer
+		Registry.courtHolding(player, case)
+	else
+		stage(player, "Holding", {}, J.HoldingTime)
+	end
+	holdDone = true
+	if not player.Parent then
+		return
+	end
 
 	-- 6. Суд
 	s.mode = "court"
@@ -1396,6 +1502,33 @@ local function justiceFlow(player: Player, unit, officer)
 		fine = math.min(fine, wallet.Value)
 	end
 	local j = ensureJudge()
+	-- Настоящий суд: свидетели, камеры, адвокат, апелляция (CourtServer)
+	local verdict = Registry.courtTrial and Registry.courtTrial(player, case, { judge = j, fine = fine })
+	if not player.Parent then
+		return
+	end
+	if verdict and verdict.acquitted then
+		event(string.format("⚖️ %s оправдан", player.Name))
+		release(player, door or dock, "Оправдан судом — оружие и монеты остаются у тебя")
+		return
+	end
+	if verdict then
+		sentence = verdict.sentence
+		fine = math.min(verdict.fine, wallet and wallet.Value or 0)
+		if wallet then
+			wallet.Value -= fine
+		end
+		if J.ConfiscateWeapons and Registry.confiscateWeapons then
+			Registry.confiscateWeapons(player)
+		end
+		event(string.format("⚖️ %s: %d с, штраф %d", player.Name, sentence, fine))
+		local prisonDoor = justicePart("Prison", "PrisonDoor")
+		if prisonDoor then
+			transport(player, nil, prisonDoor.Position, nil)
+		end
+		servePrison(player, sentence)
+		return
+	end
 	local lines = {
 		pick(J.Verdicts),
 		string.format("Розыск: %d★. Убийств: %d. Ранений: %d.", s.finalStars, s.finalKills, s.injuries),
@@ -1436,6 +1569,8 @@ function arrest(player: Player, unit, officer)
 		return
 	end
 	s.mode = "arrested"
+	-- Не убегал, не стрелял в полицию, не задержан раненым — суд учтёт
+	s.surrendered = not (s.fled or s.resisted or s.attackedPolice)
 	if unit then
 		unit.state = "arrest"
 	end
@@ -1451,14 +1586,26 @@ function arrest(player: Player, unit, officer)
 	publish(player)
 	task.spawn(justiceFlow, player, unit, officer)
 end
-Registry.arrestPlayer = function(player: Player)
+Registry.arrestPlayer = function(player: Player, noEvidence: boolean?)
 	local s = st(player)
 	if s.mode == "free" then
 		s.mode = "wanted"
 		s.stars = math.max(s.stars, 1)
 	end
+	-- Для проверки суда: полиция «видела сама», иначе дело развалится без улик
+	if not noEvidence then
+		s.policeSaw = true
+		if #s.crimes == 0 then
+			table.insert(s.crimes, "нарушение порядка")
+		end
+	end
 	arrest(player, nil, nil)
 end
+
+-- Для CourtServer: этапы на экране и метки
+Registry.justiceStage = stageStart
+Registry.justicePart = justicePart
+Registry.justiceStationPart = stationPart
 
 ---------------------------------------------------------------------
 -- Клиент, игроки

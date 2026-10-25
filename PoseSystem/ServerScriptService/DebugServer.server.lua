@@ -388,9 +388,9 @@ end
 ---------------------------------------------------------------------
 
 local EXPECTED = {
-	{ ReplicatedStorage, { "PoseConfig", "InvisibilityConfig", "LaserConfig", "FlightConfig", "CubeConfig", "NPCConfig", "VehicleConfig", "SoundConfig", "WeatherConfig", "CityConfig", "DebugConfig", "WeaponConfig", "AbilityButton", "RigAnimator", "AbilityFx" } },
-	{ ServerScriptService, { "AbilityRegistry", "NPCRegistry", "VehicleDefaults", "PoseServer", "InvisibilityServer", "LaserServer", "FlightServer", "CubeServer", "NPCDemo", "NPCServer", "NPCDoors", "DayNightServer", "TrafficServer", "WeatherServer", "PhoneServer", "CityLifeServer", "DebugServer", "WeaponServer", "WantedServer" } },
-	{ StarterPlayer:FindFirstChild("StarterPlayerScripts"), { "PoseClient", "InvisibilityClient", "LaserClient", "FlightClient", "CubeClient", "NPCClient", "VehicleClient", "PoliceDeskClient", "WeatherClient", "PhoneClient", "CityLifeClient", "DebugClient", "WeaponClient", "WantedClient" } },
+	{ ReplicatedStorage, { "PoseConfig", "InvisibilityConfig", "LaserConfig", "FlightConfig", "CubeConfig", "NPCConfig", "VehicleConfig", "SoundConfig", "WeatherConfig", "CityConfig", "DebugConfig", "WeaponConfig", "CourtConfig", "AbilityButton", "RigAnimator", "AbilityFx" } },
+	{ ServerScriptService, { "AbilityRegistry", "NPCRegistry", "VehicleDefaults", "PoseServer", "InvisibilityServer", "LaserServer", "FlightServer", "CubeServer", "NPCDemo", "NPCServer", "NPCDoors", "DayNightServer", "TrafficServer", "WeatherServer", "PhoneServer", "CityLifeServer", "DebugServer", "WeaponServer", "WantedServer", "CourtServer" } },
+	{ StarterPlayer:FindFirstChild("StarterPlayerScripts"), { "PoseClient", "InvisibilityClient", "LaserClient", "FlightClient", "CubeClient", "NPCClient", "VehicleClient", "PoliceDeskClient", "WeatherClient", "PhoneClient", "CityLifeClient", "DebugClient", "WeaponClient", "WantedClient", "CourtClient" } },
 }
 
 local function runChecks()
@@ -618,6 +618,23 @@ local function runChecks()
 			local n = jHas(item[1], item[2])
 			add(n > 0 and "ok" or "warn", "Правосудие", string.format("JusticeSystem > %s > %s: %d%s", item[1], item[2], n, n == 0 and " (без суда/тюрьмы приговор и срок — в участке)" or ""))
 		end
+		-- Суд: необязательные места (без них реплики только субтитрами)
+		for _, name in { "Prosecutor", "Defense", "Witness", "Defender" } do
+			local n = jHas("Court", name)
+			add(n > 0 and "ok" or "warn", "Суд", string.format("JusticeSystem > Court > %s: %d%s", name, n, n == 0 and " (необязательно: без неё человека в зале не будет, только субтитры)" or ""))
+		end
+		local visit = false
+		for _, p in partsIn(map:FindFirstChild("PoliceStation")) do
+			visit = visit or p.Name == "Visit"
+		end
+		add(visit and "ok" or "warn", "Суд", visit and "Есть метка Visit (адвокат у КПЗ)" or "Нет метки PoliceStation > Visit (необязательно: адвокат будет только в чате)")
+		local camFolder = justice and justice:FindFirstChild("Cameras")
+		local cams = Registry.courtCameras and Registry.courtCameras() or {}
+		if camFolder then
+			add(#partsIn(camFolder) > 0 and "ok" or "warn", "Камеры", string.format("JusticeSystem > Cameras: меток %d, камер работает %d", #partsIn(camFolder), #cams))
+		else
+			add(#cams > 0 and "ok" or "warn", "Камеры", string.format("Папки JusticeSystem > Cameras нет — камер поставлено само: %d", #cams))
+		end
 		local calls = partsIn(map:FindFirstChild("PoliceCalls"))
 		add(#calls > 0 and "ok" or "warn", "Полиция", "Вызовов (PoliceCalls): " .. #calls)
 		local places = partsIn(map:FindFirstChild("Places"))
@@ -840,6 +857,31 @@ function ACTIONS.ArrestMe(player)
 	end
 	Registry.arrestPlayer(player)
 	return "Арест: отдел → КПЗ → суд → тюрьма"
+end
+function ACTIONS.ArrestNoEvidence(player)
+	if not Registry.arrestPlayer then
+		return "WantedServer не запущен"
+	end
+	Registry.arrestPlayer(player, true)
+	return "Арест без улик — суд должен оправдать"
+end
+function ACTIONS.NearestCamera(player)
+	local cams = Registry.courtCameras and Registry.courtCameras() or {}
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if #cams == 0 or not root then
+		return "Камер нет (CourtServer не запущен?)"
+	end
+	local best, bestD = nil, math.huge
+	for _, cam in cams do
+		local d = (cam.pos - root.Position).Magnitude
+		if d < bestD then
+			best, bestD = cam, d
+		end
+	end
+	local from = best.pos + best.look * 12
+	from = Vector3.new(from.X, root.Position.Y, from.Z)
+	player.Character:PivotTo(CFrame.lookAt(from, Vector3.new(best.pos.X, from.Y, best.pos.Z)))
+	return string.format("Камера «%s»%s", best.name, best.broken and " (сломана)" or "")
 end
 function ACTIONS.GiveWeapons(player)
 	local p = Registry.weaponProfile and Registry.weaponProfile(player)

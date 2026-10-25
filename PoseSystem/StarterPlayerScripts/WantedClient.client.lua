@@ -361,9 +361,9 @@ function STAGES.Prison(data, seconds)
 	local _ = data
 end
 
-function STAGES.Released(_, seconds)
+function STAGES.Released(data, seconds)
 	timerCard.Visible = false
-	banner("НА СВОБОДЕ", "Оружие конфисковано — новое можно купить в 📱 Магазине", Color3.fromRGB(80, 210, 120), seconds)
+	banner("НА СВОБОДЕ", data.sub or "Оружие конфисковано — новое можно купить в 📱 Магазине", Color3.fromRGB(80, 210, 120), seconds)
 end
 
 ---------------------------------------------------------------------

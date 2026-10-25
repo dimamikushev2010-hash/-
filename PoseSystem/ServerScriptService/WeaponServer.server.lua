@@ -410,6 +410,10 @@ local function onFire(player: Player, id: any, origin: any, direction: any)
 	if Registry.gunshot then
 		Registry.gunshot(player, origin)
 	end
+	-- Попал в камеру наблюдения — сломал (CourtServer)
+	if result and not victim and Registry.cameraHit then
+		Registry.cameraHit(result.Instance, player)
+	end
 	if not (result and victim and victim.Health > 0 and model) then
 		return
 	end

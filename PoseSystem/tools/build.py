@@ -12,14 +12,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = [
     ("ReplicatedStorage", "ModuleScript", ["PoseConfig", "InvisibilityConfig", "LaserConfig", "FlightConfig", "CubeConfig",
                                            "NPCConfig", "VehicleConfig", "SoundConfig", "WeatherConfig", "CityConfig",
-                                           "DebugConfig", "WeaponConfig", "AbilityButton", "RigAnimator", "AbilityFx"]),
+                                           "DebugConfig", "WeaponConfig", "CourtConfig", "AbilityButton", "RigAnimator", "AbilityFx"]),
     ("ServerScriptService", "ModuleScript", ["AbilityRegistry", "NPCRegistry", "VehicleDefaults"]),
     ("ServerScriptService", "Script", ["PoseServer", "InvisibilityServer", "LaserServer", "FlightServer", "CubeServer",
                                        "NPCDemo", "NPCServer", "NPCDoors", "DayNightServer", "TrafficServer", "WeatherServer",
-                                       "PhoneServer", "CityLifeServer", "DebugServer", "WeaponServer", "WantedServer"]),
+                                       "PhoneServer", "CityLifeServer", "DebugServer", "WeaponServer", "WantedServer", "CourtServer"]),
     ("StarterPlayerScripts", "LocalScript", ["PoseClient", "InvisibilityClient", "LaserClient", "FlightClient", "CubeClient",
                                              "NPCClient", "VehicleClient", "PoliceDeskClient", "WeatherClient", "PhoneClient",
-                                             "CityLifeClient", "DebugClient", "WeaponClient", "WantedClient"]),
+                                             "CityLifeClient", "DebugClient", "WeaponClient", "WantedClient", "CourtClient"]),
 ]
 EXT = {"ModuleScript": ".lua", "Script": ".server.lua", "LocalScript": ".client.lua"}
 WHERE = {"ReplicatedStorage": "ReplicatedStorage", "ServerScriptService": "ServerScriptService",
