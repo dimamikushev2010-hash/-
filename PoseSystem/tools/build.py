@@ -13,7 +13,7 @@ SCRIPTS = [
     ("ReplicatedStorage", "ModuleScript", ["PoseConfig", "InvisibilityConfig", "LaserConfig", "FlightConfig", "CubeConfig",
                                            "NPCConfig", "VehicleConfig", "SoundConfig", "WeatherConfig", "CityConfig",
                                            "DebugConfig", "WeaponConfig", "CourtConfig", "AbilityButton", "RigAnimator", "AbilityFx"]),
-    ("ServerScriptService", "ModuleScript", ["AbilityRegistry", "NPCRegistry", "VehicleDefaults"]),
+    ("ServerScriptService", "ModuleScript", ["AbilityRegistry", "NPCRegistry", "VehicleDefaults", "CourtAI"]),
     ("ServerScriptService", "Script", ["PoseServer", "InvisibilityServer", "LaserServer", "FlightServer", "CubeServer",
                                        "NPCDemo", "NPCServer", "NPCDoors", "DayNightServer", "TrafficServer", "WeatherServer",
                                        "PhoneServer", "CityLifeServer", "DebugServer", "WeaponServer", "WantedServer", "CourtServer"]),

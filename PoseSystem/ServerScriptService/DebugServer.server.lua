@@ -389,7 +389,7 @@ end
 
 local EXPECTED = {
 	{ ReplicatedStorage, { "PoseConfig", "InvisibilityConfig", "LaserConfig", "FlightConfig", "CubeConfig", "NPCConfig", "VehicleConfig", "SoundConfig", "WeatherConfig", "CityConfig", "DebugConfig", "WeaponConfig", "CourtConfig", "AbilityButton", "RigAnimator", "AbilityFx" } },
-	{ ServerScriptService, { "AbilityRegistry", "NPCRegistry", "VehicleDefaults", "PoseServer", "InvisibilityServer", "LaserServer", "FlightServer", "CubeServer", "NPCDemo", "NPCServer", "NPCDoors", "DayNightServer", "TrafficServer", "WeatherServer", "PhoneServer", "CityLifeServer", "DebugServer", "WeaponServer", "WantedServer", "CourtServer" } },
+	{ ServerScriptService, { "AbilityRegistry", "NPCRegistry", "VehicleDefaults", "CourtAI", "PoseServer", "InvisibilityServer", "LaserServer", "FlightServer", "CubeServer", "NPCDemo", "NPCServer", "NPCDoors", "DayNightServer", "TrafficServer", "WeatherServer", "PhoneServer", "CityLifeServer", "DebugServer", "WeaponServer", "WantedServer", "CourtServer" } },
 	{ StarterPlayer:FindFirstChild("StarterPlayerScripts"), { "PoseClient", "InvisibilityClient", "LaserClient", "FlightClient", "CubeClient", "NPCClient", "VehicleClient", "PoliceDeskClient", "WeatherClient", "PhoneClient", "CityLifeClient", "DebugClient", "WeaponClient", "WantedClient", "CourtClient" } },
 }
 
@@ -628,6 +628,11 @@ local function runChecks()
 			visit = visit or p.Name == "Visit"
 		end
 		add(visit and "ok" or "warn", "Суд", visit and "Есть метка Visit (адвокат у КПЗ)" or "Нет метки PoliceStation > Visit (необязательно: адвокат будет только в чате)")
+		-- Живой суд через нейросеть (необязательно: без ключа суд идёт живым спором)
+		local aiStatus = Registry.courtAIStatus and Registry.courtAIStatus() or "CourtServer не запущен"
+		add(string.find(aiStatus, "^готова") and "ok" or "warn", "Суд", "🤖 Нейросеть суда: " .. aiStatus)
+		local community = justice and justice:FindFirstChild("Community")
+		add(community and "ok" or "warn", "Суд", community and ("JusticeSystem > Community: мест для мусора " .. #partsIn(community)) or "Нет JusticeSystem > Community (необязательно: мусор появится у мест города и остановок)")
 		local camFolder = justice and justice:FindFirstChild("Cameras")
 		local cams = Registry.courtCameras and Registry.courtCameras() or {}
 		if camFolder then
@@ -864,6 +869,22 @@ function ACTIONS.ArrestNoEvidence(player)
 	end
 	Registry.arrestPlayer(player, true)
 	return "Арест без улик — суд должен оправдать"
+end
+function ACTIONS.CourtAIStatus()
+	return "Нейросеть суда: " .. (Registry.courtAIStatus and Registry.courtAIStatus() or "CourtServer не запущен")
+end
+function ACTIONS.CommunityTest(player)
+	if not Registry.courtCommunity then
+		return "CourtServer не запущен"
+	end
+	task.spawn(function()
+		Registry.courtCommunity(player, 3, 30)
+		local p = Registry.weaponProfile and Registry.weaponProfile(player)
+		if p then
+			p.jail = nil -- проверка — без тюрьмы
+		end
+	end)
+	return "Общественные работы: 3 кучи мусора"
 end
 function ACTIONS.NearestCamera(player)
 	local cams = Registry.courtCameras and Registry.courtCameras() or {}

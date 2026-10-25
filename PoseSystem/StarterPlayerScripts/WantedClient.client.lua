@@ -398,10 +398,19 @@ local function setRestricted(on: boolean)
 	end
 end
 
+local communityHidden = false
 local function updateRestricted()
 	local mode = player:GetAttribute("WantedMode") or "free"
 	local cuffed = player.Character and player.Character:GetAttribute("Cuffed") == true
-	setRestricted(cuffed or (mode ~= "free" and mode ~= "wanted"))
+	-- На общественных работах можно прыгать, но без рюкзака и «сброса»
+	setRestricted(cuffed or (mode ~= "free" and mode ~= "wanted" and mode ~= "community"))
+	if (mode == "community") ~= communityHidden then
+		communityHidden = mode == "community"
+		pcall(function()
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, not communityHidden)
+			StarterGui:SetCore("ResetButtonCallback", not communityHidden)
+		end)
+	end
 end
 player:GetAttributeChangedSignal("WantedMode"):Connect(updateRestricted)
 

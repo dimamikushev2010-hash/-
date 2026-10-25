@@ -1282,7 +1282,7 @@ local function setCuffed(player: Player, on: boolean)
 	end
 end
 
-local function release(player: Player, at: BasePart?, sub: string?)
+local function release(player: Player, at: BasePart?, sub: string?, stay: boolean?)
 	local s = st(player)
 	local exit = at or justicePart("Prison", "PrisonExit") or justicePart("Prison", "PrisonDoor")
 	fade(player, 1.5)
@@ -1291,7 +1291,9 @@ local function release(player: Player, at: BasePart?, sub: string?)
 	if shield then
 		shield:Destroy()
 	end
-	if exit then
+	if stay then
+		-- остаётся, где стоит (после общественных работ)
+	elseif exit then
 		placeAt(player, exit)
 	else
 		player:LoadCharacter()
@@ -1422,13 +1424,14 @@ local function justiceFlow(player: Player, unit, officer)
 	placeAt(player, stationPart("Interview") or desk, stationPos)
 	local answers = stage(player, "Interview", { questions = J.Questions }, 60, true)
 	local modifier = 1
-	local confessed = 0
+	local confessed, lied = 0, 0
 	if type(answers) == "table" then
 		for _, a in answers do
 			if a == "confess" then
 				confessed += 1
 				modifier -= J.ConfessDiscount / #J.Questions
 			elseif a == "lie" then
+				lied += 1
 				modifier += J.LieExtra / #J.Questions
 			end
 		end
@@ -1449,6 +1452,7 @@ local function justiceFlow(player: Player, unit, officer)
 		witnesses = witnesses,
 		policeSaw = s.policeSaw,
 		confessed = confessed,
+		lied = lied,
 		modifier = modifier,
 		surrendered = s.surrendered == true,
 		resisted = s.fled or s.resisted or s.attackedPolice,
@@ -1509,7 +1513,7 @@ local function justiceFlow(player: Player, unit, officer)
 	end
 	if verdict and verdict.acquitted then
 		event(string.format("⚖️ %s оправдан", player.Name))
-		release(player, door or dock, "Оправдан судом — оружие и монеты остаются у тебя")
+		release(player, door or dock, verdict.sub or "Оправдан судом — оружие и монеты остаются у тебя")
 		return
 	end
 	if verdict then
@@ -1521,7 +1525,34 @@ local function justiceFlow(player: Player, unit, officer)
 		if J.ConfiscateWeapons and Registry.confiscateWeapons then
 			Registry.confiscateWeapons(player)
 		end
-		event(string.format("⚖️ %s: %d с, штраф %d", player.Name, sentence, fine))
+		event(string.format("⚖️ %s: %s, %d с, штраф %d", player.Name, tostring(verdict.kind), sentence, fine))
+		-- Штраф или условный срок — свободен сразу
+		if verdict.kind == "fine" or verdict.kind == "probation" then
+			release(player, door or dock, verdict.sub)
+			return
+		end
+		-- Общественные работы: не справился — в тюрьму
+		if verdict.kind == "community" and Registry.courtCommunity then
+			s.mode = "community"
+			publish(player)
+			setCuffed(player, false)
+			local shield = player.Character and player.Character:FindFirstChild("JusticeShield")
+			if shield then
+				shield:Destroy()
+			end
+			placeAt(player, door or dock)
+			if Registry.courtCommunity(player, verdict.bags or 3, sentence) then
+				release(player, nil, verdict.sub, true)
+				return
+			end
+			if not player.Parent then
+				return
+			end
+			toast(player, "⏰ Не успел — отбывай срок в тюрьме")
+			s.mode = "court"
+			publish(player)
+			setCuffed(player, true)
+		end
 		local prisonDoor = justicePart("Prison", "PrisonDoor")
 		if prisonDoor then
 			transport(player, nil, prisonDoor.Position, nil)

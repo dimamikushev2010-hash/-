@@ -542,7 +542,9 @@ local function showEvidence(e)
 end
 
 local lineToken = 0
+local waitToken = 0 -- «судья совещается…»
 local function showLine(d)
+	waitToken += 1
 	lineToken += 1
 	local token = lineToken
 	local role = d.role or "court"
@@ -567,13 +569,71 @@ local function showLine(d)
 	end)
 end
 
--- Выбор: последнее слово, речь друга, апелляция
+-- ⚖️ Весы правосудия: слева — оправдание, справа — обвинение
+local scaleBox = new("Frame", { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -20, 1, -8), Size = UDim2.fromOffset(300, 30), BackgroundTransparency = 1 }, top)
+text(scaleBox, "оправдать", 11, GREEN, Enum.Font.GothamBold, { Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(80, 12) })
+text(scaleBox, "виновен", 11, RED, Enum.Font.GothamBold, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(80, 12), TextXAlignment = Enum.TextXAlignment.Right })
+local scaleBar = new("Frame", { Position = UDim2.fromOffset(0, 16), Size = UDim2.new(1, 0, 0, 8), BackgroundColor3 = WHITE, BorderSizePixel = 0 }, scaleBox)
+corner(scaleBar, 4)
+new("UIGradient", { Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, GREEN), ColorSequenceKeypoint.new(0.5, GOLD), ColorSequenceKeypoint.new(1, RED) }) }, scaleBar)
+local needle = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(6, 18), BackgroundColor3 = WHITE, BorderSizePixel = 0 }, scaleBar)
+corner(needle, 3)
+new("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1.5 }, needle)
+local scaleIcon = text(scaleBox, "⚖️", 16, WHITE, Enum.Font.GothamBold, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, -4), Size = UDim2.fromOffset(30, 18), TextXAlignment = Enum.TextXAlignment.Center })
+local function setScale(v: number)
+	TweenService:Create(needle, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Position = UDim2.fromScale(math.clamp((v + 1) / 2, 0.02, 0.98), 0.5) }):Play()
+	local sc = new("UIScale", { Scale = 1.4 }, scaleIcon)
+	TweenService:Create(sc, POP, { Scale = 1 }):Play()
+	game:GetService("Debris"):AddItem(sc, 0.5)
+end
+
+-- ✋ Шепнуть адвокату «протест!»
+local protestBtn = button(trial, "✋ Протест!", Color3.fromRGB(150, 50, 50), { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -20, 1, -182), Size = UDim2.fromOffset(170, 40), Visible = false })
+local protestsLeft = 0
+local function updateProtest()
+	protestBtn.Text = string.format("✋ Протест! (%d)", protestsLeft)
+	protestBtn.Visible = protestsLeft > 0
+end
+protestBtn.Activated:Connect(function()
+	if protestsLeft > 0 then
+		remote:FireServer("Protest")
+		protestBtn.Text = "✋ Адвокат услышал…"
+		protestBtn.Visible = true
+	end
+end)
+
+-- «Судья совещается…» — пока нейросеть пишет
+local function showWait(msg: string)
+	waitToken += 1
+	local token = waitToken
+	speaker.Text = "⏳"
+	speaker.TextColor3 = DIM
+	task.spawn(function()
+		local dots = 0
+		while token == waitToken do
+			dots = dots % 3 + 1
+			subtitle.Text = string.gsub(msg, "…$", "") .. string.rep(".", dots)
+			task.wait(0.4)
+		end
+	end)
+end
+
+-- 🧹 Общественные работы
+local communityCard = new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 62), Size = UDim2.fromOffset(380, 60), BackgroundColor3 = DARK, BackgroundTransparency = 0.1, Visible = false }, gui)
+corner(communityCard, 14)
+stroke(communityCard, Color3.fromRGB(255, 140, 40), 2)
+local communityTitle = text(communityCard, "", 16, WHITE, Enum.Font.GothamBlack, { Position = UDim2.fromOffset(0, 6), Size = UDim2.new(1, 0, 0, 22), TextXAlignment = Enum.TextXAlignment.Center })
+text(communityCard, "Иди по оранжевому лучу и удерживай E у кучи мусора", 12, DIM, Enum.Font.GothamMedium, { Position = UDim2.fromOffset(0, 32), Size = UDim2.new(1, 0, 0, 18), TextXAlignment = Enum.TextXAlignment.Center })
+local community = nil
+
+-- Выбор: вопрос, последнее слово, речь друга, апелляция
 local choicePanel = new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -186), Size = UDim2.fromOffset(560, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = DARK, Visible = false }, gui)
 corner(choicePanel, 16)
 stroke(choicePanel, GOLD, 2)
 pad(choicePanel, 12)
 new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, choicePanel)
 local CHOICE_TITLE = {
+	Question = "❓ Вопрос тебе",
 	LastWord = "🗣 Твоё последнее слово",
 	Speech = "⚖️ Что скажешь в защиту друга?",
 	Appeal = "📄 Обжаловать приговор?",
@@ -588,6 +648,9 @@ local function showChoice(d)
 		end
 	end
 	local title = text(choicePanel, CHOICE_TITLE[d.kind] or "Выбери", 17, GOLD, Enum.Font.GothamBlack, { LayoutOrder = 0, TextXAlignment = Enum.TextXAlignment.Center })
+	if d.title and d.title ~= "" and d.kind ~= "Appeal" then
+		text(choicePanel, "«" .. d.title .. "»", 15, WHITE, Enum.Font.GothamMedium, { LayoutOrder = 0, AutomaticSize = Enum.AutomaticSize.Y, TextXAlignment = Enum.TextXAlignment.Center })
+	end
 	for i, label in d.options or {} do
 		local b = button(choicePanel, label, Color3.fromRGB(40, 46, 66), { LayoutOrder = i, AutomaticSize = Enum.AutomaticSize.Y })
 		b.Activated:Connect(function()
@@ -619,15 +682,30 @@ end
 
 local function showVerdict(d)
 	verdictCard.Visible = true
-	if d.acquitted then
+	local kind = d.kind or (d.acquitted and "acquit" or "prison")
+	local appeal = d.appeal == "win" and " · жалоба удовлетворена" or d.appeal == "lose" and " · жалоба отклонена" or ""
+	if kind == "acquit" then
 		verdictBig.Text = "ОПРАВДАН"
 		verdictBig.TextColor3 = GREEN
-		verdictSub.Text = "Улик не хватило — свобода!"
+		verdictSub.Text = "Суд не убеждён — свобода!"
+	elseif kind == "fine" then
+		verdictBig.Text = "ШТРАФ"
+		verdictBig.TextColor3 = GOLD
+		verdictSub.Text = string.format("%d 🪙 — и свободен%s", d.fine or 0, appeal)
+	elseif kind == "probation" then
+		verdictBig.Text = "УСЛОВНО"
+		verdictBig.TextColor3 = Color3.fromRGB(255, 170, 60)
+		verdictSub.Text = string.format("Штраф %d 🪙 · попадёшься снова — срок ×2%s", d.fine or 0, appeal)
+	elseif kind == "community" then
+		verdictBig.Text = "ОБЩЕСТВЕННЫЕ РАБОТЫ"
+		verdictBig.TextColor3 = Color3.fromRGB(255, 140, 40)
+		verdictSub.Text = string.format("Убрать мусор: %d куч · штраф %d 🪙%s", d.bags or 0, d.fine or 0, appeal)
 	else
-		verdictBig.Text = d.appeal == "win" and "СМЯГЧЕНО" or "ВИНОВЕН"
-		verdictBig.TextColor3 = d.appeal == "win" and GOLD or RED
-		verdictSub.Text = string.format("%s · штраф %d 🪙%s", d.sentence or "", d.fine or 0, d.appeal == "lose" and " · жалоба отклонена" or "")
+		verdictBig.Text = "ВИНОВЕН"
+		verdictBig.TextColor3 = RED
+		verdictSub.Text = string.format("%s тюрьмы · штраф %d 🪙%s", d.sentence or "", d.fine or 0, appeal)
 	end
+	verdictBig.TextScaled = utf8.len(verdictBig.Text) > 12
 	verdictScale.Scale = 1.6
 	TweenService:Create(verdictScale, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 	play(SW.Gavel)
@@ -638,6 +716,9 @@ local function showVerdict(d)
 end
 
 local function endTrial()
+	waitToken += 1
+	protestsLeft = 0
+	protestBtn.Visible = false
 	trial.Visible = false
 	choicePanel.Visible = false
 	evidence.Visible = false
@@ -684,9 +765,30 @@ remote.OnClientEvent:Connect(function(action: string, d)
 		evidence.Visible = false
 		subtitle.Text = ""
 		speaker.Text = ""
-		trialTitle.Text = "⚖️  ЗАСЕДАНИЕ СУДА  ·  ДЕЛО № " .. tostring(d.number or "")
+		trialTitle.Text = string.format("⚖️  ЗАСЕДАНИЕ СУДА  ·  ДЕЛО № %s  ·  %s", tostring(d.number or ""), d.ai and "🤖 живой суд" or "🎲 живой спор")
 		local l = d.lawyer or {}
-		sideInfo.Text = string.format("Подсудимый: %s  ·  Защита: %s %s%s", d.defendant or "", l.Icon or "", l.Name or "", d.defender and ("  ·  друг: " .. d.defender) or "")
+		sideInfo.Text = string.format("%s (%s)  ·  Защита: %s %s%s", d.judge or "Судья", d.mood or "", l.Icon or "", l.Name or "", d.defender and ("  ·  друг: " .. d.defender) or "")
+		protestsLeft = d.defendantId == player.UserId and (d.protests or 0) or 0
+		updateProtest()
+		needle.Position = UDim2.fromScale(0.5, 0.5)
+	elseif action == "Scale" then
+		setScale(d.value or 0)
+	elseif action == "Wait" then
+		showWait(d.text or "Судья совещается…")
+	elseif action == "WaitEnd" then
+		waitToken += 1
+	elseif action == "Mode" then
+		trialTitle.Text = string.gsub(trialTitle.Text, "🤖 живой суд", "🎲 живой спор")
+	elseif action == "Protests" then
+		protestsLeft = d.left or 0
+		task.delay(1.5, updateProtest)
+	elseif action == "Community" then
+		community = d
+		communityCard.Visible = true
+	elseif action == "CommunityEnd" then
+		community = nil
+		communityCard.Visible = false
+		showPill(d.ok and "🧹 Общественные работы выполнены!" or "⏰ Время вышло — в тюрьму", d.ok and GREEN or RED)
 	elseif action == "Line" then
 		trial.Visible = true
 		showLine(d)
@@ -725,6 +827,10 @@ DebugTimer.connect(RunService.RenderStepped, "CourtClient", function()
 	if holdPanel.Visible and holding and holding.holdEnd then
 		local left = math.max(0, holding.holdEnd - workspace:GetServerTimeNow())
 		holdSub.Text = string.format("До суда: %d:%02d  ·  розыск %s", math.floor(left / 60), math.floor(left % 60), stars(holding.stars or 0))
+	end
+	if community then
+		local left = math.max(0, (community.endAt or 0) - workspace:GetServerTimeNow())
+		communityTitle.Text = string.format("🧹 Общественные работы: %d/%d  ·  %d:%02d", community.done or 0, community.total or 0, math.floor(left / 60), math.floor(left % 60))
 	end
 	if evidence.Visible and evCamera then
 		local t = os.clock()

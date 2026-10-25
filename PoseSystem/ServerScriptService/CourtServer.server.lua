@@ -27,6 +27,7 @@ local VehicleConfig = require(ReplicatedStorage:WaitForChild("VehicleConfig"))
 local DebugTimer = require(ReplicatedStorage:WaitForChild("DebugConfig"))
 local Sounds = require(ReplicatedStorage:WaitForChild("SoundConfig"))
 local Registry = require(script.Parent:WaitForChild("NPCRegistry"))
+local CourtAI = require(script.Parent:WaitForChild("CourtAI"))
 local J = WeaponConfig.Justice
 local L = Config.Lines
 local C = Config.Cameras
@@ -451,6 +452,10 @@ Registry.courtCameras = function()
 	return cameras
 end
 
+Registry.courtAIStatus = function(): string
+	return CourtAI.status()
+end
+
 local function repairCamera(cam)
 	cam.broken = false
 	cam.hits = 0
@@ -815,6 +820,7 @@ end
 ---------------------------------------------------------------------
 
 local friendCalls = {} -- [друг] = { from = игрок, untilTime }
+local buildCtx -- объявлена ниже (дело для нейросети)
 
 Registry.courtHolding = function(player: Player, case)
 	local c = {
@@ -828,6 +834,7 @@ Registry.courtHolding = function(player: Player, case)
 		phase = "holding",
 		lastAsk = 0,
 	}
+	c.judge = pick(Config.Judges) -- кто будет судить (адвокат может это обсуждать)
 	cases[player] = c
 	if Registry.justiceStage then
 		Registry.justiceStage(player, "Holding", { court = true }, Config.HoldingTime)
@@ -964,12 +971,35 @@ remote.OnServerEvent:Connect(function(player: Player, action: any, a: any, b: an
 		end
 		c.typing = true
 		remote:FireClient(player, "Typing", {})
-		task.delay(rng:NextNumber(0.8, 1.8), function()
+		c.history = c.history or {}
+		local freeText = (not topicId or not (type(a) == "string" and a == topicId)) and type(b) == "string" and b ~= "" and string.sub(b, 1, 300) or nil
+		if freeText then
+			table.insert(c.history, "Подзащитный: " .. freeText)
+		end
+		task.spawn(function()
+			local reply = nil
+			-- Свой текст — через нейросеть (если есть ключ); кнопки и запасной вариант — готовые ответы
+			if freeText and CourtAI.available() then
+				reply = CourtAI.lawyerReply(buildCtx(player, c), c.history, freeText, player.UserId)
+			end
+			if not reply then
+				task.wait(rng:NextNumber(0.8, 1.8))
+				reply = answerFor(player, c, topicId or "Fallback")
+			end
 			c.typing = false
 			if cases[player] == c and c.phase == "holding" then
-				lawyerSays(player, c, answerFor(player, c, topicId or "Fallback"))
+				table.insert(c.history, "Адвокат: " .. reply)
+				lawyerSays(player, c, reply)
 			end
 		end)
+	elseif action == "Protest" then
+		-- Шепнуть адвокату: «протест!»
+		local c = cases[player]
+		if c and c.phase == "trial" and not c.protest and (c.protests or 0) > 0 then
+			c.protests -= 1
+			c.protest = true
+			remote:FireClient(player, "Protests", { left = c.protests })
+		end
 	elseif action == "Choice" then
 		local c = cases[player]
 		local pending = c and c.choice
@@ -1004,21 +1034,84 @@ Players.PlayerRemoving:Connect(function(player)
 	end
 end)
 
+
 ---------------------------------------------------------------------
--- ⚖️ Суд (от WantedServer): возвращает { sentence, fine } или { acquitted = true }
+-- ⚖️ Суд (от WantedServer): живой спор — через нейросеть или без неё — и исход.
+-- Возвращает { kind = acquit / fine / probation / community / prison, acquitted, sentence, fine, bags, sub }
 ---------------------------------------------------------------------
+
+-- Дело для спора: улики с кодами (W1, CALL1, C1, P, LOST1), судья, весы
+function buildCtx(player: Player, c)
+	local case = c.case
+	local evidence, codes = {}, {}
+	local function add(e)
+		table.insert(evidence, e)
+		codes[e.code] = e
+	end
+	if case.policeSaw then
+		add({ code = "P", kind = "police" })
+	end
+	for i, w in case.witnesses do
+		local alive = w.npc ~= nil and w.npc.alive == true
+		add({ code = (alive and "W" or "CALL") .. i, kind = alive and "witness" or "call", name = w.name, why = w.why, Why = capital(w.why) })
+	end
+	for i, r in camRecords(player) do
+		add({ code = "C" .. i, kind = "camera", cam = r.name, why = r.why, time = r.time })
+	end
+	for i, name in lostList(player) do
+		add({ code = "LOST" .. i, kind = "lost", cam = name })
+	end
+	local serious = (case.kills or 0) > 0
+	local allowed = (serious and Config.Verdict.SeriousOnlyPrison) and { "acquit", "prison" } or { "acquit", "fine", "probation", "community", "prison" }
+	c.judge = c.judge or pick(Config.Judges)
+	local score = expectedScore(player, case)
+	return {
+		number = case.number,
+		defendant = player.DisplayName,
+		stars = case.stars or 0,
+		kills = case.kills or 0,
+		injuries = case.injuries or 0,
+		policeKills = case.policeKills or 0,
+		crimes = case.crimes or {},
+		evidence = evidence,
+		codes = codes,
+		confessed = case.confessed or 0,
+		lied = case.lied or 0,
+		surrendered = case.surrendered == true,
+		resisted = case.resisted == true,
+		probationBreach = (player:GetAttribute("ProbationUntil") or 0) > workspace:GetServerTimeNow(),
+		judge = c.judge,
+		lawyer = LAWYERS[c.lawyer] or PUBLIC,
+		friend = nil,
+		scale = math.clamp(-0.6 + score * 0.25 + c.judge.Bias, -0.85, 0.85),
+		allowed = allowed,
+		serious = serious,
+		transcript = {},
+	}
+end
+
+local function lineSeconds(text: string): number
+	return math.clamp(2 + (utf8.len(text) or #text) * 0.045, 2.6, 7)
+end
 
 Registry.courtTrial = function(player: Player, case, info)
 	local c = cases[player]
 	if not c then
-		c = { case = case, lawyer = PUBLIC.Id, bail = nil, phase = "trial" }
+		c = { case = case, lawyer = PUBLIC.Id, bail = nil }
 		cases[player] = c
 	end
 	c.phase = "trial"
+	c.protests = Config.Protests
+	c.protest = false
 	local lawyer = LAWYERS[c.lawyer] or PUBLIC
+	local ctx = buildCtx(player, c)
 	local judge = info and info.judge
-	local judgeName = judge and judge.name or J.JudgeName
-	local vars = varsOf(player, c)
+	if judge and judge.alive then
+		-- Сегодня в зале — этот судья
+		judge.name = ctx.judge.Name
+		judge.model.Name = ctx.judge.Name
+		judge.humanoid.DisplayName = ctx.judge.Name
+	end
 
 	-- Друг-защитник приходит в зал
 	local defender = c.defender
@@ -1027,6 +1120,7 @@ Registry.courtTrial = function(player: Player, case, info)
 	end
 	local audience = { player }
 	if defender then
+		ctx.friend = defender.DisplayName
 		table.insert(audience, defender)
 		local spot = courtPart("Defender") or courtPart("Defense") or courtPart("Dock")
 		if spot then
@@ -1045,38 +1139,74 @@ Registry.courtTrial = function(player: Player, case, info)
 	end
 
 	if Registry.justiceStage then
-		Registry.justiceStage(player, "Trial", {}, 300)
+		Registry.justiceStage(player, "Trial", {}, 600)
 	end
 	local prosecutor = spawnPerson(courtPart("Prosecutor"), Config.ProsecutorName, Config.ProsecutorShirt, nil, "Суд")
 	local advocate = spawnPerson(courtPart("Defense"), lawyer.Name, lawyer.Shirt, lawyer.Pants, "Адвокат")
+	local witnessNpc = nil
+	local useAI = CourtAI.available()
 	send("TrialStart", {
 		number = case.number,
 		defendant = player.DisplayName,
+		defendantId = player.UserId,
 		lawyer = { Name = lawyer.Name, Title = lawyer.Title, Icon = lawyer.Icon, Rating = lawyer.Rating },
 		defender = defender and defender.DisplayName or nil,
+		judge = ctx.judge.Name,
+		mood = ctx.judge.Mood,
+		ai = useAI,
+		protests = c.protests,
 	})
+	send("Scale", { value = ctx.scale })
+	event(string.format("⚖️ Суд над %s: %s, %s", player.Name, ctx.judge.Name, useAI and "нейросеть" or "без нейросети"))
 
-	-- Реплика: субтитры у всех в зале + облачко над говорящим
-	local function line(role: string, name: string, text: string, npc, evidence)
+	local NAMES = { judge = ctx.judge.Name, prosecutor = Config.ProsecutorName, lawyer = lawyer.Name, police = "Офицер полиции" }
+	-- Реплика: субтитры у всех в зале, облачко над говорящим, улика на экране
+	local function play(l)
 		if not player.Parent then
 			return
 		end
-		send("Line", { role = role, name = name, text = text, evidence = evidence })
-		local seconds = math.clamp(2 + (utf8.len(text) or #text) * 0.045, 2.6, 7)
-		say(npc, text, seconds)
+		local role = l.role
+		local e = l.evidence and ctx.codes[l.evidence]
+		local name = NAMES[role] or l.name or ""
+		local npc = nil
+		if role == "judge" then
+			npc = judge
+		elseif role == "prosecutor" then
+			npc = prosecutor
+		elseif role == "lawyer" then
+			npc = advocate
+		elseif role == "witness" then
+			name = (e and e.name) or (name ~= "" and name) or "Свидетель"
+			-- Свидетель выходит на трибуну
+			if not witnessNpc or witnessNpc.name ~= name then
+				removePerson(witnessNpc)
+				witnessNpc = spawnPerson(courtPart("Witness"), name, Config.WitnessShirt, nil, "Суд")
+			end
+			npc = witnessNpc
+		end
+		local card = e and { kind = e.kind, name = e.name, why = e.why, cam = e.cam, time = e.time } or nil
+		send("Line", { role = role, name = role == "witness" and ("Свидетель " .. name) or name, text = l.text, evidence = card })
+		table.insert(ctx.transcript, { role = role, name = name, text = l.text })
+		local seconds = lineSeconds(l.text)
+		say(npc, l.text, seconds)
 		task.wait(seconds)
 	end
-	local function choose(who: Player, kind: string, options, seconds: number): number?
-		if not who.Parent then
+	local function speak(role: string, name: string, text: string)
+		send("Line", { role = role, name = name, text = text })
+		table.insert(ctx.transcript, { role = role == "friend" and "friend" or "defendant", name = name, text = text })
+		task.wait(lineSeconds(text))
+	end
+	local function shiftScale(d: number)
+		ctx.scale = math.clamp(ctx.scale + d, -1, 1)
+		send("Scale", { value = ctx.scale })
+	end
+	local function choose(who: Player, kind: string, title: string, options, seconds: number): number?
+		if not who.Parent or not player.Parent then
 			return nil
 		end
 		local pending = { who = who, kind = kind, options = options, value = nil }
 		c.choice = pending
-		local texts = {}
-		for i, o in options do
-			texts[i] = type(o) == "table" and o.Text or o
-		end
-		remote:FireClient(who, "Choice", { kind = kind, options = texts, seconds = seconds })
+		remote:FireClient(who, "Choice", { kind = kind, title = title, options = options, seconds = seconds })
 		local deadline = now() + seconds
 		while who.Parent and player.Parent and now() < deadline and not pending.value do
 			task.wait(0.1)
@@ -1085,153 +1215,151 @@ Registry.courtTrial = function(player: Player, case, info)
 		remote:FireClient(who, "ChoiceEnd", {})
 		return pending.value
 	end
-
-	local score = 0
-	local extra = 0 -- последнее слово и речь друга
-
-	-- 1. Открытие и обвинение
-	line("judge", judgeName, fill(pick(L.JudgeOpen), vars), judge)
-	line("prosecutor", Config.ProsecutorName, fill(pick(L.ProsecutorCharge), vars), prosecutor)
-
-	-- 2. Полиция видела сама
-	if case.policeSaw then
-		score += E.Police
-		line("police", "Офицер полиции", pick(L.PoliceSay), nil, { kind = "police" })
-	end
-
-	-- 3. Свидетели — те, кто дозвонился в 911
-	for i, w in case.witnesses do
-		local doubted = rng:NextNumber() < lawyer.DoubtWitness
-		if i > E.MaxWitnesses then
-			score += doubted and E.DoubtedWitness or E.Witness
-			continue
-		end
-		local wv = { name = w.name, why = w.why, Why = capital(w.why) }
-		line("prosecutor", Config.ProsecutorName, fill(pick(L.ProsecutorWitness), wv), prosecutor)
-		if w.npc and w.npc.alive then
-			local person = spawnPerson(courtPart("Witness"), w.name, Config.WitnessShirt, nil, "Суд")
-			line("witness", "Свидетель " .. w.name, fill(pick(L.WitnessSay), wv), person, { kind = "witness", name = w.name, why = w.why })
-			if doubted then
-				line("lawyer", lawyer.Name, pick(L.LawyerDoubtWitness), advocate)
-				line("witness", "Свидетель " .. w.name, pick(L.WitnessUnsure), person, { kind = "witness", name = w.name, why = w.why, doubted = true })
-				score += E.DoubtedWitness
-			else
-				score += E.Witness
+	-- Протест без нейросети — сразу после текущей реплики
+	local function offlineProtest()
+		if c.protest and not useAI then
+			c.protest = false
+			local seg = CourtAI.offline(ctx, 0, true)
+			for _, l in seg.lines do
+				play(l)
 			end
-			removePerson(person)
-		else
-			line("prosecutor", Config.ProsecutorName, fill(pick(L.WitnessDead), wv), prosecutor, { kind = "call", name = w.name, why = w.why })
-			score += E.CallRecord
+			shiftScale(seg.shift)
 		end
 	end
-	if #case.witnesses > E.MaxWitnesses then
-		line("prosecutor", Config.ProsecutorName, string.format("Ещё свидетелей: %d. Они говорят то же самое.", #case.witnesses - E.MaxWitnesses), prosecutor)
-	end
-	if #case.witnesses == 0 then
-		line("judge", judgeName, pick(L.NoWitnesses), judge)
-	end
-
-	-- 4. Камеры
-	for _, name in lostList(player) do
-		line("prosecutor", Config.ProsecutorName, fill(pick(L.CameraLost), { cam = name }), prosecutor, { kind = "lost", cam = name })
-	end
-	for i, r in camRecords(player) do
-		local doubted = rng:NextNumber() < lawyer.DoubtCamera
-		if i > E.MaxCameras then
-			score += doubted and 0 or E.Camera
-			continue
+	-- Одна часть заседания
+	local function runPart(part: number, promptIndex: number)
+		local protest = c.protest
+		c.protest = false
+		local seg = nil
+		if useAI then
+			send("Wait", { text = pick(Config.Debate.Waiting) })
+			seg = CourtAI.segment(ctx, promptIndex, protest, player.UserId)
+			send("WaitEnd", {})
+			if not seg then
+				useAI = false
+				event("🤖 Нейросеть суда: " .. CourtAI.status() .. " — дальше без неё")
+				send("Mode", { ai = false })
+			end
 		end
-		local cv = { cam = r.name, why = r.why }
-		line("prosecutor", Config.ProsecutorName, fill(pick(L.ProsecutorCamera), cv), prosecutor)
-		line("court", "Запись камеры", fill(L.CameraShow, cv), nil, { kind = "camera", cam = r.name, why = r.why, time = r.time })
-		if doubted then
-			line("lawyer", lawyer.Name, pick(L.LawyerDoubtCamera), advocate)
-			line("judge", judgeName, pick(L.JudgeRejectCamera), judge, { kind = "camera", cam = r.name, why = r.why, time = r.time, doubted = true })
-		else
-			score += E.Camera
+		if not seg then
+			seg = CourtAI.offline(ctx, part, protest)
+			seg.offline = true
 		end
+		for _, l in seg.lines do
+			play(l)
+			offlineProtest()
+		end
+		shiftScale(seg.shift)
+		return seg
+	end
+	-- Вопрос: от нейросети или запасной; ответ без нейросети сдвигает весы сразу
+	local function question(seg, part: number, who: Player, kind: string, role: string): string?
+		if not seg.question then
+			local backup = CourtAI.offline(ctx, part, false)
+			seg.question = backup.question
+			seg.offline = true
+		end
+		if not seg.question then
+			return nil
+		end
+		local i = choose(who, kind, seg.question.text, seg.question.options, 16)
+		local text = i and seg.question.options[i] or "…(молчит)"
+		speak(role, who.DisplayName, text)
+		if seg.offline then
+			shiftScale((i and ctx.optionShifts and ctx.optionShifts[i]) or 0.03)
+			ctx.answerShift = (i and ctx.optionShifts and ctx.optionShifts[i]) or 0.03
+		end
+		return text
 	end
 
-	-- 5. Допрос и арест
-	if (case.confessed or 0) > 0 then
-		score += case.confessed * E.Confession
-		line("prosecutor", Config.ProsecutorName, fill(L.ConfessionSay, { n = case.confessed }), prosecutor)
-	end
-	if case.surrendered then
-		line("lawyer", lawyer.Name, L.Surrendered, advocate)
-	elseif case.resisted then
-		line("prosecutor", Config.ProsecutorName, L.Resisted, prosecutor)
-	end
-
-	-- 6. Защита
-	local speeches = Config.DefenseSpeech[lawyer.Id] or Config.DefenseSpeech.Public
-	local strength = strengthOf(score)
-	line("lawyer", lawyer.Name, fill(pick(speeches[strength] or speeches.Medium), vars), advocate)
+	-- 1. Открытие, обвинение, улики
+	runPart(1, 1)
+	-- 2. Защита и вопрос подсудимому
+	local seg = runPart(2, 2)
+	question(seg, 2, player, "Question", "defendant")
+	-- 3. Реакция, повороты, слово другу
+	seg = runPart(3, defender and 4 or 3)
 	if defender and defender.Parent then
-		line("judge", judgeName, fill(L.JudgeFriend, { name = defender.DisplayName }), judge)
-		local options = {}
-		for i, s in Config.FriendSpeeches do
-			options[i] = { Text = fill(s.Text, vars), Effect = s.Effect }
-		end
-		local i = choose(defender, "Speech", options, Config.FriendSpeechTime) or #options
-		extra += options[i].Effect
-		line("friend", defender.DisplayName, options[i].Text, nil)
+		question(seg, 3, defender, "Speech", "friend")
+	end
+	-- 4. Заключительные речи и последнее слово
+	seg = runPart(4, 5)
+	question(seg, 4, player, "LastWord", "defendant")
+	-- 5. Приговор
+	seg = runPart(5, 6)
+	local verdict = seg.verdict or CourtAI.offline(ctx, 5, false).verdict
+	local kind = verdict.kind
+	if not table.find(ctx.allowed, kind) then
+		kind = "prison"
+	end
+	if ctx.probationBreach and kind ~= "acquit" then
+		kind = "prison"
+		play({ role = "judge", text = "Подсудимый нарушил условный срок. Наказание — вдвое строже." })
+	end
+	if verdict.reason and verdict.reason ~= "" then
+		play({ role = "judge", text = verdict.reason })
 	end
 
-	-- 7. Последнее слово
-	line("judge", judgeName, L.JudgeLastWord, judge)
-	local wi = choose(player, "LastWord", Config.LastWord, Config.LastWordTime) or 2
-	local word = Config.LastWord[wi]
-	extra += word.Effect
-	line("defendant", player.DisplayName, word.Text, nil)
-	if word.Reply and word.Reply ~= "" then
-		line("judge", judgeName, word.Reply, judge)
+	-- Числа исхода
+	local sev = verdict.severity
+	local base = case.baseSentence * (case.modifier or 1) * (1 - lawyer.Discount)
+	if case.surrendered then
+		base *= 1 - Config.Surrender
+	elseif case.resisted then
+		base *= 1 + Config.Resist
+	end
+	local sentence = math.floor(math.clamp(base * (0.5 + sev), Config.MinSentence, J.Sentence.Max))
+	if ctx.probationBreach then
+		sentence = math.min(J.Sentence.Max, sentence * Config.Probation.Multiplier)
+	end
+	local fineBase = info and info.fine or 0
+	local fine = kind == "acquit" and 0 or math.floor(fineBase * (kind == "fine" and (1 + sev) or (0.5 + sev * 0.8)))
+	local CM = Config.Community
+	local bags = math.floor(CM.MinBags + sev * (CM.MaxBags - CM.MinBags) + 0.5)
+	local function verdictText(): string
+		return fill(pick(Config.Verdict.Lines[kind]), {
+			fine = fine,
+			sentence = secondsText(sentence),
+			bags = bags,
+			probation = secondsText(Config.Probation.Time),
+		})
+	end
+	send("Verdict", { kind = kind, sentence = secondsText(sentence), fine = fine, bags = bags })
+	play({ role = "judge", text = verdictText() })
+	if kind ~= "acquit" and J.ConfiscateWeapons then
+		play({ role = "judge", text = L.Confiscate })
 	end
 
-	-- 8. Приговор
-	local result
-	if score < E.AcquitBelow then
-		line("judge", judgeName, pick(L.JudgeAcquit), judge)
-		send("Verdict", { acquitted = true })
-		result = { acquitted = true }
-		event(string.format("⚖️ %s: оправдан (улик %.1f)", player.Name, score))
-	else
-		local sentence = sentenceFor(case, score, lawyer, extra)
-		local base = math.max(case.baseSentence, 1)
-		local fine = math.floor((info and info.fine or 0) * math.clamp(sentence / base, 0.5, 1.3))
-		line("judge", judgeName, pick(L.JudgeGuilty), judge)
-		send("Verdict", { sentence = secondsText(sentence), fine = fine })
-		line("judge", judgeName, fill(L.JudgeSentence, { sentence = secondsText(sentence), fine = fine }), judge)
-		if J.ConfiscateWeapons then
-			line("judge", judgeName, L.Confiscate, judge)
-		end
-		-- 9. Апелляция
-		local price = Config.Appeal.Price
-		if coins(player) >= price then
-			line("judge", judgeName, L.JudgeAppealAsk, judge)
-			local yes = string.format("📄 Обжаловать (%d монет, шанс %d%%)", price, math.floor(lawyer.Appeal * 100))
-			local ai = choose(player, "Appeal", { yes, "Принять приговор" }, Config.Appeal.Time)
-			if ai == 1 and pay(player, price) then
-				line("court", "Апелляционный суд", "Апелляционный суд рассматривает жалобу…", nil)
-				if rng:NextNumber() < lawyer.Appeal then
-					sentence = math.max(Config.MinSentence, math.floor(sentence * (1 - Config.Appeal.Cut)))
-					fine = math.floor(fine / 2)
-					send("Verdict", { sentence = secondsText(sentence), fine = fine, appeal = "win" })
-					line("judge", "Апелляционный суд", fill(pick(L.AppealWin), { sentence = secondsText(sentence), fine = fine }), judge)
-				else
-					send("Verdict", { sentence = secondsText(sentence), fine = fine, appeal = "lose" })
-					line("judge", "Апелляционный суд", pick(L.AppealLose), judge)
+	-- Апелляция
+	local price = Config.Appeal.Price
+	if kind ~= "acquit" and player.Parent and coins(player) >= price then
+		play({ role = "judge", text = L.JudgeAppealAsk })
+		local yes = string.format("📄 Обжаловать (%d монет, шанс %d%%)", price, math.floor(lawyer.Appeal * 100))
+		local ai = choose(player, "Appeal", "Обжаловать приговор?", { yes, "Принять приговор" }, Config.Appeal.Time)
+		if ai == 1 and pay(player, price) then
+			play({ role = "court", text = "Апелляционный суд рассматривает жалобу…" })
+			if rng:NextNumber() < lawyer.Appeal then
+				local cut = Config.Appeal.Cut
+				sentence = math.max(Config.MinSentence, math.floor(sentence * (1 - cut)))
+				bags = math.max(1, math.floor(bags * (1 - cut) + 0.5))
+				fine = math.floor(fine / 2)
+				if kind == "prison" and sentence <= Config.MinSentence and rng:NextNumber() < 0.5 then
+					kind = "community" -- апелляция заменила тюрьму работами
 				end
+				send("Verdict", { kind = kind, sentence = secondsText(sentence), fine = fine, bags = bags, appeal = "win" })
+				play({ role = "judge", text = "Жалоба удовлетворена! " .. verdictText() })
+			else
+				send("Verdict", { kind = kind, sentence = secondsText(sentence), fine = fine, bags = bags, appeal = "lose" })
+				play({ role = "judge", text = pick(L.AppealLose) })
 			end
 		end
-		result = { sentence = sentence, fine = fine }
-		event(string.format("⚖️ %s: виновен (улик %.1f) — %d с, штраф %d", player.Name, score, sentence, fine))
 	end
 
 	-- Конец заседания
 	send("TrialEnd", {})
 	removePerson(prosecutor)
 	removePerson(advocate)
+	removePerson(witnessNpc)
 	if defender and defender.Parent then
 		if Registry.addCoins and Config.FriendReward > 0 then
 			Registry.addCoins(defender, Config.FriendReward)
@@ -1241,6 +1369,239 @@ Registry.courtTrial = function(player: Player, case, info)
 			movePlayer(defender, CFrame.new(door.Position + Vector3.new(0, 3.2, 0)))
 		end
 	end
+	if kind == "probation" then
+		player:SetAttribute("ProbationUntil", workspace:GetServerTimeNow() + Config.Probation.Time)
+	end
 	cases[player] = nil
-	return result
+	event(string.format("⚖️ %s: %s (весы %.2f) — срок %d, штраф %d, мусор %d", player.Name, kind, ctx.scale, sentence, fine, bags))
+	local SUB = {
+		acquit = "Оправдан судом — оружие и монеты остаются у тебя",
+		fine = string.format("Штраф %d монет оплачен — ты свободен", fine),
+		probation = string.format("Условный срок %s: попадёшься — сядешь вдвое дольше", secondsText(Config.Probation.Time)),
+		community = "Общественные работы выполнены — ты свободен",
+	}
+	return { kind = kind, acquitted = kind == "acquit", sentence = sentence, fine = fine, bags = bags, sub = SUB[kind] }
+end
+
+---------------------------------------------------------------------
+-- 🧹 Общественные работы (от WantedServer): убрать мусор по городу. true — справился
+---------------------------------------------------------------------
+
+local function groundAt(pos: Vector3, ignore): Vector3?
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = ignore
+	local hit = workspace:Raycast(pos + Vector3.new(0, 6, 0), Vector3.new(0, -20, 0), params)
+	return hit and hit.Position or nil
+end
+
+local function communitySpots(center: Vector3, count: number, ignore): { Vector3 }
+	local CM = Config.Community
+	local candidates = {}
+	local root = workspace:FindFirstChild("JusticeSystem")
+	local own = root and root:FindFirstChild("Community")
+	local folders = {}
+	if own then
+		table.insert(folders, own)
+	else
+		local map = workspace:FindFirstChild(VehicleConfig.MapFolder)
+		for _, name in { "Places", "BusStops", "PoliceCalls" } do
+			local f = map and map:FindFirstChild(name)
+			if f then
+				table.insert(folders, f)
+			end
+		end
+	end
+	for _, f in folders do
+		for _, d in f:GetDescendants() do
+			if d:IsA("BasePart") and (d.Position - center).Magnitude < CM.Radius then
+				local offset = own and Vector3.zero or Vector3.new(rng:NextNumber(-5, 5), 0, rng:NextNumber(-5, 5))
+				table.insert(candidates, d.Position + offset)
+			end
+		end
+	end
+	for i = #candidates, 2, -1 do
+		local j = rng:NextInteger(1, i)
+		candidates[i], candidates[j] = candidates[j], candidates[i]
+	end
+	local spots = {}
+	local function far(p: Vector3): boolean
+		for _, q in spots do
+			if (p - q).Magnitude < 14 then
+				return false
+			end
+		end
+		return true
+	end
+	for _, p in candidates do
+		if #spots >= count then
+			break
+		end
+		local g = groundAt(p, ignore)
+		if g and far(g) then
+			table.insert(spots, g)
+		end
+	end
+	-- Мест не хватило — вокруг
+	local tries = 0
+	while #spots < count and tries < 60 do
+		tries += 1
+		local a = rng:NextNumber() * math.pi * 2
+		local r = rng:NextNumber(20, 70)
+		local g = groundAt(center + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r), ignore)
+		if g and far(g) then
+			table.insert(spots, g)
+		end
+	end
+	return spots
+end
+
+Registry.courtCommunity = function(player: Player, bagsCount: number, sentence: number): boolean
+	local CM = Config.Community
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return false
+	end
+	-- Не досидел (вышел из игры) — при следующем заходе сядет
+	local profile = Registry.weaponProfile and Registry.weaponProfile(player)
+	if profile then
+		profile.jail = sentence
+		if Registry.weaponSave then
+			Registry.weaponSave(player)
+		end
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = "Community_" .. player.UserId
+	folder.Parent = workspace
+	local npcRoot = workspace:FindFirstChild("NPCSystem")
+	local ignore = { folder, camFolder, character }
+	if npcRoot and npcRoot:FindFirstChild("Live") then
+		table.insert(ignore, npcRoot.Live)
+	end
+	local spots = communitySpots(root.Position, bagsCount, ignore)
+
+	-- Оранжевый жилет
+	local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+	local vest = nil
+	if torso and torso:IsA("BasePart") then
+		vest = Instance.new("Part")
+		vest.Name = "CommunityVest"
+		vest.Size = torso.Size * Vector3.new(1.08, 0.9, 1.15)
+		vest.Color = CM.Color
+		vest.Material = Enum.Material.SmoothPlastic
+		vest.CanCollide = false
+		vest.CanQuery = false
+		vest.CanTouch = false
+		vest.Massless = true
+		vest.CFrame = torso.CFrame
+		local w = Instance.new("WeldConstraint")
+		w.Part0 = torso
+		w.Part1 = vest
+		w.Parent = vest
+		vest.Parent = character
+	end
+	local from = Instance.new("Attachment")
+	from.Name = "CommunityFrom"
+	from.Parent = root
+	local beam = Instance.new("Beam")
+	beam.Color = ColorSequence.new(CM.Color)
+	beam.Width0, beam.Width1 = 0.25, 0.25
+	beam.FaceCamera = true
+	beam.LightEmission = 0.6
+	beam.Transparency = NumberSequence.new(0.3)
+	beam.Attachment0 = from
+	beam.Parent = root
+
+	local bags = {}
+	local done = 0
+	for _, pos in spots do
+		local bag = Instance.new("Part")
+		bag.Name = "TrashBag"
+		bag.Shape = Enum.PartType.Ball
+		bag.Size = Vector3.new(2.2, 2.2, 2.2)
+		bag.Color = Color3.fromRGB(25, 25, 28)
+		bag.Material = Enum.Material.Plastic
+		bag.Anchored = true
+		bag.CanCollide = false
+		bag.Position = pos + Vector3.new(0, 1, 0)
+		bag.Parent = folder
+		local knot = Instance.new("Part")
+		knot.Size = Vector3.new(0.5, 0.6, 0.5)
+		knot.Color = bag.Color
+		knot.Anchored = true
+		knot.CanCollide = false
+		knot.Position = bag.Position + Vector3.new(0, 1.2, 0)
+		knot.Parent = folder
+		local att = Instance.new("Attachment")
+		att.Parent = bag
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.ActionText = "Убрать мусор"
+		prompt.ObjectText = "🧹 Общественные работы"
+		prompt.HoldDuration = CM.HoldTime
+		prompt.MaxActivationDistance = 9
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = bag
+		local entry = { bag = bag, knot = knot, att = att, taken = false }
+		table.insert(bags, entry)
+		prompt.Triggered:Connect(function(who: Player)
+			if who ~= player then
+				toast(who, "Это чужие общественные работы")
+				return
+			end
+			if entry.taken then
+				return
+			end
+			entry.taken = true
+			done += 1
+			local burst = Instance.new("ParticleEmitter")
+			burst.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+			burst.Color = ColorSequence.new(Color3.fromRGB(255, 220, 120))
+			burst.Rate = 0
+			burst.Speed = NumberRange.new(4, 8)
+			burst.Parent = bag
+			burst:Emit(20)
+			bag.Transparency = 1
+			knot:Destroy()
+			prompt:Destroy()
+			game:GetService("Debris"):AddItem(bag, 1)
+		end)
+	end
+	local total = #bags
+	local endAt = now() + math.max(total, 1) * CM.TimePerBag
+	toast(player, string.format("🧹 Общественные работы: убери %d куч мусора", total))
+	while player.Parent and done < total and now() < endAt do
+		-- Луч — к ближайшей неубранной куче
+		local r = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		local best, bestD = nil, math.huge
+		for _, b in bags do
+			if not b.taken and r then
+				local d = (b.bag.Position - r.Position).Magnitude
+				if d < bestD then
+					best, bestD = b, d
+				end
+			end
+		end
+		beam.Attachment1 = best and best.att or nil
+		remote:FireClient(player, "Community", { done = done, total = total, endAt = workspace:GetServerTimeNow() + (endAt - now()) })
+		task.wait(0.5)
+	end
+	local ok = player.Parent ~= nil and done >= total
+	folder:Destroy()
+	beam:Destroy()
+	from:Destroy()
+	if vest then
+		vest:Destroy()
+	end
+	if player.Parent then
+		remote:FireClient(player, "CommunityEnd", { ok = ok })
+		if ok and profile then
+			profile.jail = nil
+			if Registry.weaponSave then
+				Registry.weaponSave(player)
+			end
+		end
+	end
+	event(string.format("🧹 %s: общественные работы %s (%d/%d)", player.Name, ok and "выполнены" or "провалены", done, total))
+	return ok
 end
