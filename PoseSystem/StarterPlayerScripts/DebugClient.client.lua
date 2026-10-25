@@ -322,6 +322,7 @@ local LAYERS = {
 	{ id = "BusStops", name = "🚏 Остановки", color = Color3.fromRGB(255, 120, 200) },
 	{ id = "Police", name = "🚔 Участок и вызовы", color = Color3.fromRGB(60, 120, 255) },
 	{ id = "Places", name = "📌 Места (Places)", color = Color3.fromRGB(255, 255, 255) },
+	{ id = "PathZones", name = "🚸 Переходы и проезжая часть (куда жителям нельзя)", color = Color3.fromRGB(255, 120, 60) },
 	{ id = "NPCPaths", name = "🧭 Пути жителей (живые)", color = Color3.fromRGB(80, 255, 200) },
 	{ id = "CarRoutes", name = "🚗 Маршруты машин (живые)", color = Color3.fromRGB(255, 90, 90) },
 	{ id = "NPCLabels", name = "🏷 Ярлыки над жителями (живые)", color = Color3.fromRGB(255, 255, 255) },
@@ -451,6 +452,16 @@ local function buildStatic(id: string)
 		end
 		for _, p in partsIn(map:FindFirstChild("PoliceCalls")) do
 			markPart(f, p, Color3.fromRGB(150, 180, 255), attrText(p, { "Zone" }))
+		end
+	elseif id == "PathZones" and map then
+		local zones = map:FindFirstChild("NPCPathZones")
+		for _, p in zones and zones:GetChildren() or {} do
+			if p:IsA("BasePart") and p.Name == "Road" then
+				new("BoxHandleAdornment", { Adornee = p, Size = p.Size, Color3 = color, Transparency = 0.8, AlwaysOnTop = false, ZIndex = 0 }, f)
+			elseif p:IsA("BasePart") and p.Name == "Crosswalk" then
+				new("BoxHandleAdornment", { Adornee = p, Size = p.Size, Color3 = Color3.new(1, 1, 1), Transparency = 0.5, AlwaysOnTop = true, ZIndex = 1 }, f)
+				tag(f, p, nil, "🚸 переход", Color3.new(1, 1, 1), 1)
+			end
 		end
 	elseif id == "Places" and map then
 		for _, p in partsIn(map:FindFirstChild("Places")) do

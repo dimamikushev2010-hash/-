@@ -353,7 +353,8 @@ local function runPathCheck(requester: Player)
 		local zone = p:GetAttribute("Zone") or NPCConfig.OutdoorZone
 		local from = spawnsByZone[zone] or anySpawn
 		if from then
-			local goal = p:IsA("Seat") and (p.Position + p.CFrame.LookVector * 2.5) or p.Position
+			-- Та же точка подхода, что у жителей (стул — сбоку от стола, кровать — с края)
+			local goal = Registry.debugApproach and Registry.debugApproach(p) or p.Position
 			local ok = pcall(function()
 				path:ComputeAsync(from.Position + Vector3.new(0, 2, 0), goal + Vector3.new(0, 1, 0))
 			end)
@@ -580,6 +581,18 @@ local function runChecks()
 				add("error", "Автобус", "Остановка " .. s.Name .. ": точки дороги «" .. node .. "» нет")
 			end
 		end
+		local zones = map:FindFirstChild("NPCPathZones")
+		local cw, road = 0, 0
+		for _, z in zones and zones:GetChildren() or {} do
+			if z.Name == "Crosswalk" then
+				cw += 1
+			elseif z.Name == "Road" then
+				road += 1
+			end
+		end
+		local ownCw = #partsIn(map:FindFirstChild("Crosswalks"))
+		add(road > 0 and "ok" or "warn", "Пешеходы", "Зон проезжей части: " .. road .. (road == 0 and " — жители будут ходить по дорогам" or ""))
+		add(cw > 0 and "ok" or "warn", "Пешеходы", string.format("Переходов: %d%s", cw, ownCw == 0 and " (автоматически у перекрёстков — лучше поставить свои в TrafficSystem > Crosswalks)" or ""))
 		local calls = partsIn(map:FindFirstChild("PoliceCalls"))
 		add(#calls > 0 and "ok" or "warn", "Полиция", "Вызовов (PoliceCalls): " .. #calls)
 		local places = partsIn(map:FindFirstChild("Places"))

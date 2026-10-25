@@ -111,7 +111,7 @@ local bubbles = {} -- [npc model] = { billboard, token }
 -- target — житель (облачко над головой) или любая деталь (например, голова собаки)
 local function showBubble(model: Instance, text: string, duration: number)
 	local head = model:IsA("BasePart") and model or model:FindFirstChild("Head")
-	if not head then
+	if not head or model:GetAttribute("HiddenInCar") then
 		return
 	end
 	local old = bubbles[model]
@@ -235,7 +235,7 @@ local function showMood(model: Model)
 		end
 	end
 	local head = model:FindFirstChild("Head")
-	if type(emoji) ~= "string" or emoji == "" or not head then
+	if type(emoji) ~= "string" or emoji == "" or not head or model:GetAttribute("HiddenInCar") then
 		return
 	end
 
@@ -298,6 +298,15 @@ local function watchNpc(model: Instance)
 	end)
 	model:GetAttributeChangedSignal("Mood"):Connect(function()
 		showMood(model)
+	end)
+	-- Спрятанный пассажир (VehicleConfig.HidePassengers): убираем облачко и значок
+	model:GetAttributeChangedSignal("HiddenInCar"):Connect(function()
+		showMood(model)
+		local b = bubbles[model]
+		if b and model:GetAttribute("HiddenInCar") then
+			b.billboard:Destroy()
+			bubbles[model] = nil
+		end
 	end)
 	if model:GetAttribute("Mood") then
 		showMood(model)

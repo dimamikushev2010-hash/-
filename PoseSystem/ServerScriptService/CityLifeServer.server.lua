@@ -92,10 +92,23 @@ end
 
 local function load(player: Player)
 	local p = profileOf(player)
+	if not store then
+		local w = wallet(player)
+		if w and (Config.StartCoins or 0) > 0 then
+			w.Value = Config.StartCoins
+		end
+	end
 	if store then
 		local ok, data = pcall(function()
 			return store:GetAsync("p_" .. player.UserId)
 		end)
+		if ok and data == nil then
+			-- Новый игрок: стартовые монеты
+			local w = wallet(player)
+			if w and (Config.StartCoins or 0) > 0 then
+				w.Value = Config.StartCoins
+			end
+		end
 		if ok and type(data) == "table" then
 			p.stats = data.stats or {}
 			p.done = data.done or {}

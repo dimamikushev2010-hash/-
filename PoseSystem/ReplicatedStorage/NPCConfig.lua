@@ -25,8 +25,15 @@ NPCConfig.BuildDemoIfMissing = true
 -- Движение
 NPCConfig.WalkSpeed = NumberRange.new(8, 11) -- у каждого жителя своя
 NPCConfig.RunSpeed = 22 -- когда убегают от опасности
-NPCConfig.AgentRadius = 1.6
+NPCConfig.AgentRadius = 1.2 -- «ширина» жителя для поиска пути: 1.2 проходит в двери шириной 4
 NPCConfig.AgentHeight = 5
+-- «Стоимость» материалов для поиска пути: чем больше, тем реже жители по нему ходят.
+-- Например, { Asphalt = 8 } — жители не ходят по дорогам без нужды (если дороги из Asphalt).
+NPCConfig.PathCosts = {}
+-- Дорога: жители ходят по тротуарам и переходят только по переходам (зоны строит TrafficServer)
+NPCConfig.RoadCost = 30 -- насколько жителям «дорого» идти по проезжей части (больше — реже)
+NPCConfig.CrossLookDistance = 30 -- перед переходом ждут, если машина ближе
+NPCConfig.CrossMaxWait = 10 -- но не дольше стольких секунд
 
 -- Выбор следующей точки:
 --   SameZoneChance — остаться в своей зоне (дом, магазин…)
@@ -53,6 +60,12 @@ NPCConfig.GreetPlayerChance = 0.4 -- шанс помахать проходящ�
 NPCConfig.GreetDistance = 12
 NPCConfig.BubbleTime = 3.5 -- сколько висит облачко с текстом
 
+-- Свои модели жителей: ServerStorage > NPCTemplates (Model с Humanoid, R15).
+-- Атрибут Gender = "M" или "F" — тогда имя берётся из MaleNames / FemaleNames.
+-- Если папки нет — жители собираются сами (цвета одежды ниже).
+NPCConfig.TemplatesFolder = "NPCTemplates"
+NPCConfig.MaleNames = { "Миша", "Дима", "Саша", "Ваня", "Костя", "Артём", "Егор", "Никита", "Паша", "Рома", "Илья", "Лёша" }
+NPCConfig.FemaleNames = { "Аня", "Катя", "Оля", "Лена", "Маша", "Юля", "Настя", "Света", "Вика", "Даша", "Полина", "Ира" }
 NPCConfig.FirstNames = {
 	"Аня", "Миша", "Катя", "Дима", "Оля", "Саша", "Лена", "Ваня", "Маша", "Костя",
 	"Юля", "Артём", "Настя", "Егор", "Света", "Никита", "Вика", "Паша", "Даша", "Рома",

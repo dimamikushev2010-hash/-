@@ -91,6 +91,7 @@ CityConfig.Photo = {
 ---------------------------------------------------------------------
 -- Работает в опубликованной игре. В Studio: Game Settings → Security → Enable Studio Access to API Services.
 CityConfig.SaveEnabled = true
+CityConfig.StartCoins = 0 -- сколько монет у нового игрока (первый вход, сохранений ещё нет)
 CityConfig.DataStoreName = "CityLife_v1"
 
 return CityConfig

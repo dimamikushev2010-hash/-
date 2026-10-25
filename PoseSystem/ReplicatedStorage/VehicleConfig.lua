@@ -27,6 +27,11 @@ VehicleConfig.CruiseStopTime = NumberRange.new(4, 10)
 
 -- Движение
 VehicleConfig.LaneOffset = 3 -- насколько правее центра дороги едет машина (правостороннее движение)
+VehicleConfig.RoadWidth = 12 -- ширина дороги: по ней строятся зоны, куда жителям ходить нельзя
+-- Пешеходные переходы: TrafficSystem > Crosswalks (Part на зебре). Если папки нет — у перекрёстков сами
+VehicleConfig.AutoCrosswalks = true
+VehicleConfig.DrawCrosswalks = true -- рисовать белую зебру на автоматических переходах
+VehicleConfig.CrosswalkWidth = 4
 VehicleConfig.CitySpeed = 26 -- скорость в городе (стадов в секунду)
 VehicleConfig.PoliceSpeed = 40 -- полиция на вызове
 VehicleConfig.TurnSpeed = 12 -- скорость в повороте
@@ -67,6 +72,13 @@ VehicleConfig.PoliceInsideTime = NumberRange.new(20, 40) -- сколько по�
 VehicleConfig.PoliceOfficersPerCar = 2
 VehicleConfig.PolicePhrases = { "Что тут у вас?", "Полиция! Всем оставаться на местах!", "Так, разберёмся.", "Поступил вызов." }
 VehicleConfig.PoliceDonePhrases = { "Всё в порядке.", "Ложная тревога.", "Разобрались!", "Едем на базу." }
+-- Пассажиров не видно (тело, имя, облачка) — только водитель за рулём
+VehicleConfig.HidePassengers = false
+-- Водитель автобуса в форме
+VehicleConfig.BusDriver = true
+VehicleConfig.BusDriverShirt = Color3.fromRGB(40, 110, 70)
+VehicleConfig.BusDriverPants = Color3.fromRGB(30, 35, 45)
+
 VehicleConfig.PoliceShirt = Color3.fromRGB(30, 45, 90)
 VehicleConfig.PolicePants = Color3.fromRGB(20, 25, 40)
 

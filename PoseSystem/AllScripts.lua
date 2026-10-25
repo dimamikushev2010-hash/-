@@ -489,8 +489,15 @@ NPCConfig.BuildDemoIfMissing = true
 -- Движение
 NPCConfig.WalkSpeed = NumberRange.new(8, 11) -- у каждого жителя своя
 NPCConfig.RunSpeed = 22 -- когда убегают от опасности
-NPCConfig.AgentRadius = 1.6
+NPCConfig.AgentRadius = 1.2 -- «ширина» жителя для поиска пути: 1.2 проходит в двери шириной 4
 NPCConfig.AgentHeight = 5
+-- «Стоимость» материалов для поиска пути: чем больше, тем реже жители по нему ходят.
+-- Например, { Asphalt = 8 } — жители не ходят по дорогам без нужды (если дороги из Asphalt).
+NPCConfig.PathCosts = {}
+-- Дорога: жители ходят по тротуарам и переходят только по переходам (зоны строит TrafficServer)
+NPCConfig.RoadCost = 30 -- насколько жителям «дорого» идти по проезжей части (больше — реже)
+NPCConfig.CrossLookDistance = 30 -- перед переходом ждут, если машина ближе
+NPCConfig.CrossMaxWait = 10 -- но не дольше стольких секунд
 
 -- Выбор следующей точки:
 --   SameZoneChance — остаться в своей зоне (дом, магазин…)
@@ -517,6 +524,12 @@ NPCConfig.GreetPlayerChance = 0.4 -- шанс помахать проходящ�
 NPCConfig.GreetDistance = 12
 NPCConfig.BubbleTime = 3.5 -- сколько висит облачко с текстом
 
+-- Свои модели жителей: ServerStorage > NPCTemplates (Model с Humanoid, R15).
+-- Атрибут Gender = "M" или "F" — тогда имя берётся из MaleNames / FemaleNames.
+-- Если папки нет — жители собираются сами (цвета одежды ниже).
+NPCConfig.TemplatesFolder = "NPCTemplates"
+NPCConfig.MaleNames = { "Миша", "Дима", "Саша", "Ваня", "Костя", "Артём", "Егор", "Никита", "Паша", "Рома", "Илья", "Лёша" }
+NPCConfig.FemaleNames = { "Аня", "Катя", "Оля", "Лена", "Маша", "Юля", "Настя", "Света", "Вика", "Даша", "Полина", "Ира" }
 NPCConfig.FirstNames = {
 	"Аня", "Миша", "Катя", "Дима", "Оля", "Саша", "Лена", "Ваня", "Маша", "Костя",
 	"Юля", "Артём", "Настя", "Егор", "Света", "Никита", "Вика", "Паша", "Даша", "Рома",
@@ -808,6 +821,11 @@ VehicleConfig.CruiseStopTime = NumberRange.new(4, 10)
 
 -- Движение
 VehicleConfig.LaneOffset = 3 -- насколько правее центра дороги едет машина (правостороннее движение)
+VehicleConfig.RoadWidth = 12 -- ширина дороги: по ней строятся зоны, куда жителям ходить нельзя
+-- Пешеходные переходы: TrafficSystem > Crosswalks (Part на зебре). Если папки нет — у перекрёстков сами
+VehicleConfig.AutoCrosswalks = true
+VehicleConfig.DrawCrosswalks = true -- рисовать белую зебру на автоматических переходах
+VehicleConfig.CrosswalkWidth = 4
 VehicleConfig.CitySpeed = 26 -- скорость в городе (стадов в секунду)
 VehicleConfig.PoliceSpeed = 40 -- полиция на вызове
 VehicleConfig.TurnSpeed = 12 -- скорость в повороте
@@ -848,6 +866,13 @@ VehicleConfig.PoliceInsideTime = NumberRange.new(20, 40) -- сколько по�
 VehicleConfig.PoliceOfficersPerCar = 2
 VehicleConfig.PolicePhrases = { "Что тут у вас?", "Полиция! Всем оставаться на местах!", "Так, разберёмся.", "Поступил вызов." }
 VehicleConfig.PoliceDonePhrases = { "Всё в порядке.", "Ложная тревога.", "Разобрались!", "Едем на базу." }
+-- Пассажиров не видно (тело, имя, облачка) — только водитель за рулём
+VehicleConfig.HidePassengers = false
+-- Водитель автобуса в форме
+VehicleConfig.BusDriver = true
+VehicleConfig.BusDriverShirt = Color3.fromRGB(40, 110, 70)
+VehicleConfig.BusDriverPants = Color3.fromRGB(30, 35, 45)
+
 VehicleConfig.PoliceShirt = Color3.fromRGB(30, 45, 90)
 VehicleConfig.PolicePants = Color3.fromRGB(20, 25, 40)
 
@@ -1148,6 +1173,7 @@ CityConfig.Photo = {
 ---------------------------------------------------------------------
 -- Работает в опубликованной игре. В Studio: Game Settings → Security → Enable Studio Access to API Services.
 CityConfig.SaveEnabled = true
+CityConfig.StartCoins = 0 -- сколько монет у нового игрока (первый вход, сохранений ещё нет)
 CityConfig.DataStoreName = "CityLife_v1"
 
 return CityConfig
@@ -1251,6 +1277,29 @@ end
 	  Overlay (Arg = слой карты), Tab (Arg = вкладка меню)
 ]]
 DebugConfig.Changelog = {
+	{
+		Version = "2.1",
+		Date = "2026-10-25",
+		Title = "Пешеходы, пробки, стулья и кровати",
+		Summary = "Жители переходят дорогу только по переходам и пропускают машины; машины не тормозят из-за встречных и не стоят по кругу на кольце; жители садятся за столы и доходят до кроватей.",
+		Details = {
+			{ Title = "🚸 Переходы", Text = "Вдоль дорог — невидимые зоны «проезжая часть»: жители ходят по тротуарам. Дорогу переходят по переходам (TrafficSystem > Crosswalks, а если их нет — автоматически у перекрёстков с белой зеброй). Перед переходом ждут на тротуаре, пока проедут машины." },
+			{ Title = "🚗 Без пробок", Text = "Машина тормозит только перед той, что стоит на её пути: встречные на соседней полосе не мешают. Круговая блокировка на кольце (A ждёт B, B ждёт C, C ждёт A) разруливается: первым едет один." },
+			{ Title = "🪑 Стулья за столом и 🛏 кровати", Text = "Житель сам ищет свободное место рядом: к стулу за столом подходит сбоку, к кровати — с края, а не с матраса. Проверка путей в меню считает так же." },
+			{ Title = "⚙️ Настройки вместо правок кода", Text = "Ширина жителя 1.2, стоимость путей (PathCosts), свои модели жителей (ServerStorage > NPCTemplates с Gender), имена по полу, стартовые монеты (CityConfig.StartCoins), спрятанные пассажиры (HidePassengers), водитель автобуса в форме." },
+			{ Title = "🐞 Мелочи", Text = "Метка «двери открыты» у автобуса сбрасывается. Чужая кнопка на двери (от старого скрипта) выключается — нет двух подсказок." },
+		},
+		Files = { "TrafficServer", "NPCServer", "NPCDoors", "NPCClient", "NPCConfig", "VehicleConfig", "CityConfig", "CityLifeServer", "DebugServer", "DebugClient", "DebugConfig" },
+		Tests = {
+			{ Text = "Слой «Переходы и проезжая часть»: дороги закрашены, на переходах 🚸", Action = "Overlay", Arg = "PathZones" },
+			{ Text = "Слой «Пути жителей»: линии идут по тротуарам и через переходы", Action = "Overlay", Arg = "NPCPaths" },
+			{ Text = "Жители у перехода ждут, пока проедут машины (в «Жителях»: 🚦 Ждёт…)", Action = "Tab", Arg = "npcs" },
+			{ Text = "Время ×5 на 3 минуты: в «Диагностике» нет застреваний машин у кольца", Action = "TimeScale", Arg = 5 },
+			{ Text = "Обед 13:30: жители садятся за столы в кафе", Action = "SetHour", Arg = 13.5 },
+			{ Text = "Ночь 22:00: жители доходят до кроватей и спят", Action = "SetHour", Arg = 22 },
+			{ Text = "Проверка путей: недоступных точек стало меньше", Action = "PathCheck" },
+		},
+	},
 	{
 		Version = "2.0",
 		Date = "2026-10-25",
@@ -3693,6 +3742,7 @@ local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
 local CollectionService = game:GetService("CollectionService")
 local PhysicsService = game:GetService("PhysicsService")
+local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("NPCConfig"))
@@ -4336,6 +4386,13 @@ end
 local surfaceParams = RaycastParams.new()
 surfaceParams.FilterType = Enum.RaycastFilterType.Exclude
 
+-- Стоимость путей: двери + материалы из NPCConfig.PathCosts
+-- Road — проезжая часть (жители обходят её, если можно), Crosswalk — переход
+local pathCosts = { Door = 1, Road = Config.RoadCost or 30, Crosswalk = 1 }
+for k, v in pairs(Config.PathCosts or {}) do
+	pathCosts[k] = v
+end
+
 local function ignoreList(extra: Instance?)
 	local list = { liveFolder }
 	for _, player in Players:GetPlayers() do
@@ -4394,13 +4451,61 @@ local function floorBelow(position: Vector3, ignore: Instance?): number
 	return hit and hit.Position.Y or position.Y
 end
 
--- Куда подойти, чтобы сесть: на пол перед сиденьем
+-- Свободное место, где житель может встать рядом с точкой (не под столом, не на кровати).
+-- Перебирает стороны вокруг center, начиная с prefer; проверяет пол и пустоту на высоте человека.
+local standParams = OverlapParams.new()
+standParams.FilterType = Enum.RaycastFilterType.Exclude
+standParams.RespectCanCollide = true
+local STAND_BOX = Vector3.new(1.6, 3.4, 1.6)
+
+local function freeStandSpot(center: Vector3, prefer: Vector3, radii: { number }, ignore: Instance?, lower: boolean?): Vector3?
+	local ignoreAll = ignoreList(ignore)
+	standParams.FilterDescendantsInstances = ignoreAll
+	surfaceParams.FilterDescendantsInstances = ignoreAll
+	prefer = flat(prefer).Magnitude > 0.1 and flat(prefer).Unit or Vector3.new(0, 0, -1)
+	-- Порядок сторон: вперёд, вбок, по диагонали, назад
+	local angles = { 0, 90, -90, 45, -45, 135, -135, 180 }
+	for pass = 1, lower and 2 or 1 do
+		for _, r in radii do
+			for _, a in angles do
+				local dir = CFrame.Angles(0, math.rad(a), 0) * prefer
+				local probe = center + dir * r
+				local hit = workspace:Raycast(Vector3.new(probe.X, center.Y + 3, probe.Z), Vector3.new(0, -12, 0), surfaceParams)
+				if hit then
+					local floorY = hit.Position.Y
+					-- Первый проход для кровати: только места ниже точки (пол рядом, а не матрас)
+					local okHeight = floorY <= center.Y + 0.6 and floorY >= center.Y - 6 and (pass == 2 or not lower or floorY < center.Y - 0.7)
+					if okHeight then
+						local box = CFrame.new(probe.X, floorY + 0.4 + STAND_BOX.Y / 2, probe.Z)
+						if #workspace:GetPartBoundsInBox(box, STAND_BOX, standParams) == 0 then
+							return Vector3.new(probe.X, floorY, probe.Z)
+						end
+					end
+				end
+			end
+		end
+	end
+	return nil
+end
+
+-- Куда подойти, чтобы сесть: на пол перед сиденьем, а если там стол — сбоку
+local approachCache = {} -- [деталь] = позиция (точки не двигаются)
 local function seatApproach(seat: BasePart): Vector3
+	local cached = approachCache[seat]
+	if cached then
+		return cached
+	end
 	local top = seatTop(seat)
 	local facing = seatFacing(seat, top)
 	local depth = math.max(seat.Size.X, seat.Size.Z) / 2
-	local front = top + facing * math.min(depth, 1.2) + facing * 1.4
-	return Vector3.new(front.X, floorBelow(front, seat), front.Z)
+	local near = math.min(depth, 1.2) + 1.4
+	local spot = freeStandSpot(top, facing, { near, near + 0.8, near + 1.6 }, seat, false)
+	if not spot then
+		local front = top + facing * near
+		spot = Vector3.new(front.X, floorBelow(front, seat), front.Z)
+	end
+	approachCache[seat] = spot
+	return spot
 end
 
 local function sitOnChair(npc, seat: BasePart): boolean
@@ -4676,7 +4781,7 @@ local function walkPath(npc, target: Vector3): boolean
 		AgentHeight = Config.AgentHeight,
 		AgentCanJump = true,
 		WaypointSpacing = 4,
-		Costs = { Door = 1 },
+		Costs = pathCosts,
 	})
 
 	for _ = 1, 3 do
@@ -4707,6 +4812,25 @@ local function walkPath(npc, target: Vector3): boolean
 			local wp = waypoints[i]
 			if wp.Action == Enum.PathWaypointAction.Jump then
 				humanoid.Jump = true
+			end
+			-- Выходим на дорогу (переход или проезжая часть): стоим на тротуаре, пока едут машины
+			local label = (wp :: any).Label
+			local prevLabel = (waypoints[i - 1] :: any).Label
+			if (label == "Crosswalk" or label == "Road") and prevLabel ~= "Crosswalk" and prevLabel ~= "Road" and Registry.carApproaching then
+				local waitStart = os.clock()
+				local before = npc.debugAction
+				while Registry.carApproaching(wp.Position, Config.CrossLookDistance or 30) and os.clock() - waitStart < (Config.CrossMaxWait or 10) do
+					if shouldStop(npc) then
+						if conn then
+							conn:Disconnect()
+						end
+						return false
+					end
+					stopMoving(npc)
+					npc.debugAction = "🚦 Ждёт, пока проедут машины"
+					task.wait(0.3)
+				end
+				npc.debugAction = before
 			end
 			humanoid:MoveTo(wp.Position)
 
@@ -4901,10 +5025,32 @@ end
 
 -- Куда идти к точке: к стулу — на пол перед ним
 local function approachPosition(point): Vector3
-	if point.part:IsA("Seat") then
-		return seatApproach(point.part)
+	local part = point.part
+	if part:IsA("Seat") then
+		return seatApproach(part)
 	end
-	return point.part.Position
+	-- Кровать / диван: подходим к краю, а не залезаем на матрас (дальше житель ложится сам)
+	if point.activity == "Lie" or point.activity == "Sit" then
+		local cached = approachCache[part]
+		if cached then
+			return cached
+		end
+		local spot = nil
+		if point.activity == "Lie" then
+			spot = freeStandSpot(part.Position, part.CFrame.RightVector, { 2.2, 3, 3.8, 4.4 }, part, true)
+		else
+			-- На полу (ковёр, газон) — идём прямо, если там свободно
+			standParams.FilterDescendantsInstances = ignoreList(part)
+			local box = CFrame.new(part.Position + Vector3.new(0, 0.4 + STAND_BOX.Y / 2, 0))
+			if #workspace:GetPartBoundsInBox(box, STAND_BOX, standParams) > 0 then
+				spot = freeStandSpot(part.Position, part.CFrame.LookVector, { 2, 3, 3.8 }, part, false)
+			end
+		end
+		spot = spot or part.Position
+		approachCache[part] = spot
+		return spot
+	end
+	return part.Position
 end
 
 local function doActivity(npc, point)
@@ -5622,6 +5768,19 @@ local function createNPC(spawnPart: BasePart?, opts)
 	total += 1
 
 	local ok, model = pcall(function()
+		-- Свои модели из ServerStorage > NPCTemplates (если есть и это не форма)
+		local templates = ServerStorage:FindFirstChild(Config.TemplatesFolder or "NPCTemplates")
+		if templates and not (opts and opts.shirt) then
+			local list = {}
+			for _, t in templates:GetChildren() do
+				if t:IsA("Model") and t:FindFirstChildOfClass("Humanoid") then
+					table.insert(list, t)
+				end
+			end
+			if #list > 0 then
+				return pick(list):Clone()
+			end
+		end
 		return Players:CreateHumanoidModelFromDescription(makeDescription(opts), Enum.HumanoidRigType.R15)
 	end)
 	if not ok or not model then
@@ -5642,7 +5801,9 @@ local function createNPC(spawnPart: BasePart?, opts)
 		oldAnimate:Destroy() -- анимации ведёт сервер
 	end
 
-	local name = pick(Config.FirstNames)
+	local gender = model:GetAttribute("Gender")
+	local names = (gender == "M" and Config.MaleNames) or (gender == "F" and Config.FemaleNames) or Config.FirstNames
+	local name = pick(#names > 0 and names or Config.FirstNames)
 	if opts.prefix then
 		name = opts.prefix .. " " .. name
 	end
@@ -6130,6 +6291,10 @@ Registry.debugNPCs = function()
 	end)
 	return out
 end
+-- Для проверки путей в меню отладки: куда житель на самом деле идёт к точке
+Registry.debugApproach = function(part: BasePart): Vector3
+	return approachPosition({ part = part, activity = part:GetAttribute("Activity") })
+end
 Registry.say = say
 Registry.toast = toast
 Registry.addCoins = addCoins
@@ -6255,6 +6420,13 @@ local function setupDoor(door: Instance)
 	for _, part in parts do
 		if part.Size.Magnitude > main.Size.Magnitude then
 			main = part
+		end
+	end
+	-- Чужая кнопка на двери (от старого скрипта двери) — две подсказки сразу. Выключаем её.
+	for _, d in door:GetDescendants() do
+		if d:IsA("ProximityPrompt") and d.Name ~= "DoorPrompt" then
+			d.Enabled = false
+			warn("[NPC] У двери", door:GetFullName(), "была чужая кнопка «" .. d.ActionText .. "» — выключена. Убери старый скрипт двери")
 		end
 	end
 	local prompt
@@ -7123,6 +7295,161 @@ local function freeSpot(kind: string, near: Vector3, exclude): any
 	return best
 end
 
+---------------------------------------------------------------------
+-- Пешеходы: жители ходят по тротуарам и переходят дорогу только по переходам
+---------------------------------------------------------------------
+-- Вдоль каждой дороги — невидимая зона «Road» (жителям туда дорого ходить),
+-- на переходах — зона «Crosswalk» (дёшево). Переходы: TrafficSystem > Crosswalks
+-- (Part, накрывающий зебру целиком), а если папки нет — автоматически у перекрёстков.
+
+local zonesFolder = Instance.new("Folder")
+zonesFolder.Name = "NPCPathZones"
+zonesFolder.Parent = map
+
+local function zonePart(label: string, cframe: CFrame, size: Vector3)
+	local p = Instance.new("Part")
+	p.Name = label
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Transparency = 1
+	p.CastShadow = false
+	p.Size = size
+	p.CFrame = cframe
+	local m = Instance.new("PathfindingModifier")
+	m.Label = label
+	m.Parent = p
+	p.Parent = zonesFolder
+	return p
+end
+
+local crosswalks = {} -- { cf, size }
+local cwFolder = folder("Crosswalks")
+if cwFolder then
+	for _, p in cwFolder:GetDescendants() do
+		if p:IsA("BasePart") then
+			table.insert(crosswalks, { cf = p.CFrame, size = p.Size })
+			hideMarker(p)
+		end
+	end
+end
+
+local ROAD_W = Config.RoadWidth or 12
+local CW_W = Config.CrosswalkWidth or 4
+local ZONE_H = 6
+
+-- Переходы автоматически: на каждой ветке перекрёстка, чуть отступив от центра
+if #crosswalks == 0 and Config.AutoCrosswalks ~= false then
+	for name, node in pairs(nodes) do
+		local neighbors = {}
+		for other in pairs(node.links) do
+			neighbors[other] = true
+		end
+		for _, other in pairs(nodes) do
+			if other.links[name] then
+				neighbors[other.name] = true
+			end
+		end
+		local count = 0
+		for _ in pairs(neighbors) do
+			count += 1
+		end
+		if count >= 3 then
+			for other in pairs(neighbors) do
+				local o = nodes[other]
+				local dir = flat(o.pos - node.pos)
+				local dist = dir.Magnitude
+				if dist > ROAD_W + CW_W + 4 then
+					dir = dir.Unit
+					local center = node.pos + dir * (ROAD_W / 2 + CW_W / 2 + 1.5)
+					local cf = CFrame.lookAt(center, center + dir)
+					table.insert(crosswalks, { cf = cf, size = Vector3.new(ROAD_W + 2, 0.2, CW_W), auto = true })
+				end
+			end
+		end
+	end
+end
+
+-- Белая «зебра» на автоматических переходах
+if Config.DrawCrosswalks ~= false then
+	for _, cw in crosswalks do
+		if cw.auto then
+			local stripes = math.floor((ROAD_W - 1) / 1.6)
+			for i = 0, stripes - 1 do
+				local x = -ROAD_W / 2 + 0.9 + i * 1.6
+				local s = Instance.new("Part")
+				s.Name = "Zebra"
+				s.Anchored = true
+				s.CanCollide = false
+				s.CanQuery = false
+				s.CanTouch = false
+				s.Material = Enum.Material.SmoothPlastic
+				s.Color = Color3.fromRGB(235, 235, 235)
+				s.Size = Vector3.new(0.8, 0.05, CW_W - 0.4)
+				s.CFrame = cw.cf * CFrame.new(x, 0.03 - 0.15, 0)
+				s.Parent = zonesFolder
+			end
+		end
+	end
+end
+
+for _, cw in crosswalks do
+	zonePart("Crosswalk", cw.cf * CFrame.new(0, ZONE_H / 2 - 0.5, 0), Vector3.new(cw.size.X, ZONE_H, cw.size.Z))
+end
+
+-- Дороги: зоны вдоль каждой связи, с вырезами под переходы
+do
+	local done = {}
+	for name, node in pairs(nodes) do
+		for other in pairs(node.links) do
+			local key = name < other and name .. "|" .. other or other .. "|" .. name
+			local o = nodes[other]
+			if o and not done[key] then
+				done[key] = true
+				local a, b = node.pos, o.pos
+				local dir = flat(b - a)
+				local len = dir.Magnitude
+				if len > 0.5 then
+					dir = dir.Unit
+					local right = dir:Cross(Vector3.yAxis)
+					-- Участки [t0, t1] вдоль дороги, без переходов
+					local cuts = {}
+					for _, cw in crosswalks do
+						local rel = flat(cw.cf.Position - a)
+						local t = rel:Dot(dir)
+						if math.abs(rel:Dot(right)) < ROAD_W / 2 and t > -ROAD_W and t < len + ROAD_W then
+							local half = math.max(cw.size.Z, 1) / 2
+							table.insert(cuts, { t - half, t + half })
+						end
+					end
+					table.sort(cuts, function(x, y)
+						return x[1] < y[1]
+					end)
+					local from = -ROAD_W / 2 -- чуть заходим на перекрёсток
+					local pieces = {}
+					for _, c in cuts do
+						if c[1] > from then
+							table.insert(pieces, { from, c[1] })
+						end
+						from = math.max(from, c[2])
+					end
+					table.insert(pieces, { from, len + ROAD_W / 2 })
+					for _, piece in pieces do
+						local t0, t1 = piece[1], piece[2]
+						if t1 - t0 > 0.3 then
+							local mid = a + dir * ((t0 + t1) / 2)
+							local y = (a.Y + b.Y) / 2
+							local center = Vector3.new(mid.X, y + ZONE_H / 2 - 0.5, mid.Z)
+							zonePart("Road", CFrame.lookAt(center, center + dir), Vector3.new(ROAD_W, ZONE_H, t1 - t0))
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
 local busStops = {}
 local stopsFolder = folder("BusStops")
 if stopsFolder then
@@ -7214,6 +7541,20 @@ for kind, list in pairs(templates) do
 end
 
 local cars = {} -- список машин
+
+-- Для жителей: едет ли машина к этому месту (подождать перед переходом)
+function Registry.carApproaching(position: Vector3, radius: number): boolean
+	for _, car in cars do
+		if car.v and car.v > 1.5 and car.onRoad then
+			local rel = flat(position - car.pos)
+			if rel.Magnitude < radius and rel:Dot(car.look) > -4 then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 local nextId = 0
 
 -- Группа детали: дверь/багажник (по имени или атрибуту PartOf), колесо, или кузов
@@ -7672,21 +8013,47 @@ local function stepCar(car, dt: number)
 		end
 	end
 
-	-- Машина впереди
+	-- Машина впереди: мешает только та, что стоит НА нашем пути.
+	-- Встречные на соседней полосе и машины на соседних ветках кольца не тормозят.
 	local look = car.look
 	local right = look:Cross(Vector3.yAxis)
 	car.blockedBy = nil
+	local samples = track.samples
 	for _, other in cars do
 		if other ~= car and (other.track or other.onRoad) then
 			local rel = flat(other.pos - car.pos)
-			local forward = rel:Dot(look)
-			local lateral = math.abs(rel:Dot(right))
-			if forward > 0 and forward < 45 and lateral < (car.width + other.width) / 2 - 0.3 then
-				-- Взаимная блокировка: пропускает тот, у кого номер больше
-				if not (other.blockedBy == car and car.id < other.id) then
-					local gap = forward - (car.length + other.length) / 2 - Config.SafeGap
-					limitTo(gap)
-					car.blockedBy = other
+			if rel.Magnitude < 48 and rel:Dot(look) > -1 then
+				local reach = (car.width + other.width) / 2 - 0.3
+				local hitS = nil
+				for i = math.max(1, track.index), #samples do
+					local smp = samples[i]
+					if smp.s > car.s + 45 then
+						break
+					end
+					if smp.s >= car.s and flat(smp.p - other.pos).Magnitude < reach then
+						hitS = smp.s
+						break
+					end
+				end
+				if hitS then
+					-- Круговая блокировка (A ждёт B, B ждёт C, C ждёт A): едет тот, у кого номер меньше
+					local loop, minId, cur, steps = false, car.id, other, 0
+					while cur and steps < 8 do
+						minId = math.min(minId, cur.id)
+						if cur.blockedBy == car then
+							loop = true
+							break
+						end
+						cur = cur.blockedBy
+						steps += 1
+					end
+					if loop and minId == car.id then
+						limitTo(3) -- тихонько проезжает, остальные ждут
+					else
+						local gap = (hitS - car.s) - (car.length + other.length) / 2 - Config.SafeGap + reach
+						limitTo(gap)
+						car.blockedBy = other
+					end
 				end
 			end
 		end
@@ -7854,6 +8221,17 @@ local function seatNPC(npc, car, seat: BasePart)
 	npc.inVehicle = car
 	npc.vehicleSeat = seat
 	car.occupants[seat] = npc
+	-- Пассажиров можно спрятать (VehicleConfig.HidePassengers): не видно тела, имени и облачков
+	if Config.HidePassengers and seat ~= car.driverSeat then
+		npc.model:SetAttribute("HiddenInCar", true)
+		for _, d in npc.model:GetDescendants() do
+			if (d:IsA("BasePart") or d:IsA("Decal")) and d:GetAttribute("PreHideT") == nil then
+				d:SetAttribute("PreHideT", d.Transparency)
+				d.Transparency = 1
+			end
+		end
+		npc.humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	end
 	if npc.prompt then
 		npc.prompt.Enabled = false
 	end
@@ -7878,6 +8256,17 @@ local function unseatNPC(npc, forceSide: number?)
 	car.occupants[seat] = nil
 	npc.inVehicle = nil
 	npc.vehicleSeat = nil
+	if npc.model:GetAttribute("HiddenInCar") then
+		npc.model:SetAttribute("HiddenInCar", nil)
+		for _, d in npc.model:GetDescendants() do
+			local t = d:GetAttribute("PreHideT")
+			if t ~= nil then
+				(d :: any).Transparency = t
+				d:SetAttribute("PreHideT", nil)
+			end
+		end
+		npc.humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
+	end
 	if npc.alive then
 		local out = doorSide(car, seat, forceSide)
 		local height = npc.humanoid.HipHeight + npc.hrp.Size.Y / 2 + 0.1
@@ -8107,6 +8496,7 @@ local function busLoop()
 			bus.model:SetAttribute("HornId", (bus.model:GetAttribute("HornId") or 0) + 1)
 			task.wait(Config.BusStopTime)
 			bus.doorsOpen = false
+			bus.model:SetAttribute("BusDoors", false)
 			for name in pairs(bus.doors) do
 				setDoor(bus, name, false)
 			end
@@ -8852,6 +9242,28 @@ local function cruiseDriver(car)
 	return driver
 end
 
+-- Водитель автобуса в форме (VehicleConfig.BusDriver)
+if bus and Config.BusDriver and Registry.spawnCustom then
+	task.spawn(function()
+		task.wait(3)
+		local pos = bus.pos + bus.look:Cross(Vector3.yAxis) * -(bus.width / 2 + 2)
+		local driver = Registry.spawnCustom(CFrame.new(pos + Vector3.new(0, 3, 0)), {
+			shirt = Config.BusDriverShirt,
+			pants = Config.BusDriverPants,
+			role = "Водитель",
+		})
+		if driver then
+			driver.noSocial = true
+			driver.officer = true
+			if driver.prompt then
+				driver.prompt.Enabled = false
+			end
+			seatNPC(driver, bus, bus.driverSeat)
+			bus.driver = driver
+		end
+	end)
+end
+
 local function cruiseLoop(car)
 	local names = {}
 	for name, node in pairs(nodes) do
@@ -9468,10 +9880,23 @@ end
 
 local function load(player: Player)
 	local p = profileOf(player)
+	if not store then
+		local w = wallet(player)
+		if w and (Config.StartCoins or 0) > 0 then
+			w.Value = Config.StartCoins
+		end
+	end
 	if store then
 		local ok, data = pcall(function()
 			return store:GetAsync("p_" .. player.UserId)
 		end)
+		if ok and data == nil then
+			-- Новый игрок: стартовые монеты
+			local w = wallet(player)
+			if w and (Config.StartCoins or 0) > 0 then
+				w.Value = Config.StartCoins
+			end
+		end
 		if ok and type(data) == "table" then
 			p.stats = data.stats or {}
 			p.done = data.done or {}
@@ -10701,7 +11126,8 @@ local function runPathCheck(requester: Player)
 		local zone = p:GetAttribute("Zone") or NPCConfig.OutdoorZone
 		local from = spawnsByZone[zone] or anySpawn
 		if from then
-			local goal = p:IsA("Seat") and (p.Position + p.CFrame.LookVector * 2.5) or p.Position
+			-- Та же точка подхода, что у жителей (стул — сбоку от стола, кровать — с края)
+			local goal = Registry.debugApproach and Registry.debugApproach(p) or p.Position
 			local ok = pcall(function()
 				path:ComputeAsync(from.Position + Vector3.new(0, 2, 0), goal + Vector3.new(0, 1, 0))
 			end)
@@ -10928,6 +11354,18 @@ local function runChecks()
 				add("error", "Автобус", "Остановка " .. s.Name .. ": точки дороги «" .. node .. "» нет")
 			end
 		end
+		local zones = map:FindFirstChild("NPCPathZones")
+		local cw, road = 0, 0
+		for _, z in zones and zones:GetChildren() or {} do
+			if z.Name == "Crosswalk" then
+				cw += 1
+			elseif z.Name == "Road" then
+				road += 1
+			end
+		end
+		local ownCw = #partsIn(map:FindFirstChild("Crosswalks"))
+		add(road > 0 and "ok" or "warn", "Пешеходы", "Зон проезжей части: " .. road .. (road == 0 and " — жители будут ходить по дорогам" or ""))
+		add(cw > 0 and "ok" or "warn", "Пешеходы", string.format("Переходов: %d%s", cw, ownCw == 0 and " (автоматически у перекрёстков — лучше поставить свои в TrafficSystem > Crosswalks)" or ""))
 		local calls = partsIn(map:FindFirstChild("PoliceCalls"))
 		add(#calls > 0 and "ok" or "warn", "Полиция", "Вызовов (PoliceCalls): " .. #calls)
 		local places = partsIn(map:FindFirstChild("Places"))
@@ -13553,7 +13991,7 @@ local bubbles = {} -- [npc model] = { billboard, token }
 -- target — житель (облачко над головой) или любая деталь (например, голова собаки)
 local function showBubble(model: Instance, text: string, duration: number)
 	local head = model:IsA("BasePart") and model or model:FindFirstChild("Head")
-	if not head then
+	if not head or model:GetAttribute("HiddenInCar") then
 		return
 	end
 	local old = bubbles[model]
@@ -13677,7 +14115,7 @@ local function showMood(model: Model)
 		end
 	end
 	local head = model:FindFirstChild("Head")
-	if type(emoji) ~= "string" or emoji == "" or not head then
+	if type(emoji) ~= "string" or emoji == "" or not head or model:GetAttribute("HiddenInCar") then
 		return
 	end
 
@@ -13740,6 +14178,15 @@ local function watchNpc(model: Instance)
 	end)
 	model:GetAttributeChangedSignal("Mood"):Connect(function()
 		showMood(model)
+	end)
+	-- Спрятанный пассажир (VehicleConfig.HidePassengers): убираем облачко и значок
+	model:GetAttributeChangedSignal("HiddenInCar"):Connect(function()
+		showMood(model)
+		local b = bubbles[model]
+		if b and model:GetAttribute("HiddenInCar") then
+			b.billboard:Destroy()
+			bubbles[model] = nil
+		end
 	end)
 	if model:GetAttribute("Mood") then
 		showMood(model)
@@ -17719,6 +18166,7 @@ local LAYERS = {
 	{ id = "BusStops", name = "🚏 Остановки", color = Color3.fromRGB(255, 120, 200) },
 	{ id = "Police", name = "🚔 Участок и вызовы", color = Color3.fromRGB(60, 120, 255) },
 	{ id = "Places", name = "📌 Места (Places)", color = Color3.fromRGB(255, 255, 255) },
+	{ id = "PathZones", name = "🚸 Переходы и проезжая часть (куда жителям нельзя)", color = Color3.fromRGB(255, 120, 60) },
 	{ id = "NPCPaths", name = "🧭 Пути жителей (живые)", color = Color3.fromRGB(80, 255, 200) },
 	{ id = "CarRoutes", name = "🚗 Маршруты машин (живые)", color = Color3.fromRGB(255, 90, 90) },
 	{ id = "NPCLabels", name = "🏷 Ярлыки над жителями (живые)", color = Color3.fromRGB(255, 255, 255) },
@@ -17848,6 +18296,16 @@ local function buildStatic(id: string)
 		end
 		for _, p in partsIn(map:FindFirstChild("PoliceCalls")) do
 			markPart(f, p, Color3.fromRGB(150, 180, 255), attrText(p, { "Zone" }))
+		end
+	elseif id == "PathZones" and map then
+		local zones = map:FindFirstChild("NPCPathZones")
+		for _, p in zones and zones:GetChildren() or {} do
+			if p:IsA("BasePart") and p.Name == "Road" then
+				new("BoxHandleAdornment", { Adornee = p, Size = p.Size, Color3 = color, Transparency = 0.8, AlwaysOnTop = false, ZIndex = 0 }, f)
+			elseif p:IsA("BasePart") and p.Name == "Crosswalk" then
+				new("BoxHandleAdornment", { Adornee = p, Size = p.Size, Color3 = Color3.new(1, 1, 1), Transparency = 0.5, AlwaysOnTop = true, ZIndex = 1 }, f)
+				tag(f, p, nil, "🚸 переход", Color3.new(1, 1, 1), 1)
+			end
 		end
 	elseif id == "Places" and map then
 		for _, p in partsIn(map:FindFirstChild("Places")) do

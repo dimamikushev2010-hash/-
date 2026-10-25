@@ -87,6 +87,13 @@ local function setupDoor(door: Instance)
 			main = part
 		end
 	end
+	-- Чужая кнопка на двери (от старого скрипта двери) — две подсказки сразу. Выключаем её.
+	for _, d in door:GetDescendants() do
+		if d:IsA("ProximityPrompt") and d.Name ~= "DoorPrompt" then
+			d.Enabled = false
+			warn("[NPC] У двери", door:GetFullName(), "была чужая кнопка «" .. d.ActionText .. "» — выключена. Убери старый скрипт двери")
+		end
+	end
 	local prompt
 	if not locked then
 		prompt = Instance.new("ProximityPrompt")

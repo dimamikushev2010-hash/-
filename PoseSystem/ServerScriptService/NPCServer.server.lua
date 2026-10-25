@@ -25,6 +25,7 @@ local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
 local CollectionService = game:GetService("CollectionService")
 local PhysicsService = game:GetService("PhysicsService")
+local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("NPCConfig"))
@@ -668,6 +669,13 @@ end
 local surfaceParams = RaycastParams.new()
 surfaceParams.FilterType = Enum.RaycastFilterType.Exclude
 
+-- Стоимость путей: двери + материалы из NPCConfig.PathCosts
+-- Road — проезжая часть (жители обходят её, если можно), Crosswalk — переход
+local pathCosts = { Door = 1, Road = Config.RoadCost or 30, Crosswalk = 1 }
+for k, v in pairs(Config.PathCosts or {}) do
+	pathCosts[k] = v
+end
+
 local function ignoreList(extra: Instance?)
 	local list = { liveFolder }
 	for _, player in Players:GetPlayers() do
@@ -726,13 +734,61 @@ local function floorBelow(position: Vector3, ignore: Instance?): number
 	return hit and hit.Position.Y or position.Y
 end
 
--- Куда подойти, чтобы сесть: на пол перед сиденьем
+-- Свободное место, где житель может встать рядом с точкой (не под столом, не на кровати).
+-- Перебирает стороны вокруг center, начиная с prefer; проверяет пол и пустоту на высоте человека.
+local standParams = OverlapParams.new()
+standParams.FilterType = Enum.RaycastFilterType.Exclude
+standParams.RespectCanCollide = true
+local STAND_BOX = Vector3.new(1.6, 3.4, 1.6)
+
+local function freeStandSpot(center: Vector3, prefer: Vector3, radii: { number }, ignore: Instance?, lower: boolean?): Vector3?
+	local ignoreAll = ignoreList(ignore)
+	standParams.FilterDescendantsInstances = ignoreAll
+	surfaceParams.FilterDescendantsInstances = ignoreAll
+	prefer = flat(prefer).Magnitude > 0.1 and flat(prefer).Unit or Vector3.new(0, 0, -1)
+	-- Порядок сторон: вперёд, вбок, по диагонали, назад
+	local angles = { 0, 90, -90, 45, -45, 135, -135, 180 }
+	for pass = 1, lower and 2 or 1 do
+		for _, r in radii do
+			for _, a in angles do
+				local dir = CFrame.Angles(0, math.rad(a), 0) * prefer
+				local probe = center + dir * r
+				local hit = workspace:Raycast(Vector3.new(probe.X, center.Y + 3, probe.Z), Vector3.new(0, -12, 0), surfaceParams)
+				if hit then
+					local floorY = hit.Position.Y
+					-- Первый проход для кровати: только места ниже точки (пол рядом, а не матрас)
+					local okHeight = floorY <= center.Y + 0.6 and floorY >= center.Y - 6 and (pass == 2 or not lower or floorY < center.Y - 0.7)
+					if okHeight then
+						local box = CFrame.new(probe.X, floorY + 0.4 + STAND_BOX.Y / 2, probe.Z)
+						if #workspace:GetPartBoundsInBox(box, STAND_BOX, standParams) == 0 then
+							return Vector3.new(probe.X, floorY, probe.Z)
+						end
+					end
+				end
+			end
+		end
+	end
+	return nil
+end
+
+-- Куда подойти, чтобы сесть: на пол перед сиденьем, а если там стол — сбоку
+local approachCache = {} -- [деталь] = позиция (точки не двигаются)
 local function seatApproach(seat: BasePart): Vector3
+	local cached = approachCache[seat]
+	if cached then
+		return cached
+	end
 	local top = seatTop(seat)
 	local facing = seatFacing(seat, top)
 	local depth = math.max(seat.Size.X, seat.Size.Z) / 2
-	local front = top + facing * math.min(depth, 1.2) + facing * 1.4
-	return Vector3.new(front.X, floorBelow(front, seat), front.Z)
+	local near = math.min(depth, 1.2) + 1.4
+	local spot = freeStandSpot(top, facing, { near, near + 0.8, near + 1.6 }, seat, false)
+	if not spot then
+		local front = top + facing * near
+		spot = Vector3.new(front.X, floorBelow(front, seat), front.Z)
+	end
+	approachCache[seat] = spot
+	return spot
 end
 
 local function sitOnChair(npc, seat: BasePart): boolean
@@ -1008,7 +1064,7 @@ local function walkPath(npc, target: Vector3): boolean
 		AgentHeight = Config.AgentHeight,
 		AgentCanJump = true,
 		WaypointSpacing = 4,
-		Costs = { Door = 1 },
+		Costs = pathCosts,
 	})
 
 	for _ = 1, 3 do
@@ -1039,6 +1095,25 @@ local function walkPath(npc, target: Vector3): boolean
 			local wp = waypoints[i]
 			if wp.Action == Enum.PathWaypointAction.Jump then
 				humanoid.Jump = true
+			end
+			-- Выходим на дорогу (переход или проезжая часть): стоим на тротуаре, пока едут машины
+			local label = (wp :: any).Label
+			local prevLabel = (waypoints[i - 1] :: any).Label
+			if (label == "Crosswalk" or label == "Road") and prevLabel ~= "Crosswalk" and prevLabel ~= "Road" and Registry.carApproaching then
+				local waitStart = os.clock()
+				local before = npc.debugAction
+				while Registry.carApproaching(wp.Position, Config.CrossLookDistance or 30) and os.clock() - waitStart < (Config.CrossMaxWait or 10) do
+					if shouldStop(npc) then
+						if conn then
+							conn:Disconnect()
+						end
+						return false
+					end
+					stopMoving(npc)
+					npc.debugAction = "🚦 Ждёт, пока проедут машины"
+					task.wait(0.3)
+				end
+				npc.debugAction = before
 			end
 			humanoid:MoveTo(wp.Position)
 
@@ -1233,10 +1308,32 @@ end
 
 -- Куда идти к точке: к стулу — на пол перед ним
 local function approachPosition(point): Vector3
-	if point.part:IsA("Seat") then
-		return seatApproach(point.part)
+	local part = point.part
+	if part:IsA("Seat") then
+		return seatApproach(part)
 	end
-	return point.part.Position
+	-- Кровать / диван: подходим к краю, а не залезаем на матрас (дальше житель ложится сам)
+	if point.activity == "Lie" or point.activity == "Sit" then
+		local cached = approachCache[part]
+		if cached then
+			return cached
+		end
+		local spot = nil
+		if point.activity == "Lie" then
+			spot = freeStandSpot(part.Position, part.CFrame.RightVector, { 2.2, 3, 3.8, 4.4 }, part, true)
+		else
+			-- На полу (ковёр, газон) — идём прямо, если там свободно
+			standParams.FilterDescendantsInstances = ignoreList(part)
+			local box = CFrame.new(part.Position + Vector3.new(0, 0.4 + STAND_BOX.Y / 2, 0))
+			if #workspace:GetPartBoundsInBox(box, STAND_BOX, standParams) > 0 then
+				spot = freeStandSpot(part.Position, part.CFrame.LookVector, { 2, 3, 3.8 }, part, false)
+			end
+		end
+		spot = spot or part.Position
+		approachCache[part] = spot
+		return spot
+	end
+	return part.Position
 end
 
 local function doActivity(npc, point)
@@ -1954,6 +2051,19 @@ local function createNPC(spawnPart: BasePart?, opts)
 	total += 1
 
 	local ok, model = pcall(function()
+		-- Свои модели из ServerStorage > NPCTemplates (если есть и это не форма)
+		local templates = ServerStorage:FindFirstChild(Config.TemplatesFolder or "NPCTemplates")
+		if templates and not (opts and opts.shirt) then
+			local list = {}
+			for _, t in templates:GetChildren() do
+				if t:IsA("Model") and t:FindFirstChildOfClass("Humanoid") then
+					table.insert(list, t)
+				end
+			end
+			if #list > 0 then
+				return pick(list):Clone()
+			end
+		end
 		return Players:CreateHumanoidModelFromDescription(makeDescription(opts), Enum.HumanoidRigType.R15)
 	end)
 	if not ok or not model then
@@ -1974,7 +2084,9 @@ local function createNPC(spawnPart: BasePart?, opts)
 		oldAnimate:Destroy() -- анимации ведёт сервер
 	end
 
-	local name = pick(Config.FirstNames)
+	local gender = model:GetAttribute("Gender")
+	local names = (gender == "M" and Config.MaleNames) or (gender == "F" and Config.FemaleNames) or Config.FirstNames
+	local name = pick(#names > 0 and names or Config.FirstNames)
 	if opts.prefix then
 		name = opts.prefix .. " " .. name
 	end
@@ -2461,6 +2573,10 @@ Registry.debugNPCs = function()
 		return a.name < b.name
 	end)
 	return out
+end
+-- Для проверки путей в меню отладки: куда житель на самом деле идёт к точке
+Registry.debugApproach = function(part: BasePart): Vector3
+	return approachPosition({ part = part, activity = part:GetAttribute("Activity") })
 end
 Registry.say = say
 Registry.toast = toast
