@@ -288,735 +288,7 @@ LaserConfig.ButtonSlot = 2 -- левее кнопки невидимости
 LaserConfig.ActiveColor = Color3.fromRGB(255, 70, 70)
 
 return LaserConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX7"><Properties><string name="Name">AbilityButton</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > AbilityButton
--- Общая кнопка способности: иконка, клавиша, затемнение и секунды кулдауна,
--- полоска оставшегося действия. Кнопки выстраиваются в ряд справа внизу по Slot.
-
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
-local ContextActionService = game:GetService("ContextActionService")
-
-local AbilityButton = {}
-AbilityButton.__index = AbilityButton
-
-local SIZE = 78
-local GAP = 14
-local BAR_HEIGHT = 6
-local WHITE = Color3.new(1, 1, 1)
-local IDLE_STROKE = Color3.fromRGB(150, 165, 190)
-local COOLDOWN_STROKE = Color3.fromRGB(90, 100, 120)
-
-local function getGui(): ScreenGui
-	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-	local gui = playerGui:FindFirstChild("AbilitiesGui")
-	if not gui then
-		gui = Instance.new("ScreenGui")
-		gui.Name = "AbilitiesGui"
-		gui.ResetOnSpawn = false
-		gui.Parent = playerGui
-	end
-	return gui
-end
-
---[[
-	opts = {
-		Name = "Невидимость",
-		Icon = "👻",
-		KeyName = "Q",
-		Slot = 1,            -- 1 = крайняя справа, 2 = левее и т.д.
-		Duration = 8,        -- для полоски действия
-		Cooldown = 20,       -- для затемнения
-		ActiveColor = Color3,
-		OnActivate = function() end,
-	}
-]]
-function AbilityButton.new(opts)
-	local self = setmetatable({}, AbilityButton)
-	self.duration = opts.Duration
-	self.cooldown = opts.Cooldown
-	self.activeColor = opts.ActiveColor
-
-	local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-	local slotOffset = (opts.Slot - 1) * (SIZE + GAP)
-
-	-- Контейнер: кнопка сверху, полоска под ней
-	local holder = Instance.new("Frame")
-	holder.Name = opts.Name
-	holder.BackgroundTransparency = 1
-	holder.AnchorPoint = Vector2.new(1, 1)
-	holder.Size = UDim2.fromOffset(SIZE, SIZE + BAR_HEIGHT + 6)
-	holder.Position = isTouch and UDim2.new(1, -20 - slotOffset, 1, -165)
-		or UDim2.new(1, -24 - slotOffset, 1, -24)
-	holder.Parent = getGui()
-
-	local button = Instance.new("TextButton")
-	button.Size = UDim2.fromOffset(SIZE, SIZE)
-	button.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
-	button.BackgroundTransparency = 0.2
-	button.Text = ""
-	button.ClipsDescendants = true
-	button.Parent = holder
-	Instance.new("UICorner", button).CornerRadius = UDim.new(0, 14)
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 2
-	stroke.Color = IDLE_STROKE
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = button
-
-	local icon = Instance.new("TextLabel")
-	icon.BackgroundTransparency = 1
-	icon.Size = UDim2.new(1, 0, 1, -18)
-	icon.Text = opts.Icon
-	icon.TextScaled = true
-	icon.Font = Enum.Font.GothamBold
-	icon.TextColor3 = WHITE
-	icon.ZIndex = 2
-	icon.Parent = button
-	local iconPad = Instance.new("UIPadding")
-	iconPad.PaddingTop = UDim.new(0, 8)
-	iconPad.PaddingLeft = UDim.new(0, 14)
-	iconPad.PaddingRight = UDim.new(0, 14)
-	iconPad.Parent = icon
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.AnchorPoint = Vector2.new(0, 1)
-	nameLabel.Position = UDim2.new(0, 0, 1, -4)
-	nameLabel.Size = UDim2.new(1, 0, 0, 14)
-	nameLabel.Text = opts.Name
-	nameLabel.TextColor3 = Color3.fromRGB(210, 220, 235)
-	nameLabel.Font = Enum.Font.GothamMedium
-	nameLabel.TextSize = 11
-	nameLabel.ZIndex = 2
-	nameLabel.Parent = button
-
-	if not isTouch and opts.KeyName then
-		local keyLabel = Instance.new("TextLabel")
-		keyLabel.BackgroundColor3 = Color3.new(0, 0, 0)
-		keyLabel.BackgroundTransparency = 0.4
-		keyLabel.Position = UDim2.fromOffset(5, 5)
-		keyLabel.Size = UDim2.fromOffset(18, 18)
-		keyLabel.Text = opts.KeyName
-		keyLabel.TextColor3 = WHITE
-		keyLabel.Font = Enum.Font.GothamBold
-		keyLabel.TextSize = 12
-		keyLabel.ZIndex = 4
-		keyLabel.Parent = button
-		Instance.new("UICorner", keyLabel).CornerRadius = UDim.new(0, 4)
-	end
-
-	-- Затемнение кулдауна: уменьшается снизу вверх по мере отката
-	local shade = Instance.new("Frame")
-	shade.AnchorPoint = Vector2.new(0, 1)
-	shade.Position = UDim2.fromScale(0, 1)
-	shade.Size = UDim2.fromScale(1, 0)
-	shade.BackgroundColor3 = Color3.new(0, 0, 0)
-	shade.BackgroundTransparency = 0.35
-	shade.BorderSizePixel = 0
-	shade.ZIndex = 3
-	shade.Parent = button
-
-	local cooldownText = Instance.new("TextLabel")
-	cooldownText.BackgroundTransparency = 1
-	cooldownText.Size = UDim2.fromScale(1, 1)
-	cooldownText.Text = ""
-	cooldownText.TextColor3 = WHITE
-	cooldownText.Font = Enum.Font.GothamBlack
-	cooldownText.TextSize = 28
-	cooldownText.TextStrokeTransparency = 0.5
-	cooldownText.ZIndex = 4
-	cooldownText.Parent = button
-
-	-- Полоска оставшегося действия
-	local barBack = Instance.new("Frame")
-	barBack.AnchorPoint = Vector2.new(0, 1)
-	barBack.Position = UDim2.fromScale(0, 1)
-	barBack.Size = UDim2.new(1, 0, 0, BAR_HEIGHT)
-	barBack.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
-	barBack.BackgroundTransparency = 0.2
-	barBack.BorderSizePixel = 0
-	barBack.Visible = false
-	barBack.Parent = holder
-	Instance.new("UICorner", barBack).CornerRadius = UDim.new(1, 0)
-
-	local barFill = Instance.new("Frame")
-	barFill.Size = UDim2.fromScale(1, 1)
-	barFill.BackgroundColor3 = opts.ActiveColor
-	barFill.BorderSizePixel = 0
-	barFill.Parent = barBack
-	Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
-
-	local uiScale = Instance.new("UIScale")
-	uiScale.Parent = holder
-
-	-- Нажатие: кнопка «проседает» и пружинит обратно
-	button.Activated:Connect(function()
-		self:Pulse(0.86)
-		opts.OnActivate()
-	end)
-
-	self.uiScale = uiScale
-	self.wasCooling = false
-	self.stroke = stroke
-	self.icon = icon
-	self.shade = shade
-	self.cooldownText = cooldownText
-	self.barBack = barBack
-	self.barFill = barFill
-	return self
-end
-
-function AbilityButton:Pulse(from: number)
-	self.uiScale.Scale = from
-	TweenService:Create(self.uiScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Scale = 1,
-	}):Play()
-end
-
--- Вспышка «способность готова»
-function AbilityButton:ReadyFlash()
-	self:Pulse(1.18)
-	self.stroke.Thickness = 5
-	TweenService:Create(self.stroke, TweenInfo.new(0.5), { Thickness = 2 }):Play()
-end
-
--- activeLeft: сколько секунд ещё действует способность (nil — не активна)
--- cooldownLeft: сколько секунд осталось до готовности
-function AbilityButton:Update(activeLeft: number?, cooldownLeft: number)
-	local cooling = activeLeft == nil and cooldownLeft > 0
-	if self.wasCooling and not cooling and activeLeft == nil then
-		self:ReadyFlash()
-	end
-	self.wasCooling = cooling
-	if self.wasActive and not activeLeft then
-		self.stroke.Thickness = 2
-	end
-	self.wasActive = activeLeft ~= nil
-
-	if activeLeft then
-		-- Пока способность действует, обводка «дышит»
-		self.stroke.Thickness = 2.5 + math.sin(os.clock() * 8) * 1.2
-		self.barBack.Visible = true
-		self.barFill.Size = UDim2.fromScale(math.clamp(activeLeft / self.duration, 0, 1), 1)
-		self.stroke.Color = self.activeColor
-		self.shade.Size = UDim2.fromScale(1, 0)
-		self.cooldownText.Text = ""
-		self.icon.TextTransparency = 0.4
-	elseif cooldownLeft > 0 then
-		self.barBack.Visible = false
-		self.shade.Size = UDim2.fromScale(1, math.clamp(cooldownLeft / self.cooldown, 0, 1))
-		self.cooldownText.Text = tostring(math.ceil(cooldownLeft))
-		self.stroke.Color = COOLDOWN_STROKE
-		self.icon.TextTransparency = 0.5
-	else
-		self.barBack.Visible = false
-		self.shade.Size = UDim2.fromScale(1, 0)
-		self.cooldownText.Text = ""
-		self.stroke.Color = IDLE_STROKE
-		self.icon.TextTransparency = 0
-	end
-end
-
--- Всё сразу: кнопка, клавиши, запрос на сервер и таймеры по атрибутам.
--- opts — как у new(), плюс Remote, Keys, ActionName,
--- ActiveAttribute, UntilAttribute, CooldownAttribute.
-function AbilityButton.Create(opts)
-	local player = Players.LocalPlayer
-	local lastRequest = 0
-	local button
-
-	local function request()
-		local t = os.clock()
-		if t - lastRequest < 0.25 then
-			return
-		end
-		lastRequest = t
-		opts.Remote:FireServer()
-	end
-
-	opts.OnActivate = request
-	opts.KeyName = opts.KeyName or opts.Keys[1].Name
-	button = AbilityButton.new(opts)
-
-	ContextActionService:BindAction(opts.ActionName, function(_, inputState)
-		if inputState == Enum.UserInputState.Begin then
-			button:Pulse(0.86)
-			request()
-			return Enum.ContextActionResult.Sink
-		end
-		return Enum.ContextActionResult.Pass
-	end, false, table.unpack(opts.Keys))
-
-	DebugTimer.connect(RunService.Heartbeat, "AbilityButton", function()
-		local now = workspace:GetServerTimeNow()
-		local character = player.Character
-		local active = character ~= nil and character:GetAttribute(opts.ActiveAttribute) == true
-		local activeLeft = active and math.max(0, (character:GetAttribute(opts.UntilAttribute) or 0) - now) or nil
-		local cooldownLeft = math.max(0, (player:GetAttribute(opts.CooldownAttribute) or 0) - now)
-		button:Update(activeLeft, cooldownLeft)
-	end)
-
-	return button
-end
-
-return AbilityButton
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8"><Properties><string name="Name">RigAnimator</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > RigAnimator
--- Общий движок процедурных анимаций для способностей.
--- Каждая способность добавляет персонажу «слой» анимации; движок раз в кадр
--- смешивает слои поверх обычных анимаций Roblox и выставляет суставы.
--- Работает с Motor6D и AnimationConstraint, для R15 и R6.
---
--- Слой:
---   {
---     Priority = 10,          -- кто выше, тот поверх
---     Additive = false,       -- true: добавляется к позе, false: заменяет её с весом
---     Update = function(rig, dt, now) return frames, weight, done end,
---   }
---   frames: { ИмяСустава = CFrame (поворот в пространстве родительской части),
---             Root = CFrame (смещение всего тела в пространстве HumanoidRootPart) }
---   done = true — слой закончился и будет удалён.
-
-local RunService = game:GetService("RunService")
-local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
-
-local RigAnimator = {}
-
-local POSE_ATTRIBUTE = "Pose" -- пока персонаж сидит/лежит, анимации поз главнее
-local IDENTITY = CFrame.identity
-
-local JOINTS = {
-	R15 = {
-		Root = { "LowerTorso", "Root" },
-		Waist = { "UpperTorso", "Waist" },
-		Neck = { "Head", "Neck" },
-		LeftShoulder = { "LeftUpperArm", "LeftShoulder" },
-		RightShoulder = { "RightUpperArm", "RightShoulder" },
-		LeftElbow = { "LeftLowerArm", "LeftElbow" },
-		RightElbow = { "RightLowerArm", "RightElbow" },
-		LeftHip = { "LeftUpperLeg", "LeftHip" },
-		RightHip = { "RightUpperLeg", "RightHip" },
-		LeftKnee = { "LeftLowerLeg", "LeftKnee" },
-		RightKnee = { "RightLowerLeg", "RightKnee" },
-		LeftAnkle = { "LeftFoot", "LeftAnkle" },
-		RightAnkle = { "RightFoot", "RightAnkle" },
-	},
-	R6 = {
-		Root = { "HumanoidRootPart", "RootJoint" },
-		Neck = { "Torso", "Neck" },
-		LeftShoulder = { "Torso", "Left Shoulder" },
-		RightShoulder = { "Torso", "Right Shoulder" },
-		LeftHip = { "Torso", "Left Hip" },
-		RightHip = { "Torso", "Right Hip" },
-	},
-}
-
-local function isJoint(obj: Instance): boolean
-	return obj:IsA("Motor6D") or obj:IsA("AnimationConstraint")
-end
-
-local function buildRig(character: Model)
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	local hrp = character:FindFirstChild("HumanoidRootPart")
-	if not humanoid or not hrp then
-		return nil
-	end
-	local rigType = humanoid.RigType == Enum.HumanoidRigType.R15 and "R15" or "R6"
-	local motors = {}
-	for name, path in pairs(JOINTS[rigType]) do
-		local part = character:FindFirstChild(path[1])
-		local motor = part and part:FindFirstChild(path[2])
-		if motor and isJoint(motor) then
-			motors[name] = motor
-		end
-	end
-	if not motors.Root then
-		return nil
-	end
-	local legLength
-	if rigType == "R15" then
-		legLength = humanoid.HipHeight
-	else
-		local leg = character:FindFirstChild("Left Leg")
-		legLength = leg and leg.Size.Y or 2
-	end
-	if legLength <= 0 then
-		legLength = 2
-	end
-	return {
-		character = character,
-		rigType = rigType,
-		motors = motors,
-		hrpHalf = hrp.Size.Y / 2,
-		legLength = legLength,
-		scale = legLength / 2,
-	}
-end
-
-local function toJointSpace(name: string, motor: any, frame: CFrame): CFrame
-	if name == "Root" then
-		local c0 = motor.C0
-		return c0:Inverse() * frame * c0
-	end
-	local q = motor.C0.Rotation
-	return q:Inverse() * frame * q
-end
-
----------------------------------------------------------------------
--- Помощники для описания поз
----------------------------------------------------------------------
-
-function RigAnimator.Angles(v: Vector3): CFrame
-	return CFrame.Angles(math.rad(v.X), math.rad(v.Y), math.rad(v.Z))
-end
-
--- Таблица {Сустав = Vector3 градусов} -> {Сустав = CFrame}; R6-переопределения по ключу R6
-function RigAnimator.Frames(rig, pose: { [string]: any }): { [string]: CFrame }
-	local frames = {}
-	local overrides = (rig.rigType == "R6" and pose.R6) or {}
-	for name, value in pairs(pose) do
-		if typeof(value) == "Vector3" and rig.motors[name] then
-			frames[name] = RigAnimator.Angles(overrides[name] or value)
-		end
-	end
-	for name, value in pairs(overrides) do
-		if typeof(value) == "Vector3" and rig.motors[name] and not frames[name] then
-			frames[name] = RigAnimator.Angles(value)
-		end
-	end
-	return frames
-end
-
--- Смешать две позы (таблицы Vector3) с коэффициентом t
-function RigAnimator.Blend(a, b, t: number)
-	local out = {}
-	for name, va in pairs(a) do
-		local vb = b[name]
-		if typeof(va) == "Vector3" then
-			out[name] = typeof(vb) == "Vector3" and va:Lerp(vb, t) or va:Lerp(Vector3.zero, t)
-		end
-	end
-	for name, vb in pairs(b) do
-		if typeof(vb) == "Vector3" and out[name] == nil then
-			out[name] = Vector3.zero:Lerp(vb, t)
-		end
-	end
-	return out
-end
-
--- Смещение всего тела: высота таза (доля длины ноги, 1 = стоит) и поворот вокруг таза
-function RigAnimator.RootFrame(rig, hipHeight: number, rootAngles: Vector3?, shift: Vector3?): CFrame
-	local drop = Vector3.new(0, (hipHeight - 1) * rig.legLength, 0)
-	local pivot = Vector3.new(0, -rig.hrpHalf, 0)
-	local offset = (shift or Vector3.zero) * rig.scale + drop
-	return CFrame.new(offset) * CFrame.new(pivot) * RigAnimator.Angles(rootAngles or Vector3.zero) * CFrame.new(-pivot)
-end
-
--- Огибающая веса: плавно появиться за fadeIn, держаться, плавно уйти за fadeOut
-function RigAnimator.Envelope(elapsed: number, total: number, fadeIn: number, fadeOut: number): number
-	if elapsed <= 0 or elapsed >= total then
-		return 0
-	end
-	local w = 1
-	if elapsed < fadeIn then
-		w = elapsed / fadeIn
-	elseif elapsed > total - fadeOut then
-		w = (total - elapsed) / fadeOut
-	end
-	return w * w * (3 - 2 * w)
-end
-
-function RigAnimator.Smooth(t: number): number
-	t = math.clamp(t, 0, 1)
-	return t * t * (3 - 2 * t)
-end
-
----------------------------------------------------------------------
--- Слои
----------------------------------------------------------------------
-
-local entries = {} -- [character] = { rig, layers }
-
-function RigAnimator.SetLayer(character: Model, name: string, layer)
-	local entry = entries[character]
-	if not entry then
-		entry = { rig = nil, layers = {} }
-		entries[character] = entry
-	end
-	entry.layers[name] = layer
-end
-
-function RigAnimator.RemoveLayer(character: Model, name: string)
-	local entry = entries[character]
-	if entry then
-		entry.layers[name] = nil
-	end
-end
-
-function RigAnimator.HasLayer(character: Model, name: string): boolean
-	local entry = entries[character]
-	return entry ~= nil and entry.layers[name] ~= nil
-end
-
-local function ensureRig(character: Model, entry)
-	local rig = entry.rig
-	if rig then
-		for _, motor in pairs(rig.motors) do
-			if not motor:IsDescendantOf(character) then
-				rig = nil
-				break
-			end
-		end
-	end
-	if not rig then
-		rig = buildRig(character)
-		entry.rig = rig
-	end
-	return rig
-end
-
-local function byPriority(a, b)
-	return a.layer.Priority < b.layer.Priority
-end
-
--- PreSimulation идёт после стандартных анимаций: наши значения перекрывают их
-DebugTimer.connect(RunService.PreSimulation, "RigAnimator", function(dt)
-	local now = os.clock()
-	for character, entry in pairs(entries) do
-		if not character.Parent or next(entry.layers) == nil then
-			entries[character] = nil
-			continue
-		end
-		local pose = character:GetAttribute(POSE_ATTRIBUTE)
-		if pose ~= nil and pose ~= "Stand" then
-			continue
-		end
-		local rig = ensureRig(character, entry)
-		if not rig then
-			continue
-		end
-
-		local list = {}
-		for name, layer in pairs(entry.layers) do
-			table.insert(list, { name = name, layer = layer })
-		end
-		table.sort(list, byPriority)
-
-		local finals = {}
-		for name, motor in pairs(rig.motors) do
-			finals[name] = motor.Transform
-		end
-
-		local wrote = false
-		for _, item in list do
-			local ok, frames, weight, done = pcall(item.layer.Update, rig, dt, now)
-			if not ok then
-				warn("[RigAnimator] ошибка в слое", item.name, frames)
-				entry.layers[item.name] = nil
-			elseif done then
-				entry.layers[item.name] = nil
-			elseif frames and weight and weight > 0.001 then
-				wrote = true
-				for jointName, frame in pairs(frames) do
-					local motor = rig.motors[jointName]
-					if motor then
-						local target = toJointSpace(jointName, motor, frame)
-						if item.layer.Additive then
-							finals[jointName] = finals[jointName] * IDENTITY:Lerp(target, weight)
-						else
-							finals[jointName] = finals[jointName]:Lerp(target, weight)
-						end
-					end
-				end
-			end
-		end
-
-		if wrote then
-			for name, motor in pairs(rig.motors) do
-				motor.Transform = finals[name]
-			end
-		end
-	end
-end)
-
-return RigAnimator
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX9"><Properties><string name="Name">AbilityFx</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > AbilityFx
--- Общие эффекты для способностей (только на клиенте):
--- вспышки частиц, тряска камеры, плавные функции.
-
-local RunService = game:GetService("RunService")
-local Debris = game:GetService("Debris")
-
-local AbilityFx = {}
-
----------------------------------------------------------------------
--- Вспышка частиц в точке
----------------------------------------------------------------------
---[[
-	opts = {
-		Color = Color3 или ColorSequence,
-		Count = 30,
-		Speed = NumberRange.new(6, 14),
-		Size = 0.5,               -- начальный размер, к концу уменьшается до 0
-		Lifetime = NumberRange.new(0.3, 0.7),
-		LightEmission = 1,
-		Drag = 3,
-		Acceleration = Vector3.zero,
-		Spread = Vector2.new(180, 180),
-		Direction = Enum.NormalId.Top,
-	}
-]]
-function AbilityFx.Burst(position: Vector3, opts)
-	opts = opts or {}
-	local part = Instance.new("Part")
-	part.Name = "AbilityBurst"
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CanTouch = false
-	part.Transparency = 1
-	part.Size = Vector3.new(0.2, 0.2, 0.2)
-	part.CFrame = CFrame.new(position)
-	part.Parent = workspace
-
-	local attachment = Instance.new("Attachment")
-	attachment.Parent = part
-
-	local lifetime = opts.Lifetime or NumberRange.new(0.3, 0.7)
-	local color = opts.Color or Color3.new(1, 1, 1)
-	local size = opts.Size or 0.5
-
-	local emitter = Instance.new("ParticleEmitter")
-	emitter.Color = typeof(color) == "ColorSequence" and color or ColorSequence.new(color)
-	emitter.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, size),
-		NumberSequenceKeypoint.new(1, 0),
-	})
-	emitter.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0),
-		NumberSequenceKeypoint.new(0.7, 0.2),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	emitter.Lifetime = lifetime
-	emitter.Speed = opts.Speed or NumberRange.new(6, 14)
-	emitter.SpreadAngle = opts.Spread or Vector2.new(180, 180)
-	emitter.EmissionDirection = opts.Direction or Enum.NormalId.Top
-	emitter.LightEmission = opts.LightEmission or 1
-	emitter.Drag = opts.Drag or 3
-	emitter.Acceleration = opts.Acceleration or Vector3.zero
-	emitter.RotSpeed = NumberRange.new(-180, 180)
-	emitter.Rotation = NumberRange.new(0, 360)
-	emitter.Rate = 0
-	emitter.Parent = attachment
-	emitter:Emit(opts.Count or 30)
-
-	if opts.Light then
-		local light = Instance.new("PointLight")
-		light.Color = typeof(color) == "Color3" and color or Color3.new(1, 1, 1)
-		light.Range = opts.Light
-		light.Brightness = 3
-		light.Parent = attachment
-		task.spawn(function()
-			local start = os.clock()
-			while light.Parent and os.clock() - start < 0.35 do
-				light.Brightness = 3 * (1 - (os.clock() - start) / 0.35)
-				RunService.Heartbeat:Wait()
-			end
-			light:Destroy()
-		end)
-	end
-
-	Debris:AddItem(part, lifetime.Max + 0.3)
-	return part
-end
-
--- Пыль у ног персонажа
-function AbilityFx.Dust(character: Model, count: number?, color: Color3?)
-	local hrp = character:FindFirstChild("HumanoidRootPart")
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if not hrp or not humanoid then
-		return
-	end
-	local legLength = humanoid.RigType == Enum.HumanoidRigType.R15 and humanoid.HipHeight or 2
-	local feet = hrp.Position - Vector3.new(0, hrp.Size.Y / 2 + legLength - 0.2, 0)
-	AbilityFx.Burst(feet, {
-		Color = color or Color3.fromRGB(200, 190, 175),
-		Count = count or 24,
-		Speed = NumberRange.new(10, 18),
-		Size = 1.2,
-		Lifetime = NumberRange.new(0.4, 0.8),
-		LightEmission = 0,
-		Drag = 5,
-		Spread = Vector2.new(85, 85),
-		Acceleration = Vector3.new(0, 4, 0),
-	})
-end
-
----------------------------------------------------------------------
--- Тряска камеры
----------------------------------------------------------------------
-
-local shakes = {}
-
-function AbilityFx.Shake(intensity: number, duration: number)
-	table.insert(shakes, { intensity = intensity, duration = duration, start = os.clock() })
-end
-
-RunService:BindToRenderStep("AbilityCameraShake", Enum.RenderPriority.Camera.Value + 1, function()
-	if #shakes == 0 then
-		return
-	end
-	local now = os.clock()
-	local amount = 0
-	for i = #shakes, 1, -1 do
-		local s = shakes[i]
-		local k = 1 - (now - s.start) / s.duration
-		if k <= 0 then
-			table.remove(shakes, i)
-		else
-			amount += s.intensity * k
-		end
-	end
-	if amount > 0 then
-		local camera = workspace.CurrentCamera
-		local x = math.noise(now * 25, 1.3) * amount
-		local y = math.noise(now * 25, 7.1) * amount
-		local z = math.noise(now * 25, 3.7) * amount * 0.5
-		camera.CFrame = camera.CFrame * CFrame.Angles(x, y, z)
-	end
-end)
-
----------------------------------------------------------------------
--- Плавные функции
----------------------------------------------------------------------
-
-function AbilityFx.ElasticOut(t: number): number
-	if t <= 0 then
-		return 0
-	elseif t >= 1 then
-		return 1
-	end
-	return 2 ^ (-10 * t) * math.sin((t * 10 - 0.75) * (2 * math.pi / 3)) + 1
-end
-
-function AbilityFx.BackIn(t: number): number
-	t = math.clamp(t, 0, 1)
-	local c1 = 1.70158
-	return (c1 + 1) * t * t * t - c1 * t * t
-end
-
-function AbilityFx.Approach(current: number, target: number, step: number): number
-	if current < target then
-		return math.min(target, current + step)
-	end
-	return math.max(target, current - step)
-end
-
-return AbilityFx
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX10"><Properties><string name="Name">FlightConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > FlightConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX7"><Properties><string name="Name">FlightConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > FlightConfig
 -- Настройки способности «Полёт».
 
 local FlightConfig = {}
@@ -1062,7 +334,7 @@ FlightConfig.ButtonSlot = 3
 FlightConfig.ActiveColor = Color3.fromRGB(140, 220, 255)
 
 return FlightConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX11"><Properties><string name="Name">CubeConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > CubeConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8"><Properties><string name="Name">CubeConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > CubeConfig
 -- Настройки способности «Превращение в куб».
 
 local CubeConfig = {}
@@ -1109,7 +381,7 @@ CubeConfig.ButtonSlot = 4
 CubeConfig.ActiveColor = Color3.fromRGB(255, 190, 70)
 
 return CubeConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX12"><Properties><string name="Name">NPCConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > NPCConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX9"><Properties><string name="Name">NPCConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > NPCConfig
 -- Настройки жителей города (NPC). Как расставить точки на карте — см. NPC_SETUP.md.
 
 local NPCConfig = {}
@@ -1434,7 +706,7 @@ NPCConfig.DoorOpenAngle = 95 -- на сколько градусов откры�
 NPCConfig.DoorSpeed = 4 -- скорость открывания (больше = быстрее)
 
 return NPCConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX13"><Properties><string name="Name">VehicleConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > VehicleConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX10"><Properties><string name="Name">VehicleConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > VehicleConfig
 -- Настройки транспорта: машины, такси, автобус, полиция, дороги и светофоры.
 -- Как собрать шаблоны машин и расставить дороги — см. VEHICLE_SETUP.md.
 
@@ -1595,7 +867,7 @@ VehicleConfig.DoorSpeed = 5
 VehicleConfig.SlideDistance = 2.5 -- для сдвижных дверей (автобус)
 
 return VehicleConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX14"><Properties><string name="Name">SoundConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > SoundConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX11"><Properties><string name="Name">SoundConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > SoundConfig
 -- ВСЕ ЗВУКИ ИГРЫ В ОДНОМ МЕСТЕ.
 -- Вставь сюда ID звуков из Creator Store (Toolbox → Audio): "rbxassetid://123456789".
 -- Пустая строка "" — звука нет (всё остальное работает).
@@ -1685,7 +957,7 @@ SoundConfig.VoicePitch = NumberRange.new(0.9, 1.15)
 SoundConfig.VoiceSpeed = 5 -- сколько «слогов» в секунду при печати реплики
 
 return SoundConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX15"><Properties><string name="Name">WeatherConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > WeatherConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX12"><Properties><string name="Name">WeatherConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > WeatherConfig
 -- Погода: сама меняется со временем, плавно переходит из одной в другую.
 -- Звуки дождя и грома — в SoundConfig.Weather.
 
@@ -1723,7 +995,7 @@ WeatherConfig.CarSpeedInRain = 0.8 -- машины в дождь едут мед
 WeatherConfig.RainDrops = 900 -- капель в секунду при сильном дожде (меньше — легче для слабых устройств)
 
 return WeatherConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX16"><Properties><string name="Name">CityConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > CityConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX13"><Properties><string name="Name">CityConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > CityConfig
 -- Новые механики города. Работают на уже расставленных метках, новых меток не нужно.
 --   📦 Курьер      — забери посылку и отнеси жителю (телефон → «Работа»)
 --   🛍 Магазин     — аксессуары за монеты: шляпы, очки, корона, нимб, след, шарик...
@@ -1820,7 +1092,7 @@ CityConfig.StartCoins = 0 -- сколько монет у нового игро�
 CityConfig.DataStoreName = "CityLife_v1"
 
 return CityConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX17"><Properties><string name="Name">DebugConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > DebugConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX14"><Properties><string name="Name">DebugConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > DebugConfig
 -- Меню отладки для владельца игры: клавиша F2 или кнопка 🛠 (видна только админам).
 --
 -- Кто видит меню:
@@ -2142,7 +1414,7 @@ DebugConfig.Changelog = {
 }
 
 return DebugConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX18"><Properties><string name="Name">WeaponConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > WeaponConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX15"><Properties><string name="Name">WeaponConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > WeaponConfig
 -- Оружие, розыск и правосудие.
 --   🔫 Оружие: пистолет и винтовка (режимы огня, прицел, отдача, перезарядка), 3D-модели из деталей.
 --   ⭐ Розыск: свидетели пугаются, прячутся и звонят в 911; полиция едет туда, где тебя видели, и ищет.
@@ -2301,6 +1573,734 @@ WeaponConfig.Lines = {
 }
 
 return WeaponConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX16"><Properties><string name="Name">AbilityButton</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > AbilityButton
+-- Общая кнопка способности: иконка, клавиша, затемнение и секунды кулдауна,
+-- полоска оставшегося действия. Кнопки выстраиваются в ряд справа внизу по Slot.
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
+local ContextActionService = game:GetService("ContextActionService")
+
+local AbilityButton = {}
+AbilityButton.__index = AbilityButton
+
+local SIZE = 78
+local GAP = 14
+local BAR_HEIGHT = 6
+local WHITE = Color3.new(1, 1, 1)
+local IDLE_STROKE = Color3.fromRGB(150, 165, 190)
+local COOLDOWN_STROKE = Color3.fromRGB(90, 100, 120)
+
+local function getGui(): ScreenGui
+	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+	local gui = playerGui:FindFirstChild("AbilitiesGui")
+	if not gui then
+		gui = Instance.new("ScreenGui")
+		gui.Name = "AbilitiesGui"
+		gui.ResetOnSpawn = false
+		gui.Parent = playerGui
+	end
+	return gui
+end
+
+--[[
+	opts = {
+		Name = "Невидимость",
+		Icon = "👻",
+		KeyName = "Q",
+		Slot = 1,            -- 1 = крайняя справа, 2 = левее и т.д.
+		Duration = 8,        -- для полоски действия
+		Cooldown = 20,       -- для затемнения
+		ActiveColor = Color3,
+		OnActivate = function() end,
+	}
+]]
+function AbilityButton.new(opts)
+	local self = setmetatable({}, AbilityButton)
+	self.duration = opts.Duration
+	self.cooldown = opts.Cooldown
+	self.activeColor = opts.ActiveColor
+
+	local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local slotOffset = (opts.Slot - 1) * (SIZE + GAP)
+
+	-- Контейнер: кнопка сверху, полоска под ней
+	local holder = Instance.new("Frame")
+	holder.Name = opts.Name
+	holder.BackgroundTransparency = 1
+	holder.AnchorPoint = Vector2.new(1, 1)
+	holder.Size = UDim2.fromOffset(SIZE, SIZE + BAR_HEIGHT + 6)
+	holder.Position = isTouch and UDim2.new(1, -20 - slotOffset, 1, -165)
+		or UDim2.new(1, -24 - slotOffset, 1, -24)
+	holder.Parent = getGui()
+
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.fromOffset(SIZE, SIZE)
+	button.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
+	button.BackgroundTransparency = 0.2
+	button.Text = ""
+	button.ClipsDescendants = true
+	button.Parent = holder
+	Instance.new("UICorner", button).CornerRadius = UDim.new(0, 14)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 2
+	stroke.Color = IDLE_STROKE
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = button
+
+	local icon = Instance.new("TextLabel")
+	icon.BackgroundTransparency = 1
+	icon.Size = UDim2.new(1, 0, 1, -18)
+	icon.Text = opts.Icon
+	icon.TextScaled = true
+	icon.Font = Enum.Font.GothamBold
+	icon.TextColor3 = WHITE
+	icon.ZIndex = 2
+	icon.Parent = button
+	local iconPad = Instance.new("UIPadding")
+	iconPad.PaddingTop = UDim.new(0, 8)
+	iconPad.PaddingLeft = UDim.new(0, 14)
+	iconPad.PaddingRight = UDim.new(0, 14)
+	iconPad.Parent = icon
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.AnchorPoint = Vector2.new(0, 1)
+	nameLabel.Position = UDim2.new(0, 0, 1, -4)
+	nameLabel.Size = UDim2.new(1, 0, 0, 14)
+	nameLabel.Text = opts.Name
+	nameLabel.TextColor3 = Color3.fromRGB(210, 220, 235)
+	nameLabel.Font = Enum.Font.GothamMedium
+	nameLabel.TextSize = 11
+	nameLabel.ZIndex = 2
+	nameLabel.Parent = button
+
+	if not isTouch and opts.KeyName then
+		local keyLabel = Instance.new("TextLabel")
+		keyLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+		keyLabel.BackgroundTransparency = 0.4
+		keyLabel.Position = UDim2.fromOffset(5, 5)
+		keyLabel.Size = UDim2.fromOffset(18, 18)
+		keyLabel.Text = opts.KeyName
+		keyLabel.TextColor3 = WHITE
+		keyLabel.Font = Enum.Font.GothamBold
+		keyLabel.TextSize = 12
+		keyLabel.ZIndex = 4
+		keyLabel.Parent = button
+		Instance.new("UICorner", keyLabel).CornerRadius = UDim.new(0, 4)
+	end
+
+	-- Затемнение кулдауна: уменьшается снизу вверх по мере отката
+	local shade = Instance.new("Frame")
+	shade.AnchorPoint = Vector2.new(0, 1)
+	shade.Position = UDim2.fromScale(0, 1)
+	shade.Size = UDim2.fromScale(1, 0)
+	shade.BackgroundColor3 = Color3.new(0, 0, 0)
+	shade.BackgroundTransparency = 0.35
+	shade.BorderSizePixel = 0
+	shade.ZIndex = 3
+	shade.Parent = button
+
+	local cooldownText = Instance.new("TextLabel")
+	cooldownText.BackgroundTransparency = 1
+	cooldownText.Size = UDim2.fromScale(1, 1)
+	cooldownText.Text = ""
+	cooldownText.TextColor3 = WHITE
+	cooldownText.Font = Enum.Font.GothamBlack
+	cooldownText.TextSize = 28
+	cooldownText.TextStrokeTransparency = 0.5
+	cooldownText.ZIndex = 4
+	cooldownText.Parent = button
+
+	-- Полоска оставшегося действия
+	local barBack = Instance.new("Frame")
+	barBack.AnchorPoint = Vector2.new(0, 1)
+	barBack.Position = UDim2.fromScale(0, 1)
+	barBack.Size = UDim2.new(1, 0, 0, BAR_HEIGHT)
+	barBack.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
+	barBack.BackgroundTransparency = 0.2
+	barBack.BorderSizePixel = 0
+	barBack.Visible = false
+	barBack.Parent = holder
+	Instance.new("UICorner", barBack).CornerRadius = UDim.new(1, 0)
+
+	local barFill = Instance.new("Frame")
+	barFill.Size = UDim2.fromScale(1, 1)
+	barFill.BackgroundColor3 = opts.ActiveColor
+	barFill.BorderSizePixel = 0
+	barFill.Parent = barBack
+	Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
+
+	local uiScale = Instance.new("UIScale")
+	uiScale.Parent = holder
+
+	-- Нажатие: кнопка «проседает» и пружинит обратно
+	button.Activated:Connect(function()
+		self:Pulse(0.86)
+		opts.OnActivate()
+	end)
+
+	self.uiScale = uiScale
+	self.wasCooling = false
+	self.stroke = stroke
+	self.icon = icon
+	self.shade = shade
+	self.cooldownText = cooldownText
+	self.barBack = barBack
+	self.barFill = barFill
+	return self
+end
+
+function AbilityButton:Pulse(from: number)
+	self.uiScale.Scale = from
+	TweenService:Create(self.uiScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1,
+	}):Play()
+end
+
+-- Вспышка «способность готова»
+function AbilityButton:ReadyFlash()
+	self:Pulse(1.18)
+	self.stroke.Thickness = 5
+	TweenService:Create(self.stroke, TweenInfo.new(0.5), { Thickness = 2 }):Play()
+end
+
+-- activeLeft: сколько секунд ещё действует способность (nil — не активна)
+-- cooldownLeft: сколько секунд осталось до готовности
+function AbilityButton:Update(activeLeft: number?, cooldownLeft: number)
+	local cooling = activeLeft == nil and cooldownLeft > 0
+	if self.wasCooling and not cooling and activeLeft == nil then
+		self:ReadyFlash()
+	end
+	self.wasCooling = cooling
+	if self.wasActive and not activeLeft then
+		self.stroke.Thickness = 2
+	end
+	self.wasActive = activeLeft ~= nil
+
+	if activeLeft then
+		-- Пока способность действует, обводка «дышит»
+		self.stroke.Thickness = 2.5 + math.sin(os.clock() * 8) * 1.2
+		self.barBack.Visible = true
+		self.barFill.Size = UDim2.fromScale(math.clamp(activeLeft / self.duration, 0, 1), 1)
+		self.stroke.Color = self.activeColor
+		self.shade.Size = UDim2.fromScale(1, 0)
+		self.cooldownText.Text = ""
+		self.icon.TextTransparency = 0.4
+	elseif cooldownLeft > 0 then
+		self.barBack.Visible = false
+		self.shade.Size = UDim2.fromScale(1, math.clamp(cooldownLeft / self.cooldown, 0, 1))
+		self.cooldownText.Text = tostring(math.ceil(cooldownLeft))
+		self.stroke.Color = COOLDOWN_STROKE
+		self.icon.TextTransparency = 0.5
+	else
+		self.barBack.Visible = false
+		self.shade.Size = UDim2.fromScale(1, 0)
+		self.cooldownText.Text = ""
+		self.stroke.Color = IDLE_STROKE
+		self.icon.TextTransparency = 0
+	end
+end
+
+-- Всё сразу: кнопка, клавиши, запрос на сервер и таймеры по атрибутам.
+-- opts — как у new(), плюс Remote, Keys, ActionName,
+-- ActiveAttribute, UntilAttribute, CooldownAttribute.
+function AbilityButton.Create(opts)
+	local player = Players.LocalPlayer
+	local lastRequest = 0
+	local button
+
+	local function request()
+		local t = os.clock()
+		if t - lastRequest < 0.25 then
+			return
+		end
+		lastRequest = t
+		opts.Remote:FireServer()
+	end
+
+	opts.OnActivate = request
+	opts.KeyName = opts.KeyName or opts.Keys[1].Name
+	button = AbilityButton.new(opts)
+
+	ContextActionService:BindAction(opts.ActionName, function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			button:Pulse(0.86)
+			request()
+			return Enum.ContextActionResult.Sink
+		end
+		return Enum.ContextActionResult.Pass
+	end, false, table.unpack(opts.Keys))
+
+	DebugTimer.connect(RunService.Heartbeat, "AbilityButton", function()
+		local now = workspace:GetServerTimeNow()
+		local character = player.Character
+		local active = character ~= nil and character:GetAttribute(opts.ActiveAttribute) == true
+		local activeLeft = active and math.max(0, (character:GetAttribute(opts.UntilAttribute) or 0) - now) or nil
+		local cooldownLeft = math.max(0, (player:GetAttribute(opts.CooldownAttribute) or 0) - now)
+		button:Update(activeLeft, cooldownLeft)
+	end)
+
+	return button
+end
+
+return AbilityButton
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX17"><Properties><string name="Name">RigAnimator</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > RigAnimator
+-- Общий движок процедурных анимаций для способностей.
+-- Каждая способность добавляет персонажу «слой» анимации; движок раз в кадр
+-- смешивает слои поверх обычных анимаций Roblox и выставляет суставы.
+-- Работает с Motor6D и AnimationConstraint, для R15 и R6.
+--
+-- Слой:
+--   {
+--     Priority = 10,          -- кто выше, тот поверх
+--     Additive = false,       -- true: добавляется к позе, false: заменяет её с весом
+--     Update = function(rig, dt, now) return frames, weight, done end,
+--   }
+--   frames: { ИмяСустава = CFrame (поворот в пространстве родительской части),
+--             Root = CFrame (смещение всего тела в пространстве HumanoidRootPart) }
+--   done = true — слой закончился и будет удалён.
+
+local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
+
+local RigAnimator = {}
+
+local POSE_ATTRIBUTE = "Pose" -- пока персонаж сидит/лежит, анимации поз главнее
+local IDENTITY = CFrame.identity
+
+local JOINTS = {
+	R15 = {
+		Root = { "LowerTorso", "Root" },
+		Waist = { "UpperTorso", "Waist" },
+		Neck = { "Head", "Neck" },
+		LeftShoulder = { "LeftUpperArm", "LeftShoulder" },
+		RightShoulder = { "RightUpperArm", "RightShoulder" },
+		LeftElbow = { "LeftLowerArm", "LeftElbow" },
+		RightElbow = { "RightLowerArm", "RightElbow" },
+		LeftHip = { "LeftUpperLeg", "LeftHip" },
+		RightHip = { "RightUpperLeg", "RightHip" },
+		LeftKnee = { "LeftLowerLeg", "LeftKnee" },
+		RightKnee = { "RightLowerLeg", "RightKnee" },
+		LeftAnkle = { "LeftFoot", "LeftAnkle" },
+		RightAnkle = { "RightFoot", "RightAnkle" },
+	},
+	R6 = {
+		Root = { "HumanoidRootPart", "RootJoint" },
+		Neck = { "Torso", "Neck" },
+		LeftShoulder = { "Torso", "Left Shoulder" },
+		RightShoulder = { "Torso", "Right Shoulder" },
+		LeftHip = { "Torso", "Left Hip" },
+		RightHip = { "Torso", "Right Hip" },
+	},
+}
+
+local function isJoint(obj: Instance): boolean
+	return obj:IsA("Motor6D") or obj:IsA("AnimationConstraint")
+end
+
+local function buildRig(character: Model)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not hrp then
+		return nil
+	end
+	local rigType = humanoid.RigType == Enum.HumanoidRigType.R15 and "R15" or "R6"
+	local motors = {}
+	for name, path in pairs(JOINTS[rigType]) do
+		local part = character:FindFirstChild(path[1])
+		local motor = part and part:FindFirstChild(path[2])
+		if motor and isJoint(motor) then
+			motors[name] = motor
+		end
+	end
+	if not motors.Root then
+		return nil
+	end
+	local legLength
+	if rigType == "R15" then
+		legLength = humanoid.HipHeight
+	else
+		local leg = character:FindFirstChild("Left Leg")
+		legLength = leg and leg.Size.Y or 2
+	end
+	if legLength <= 0 then
+		legLength = 2
+	end
+	return {
+		character = character,
+		rigType = rigType,
+		motors = motors,
+		hrpHalf = hrp.Size.Y / 2,
+		legLength = legLength,
+		scale = legLength / 2,
+	}
+end
+
+local function toJointSpace(name: string, motor: any, frame: CFrame): CFrame
+	if name == "Root" then
+		local c0 = motor.C0
+		return c0:Inverse() * frame * c0
+	end
+	local q = motor.C0.Rotation
+	return q:Inverse() * frame * q
+end
+
+---------------------------------------------------------------------
+-- Помощники для описания поз
+---------------------------------------------------------------------
+
+function RigAnimator.Angles(v: Vector3): CFrame
+	return CFrame.Angles(math.rad(v.X), math.rad(v.Y), math.rad(v.Z))
+end
+
+-- Таблица {Сустав = Vector3 градусов} -> {Сустав = CFrame}; R6-переопределения по ключу R6
+function RigAnimator.Frames(rig, pose: { [string]: any }): { [string]: CFrame }
+	local frames = {}
+	local overrides = (rig.rigType == "R6" and pose.R6) or {}
+	for name, value in pairs(pose) do
+		if typeof(value) == "Vector3" and rig.motors[name] then
+			frames[name] = RigAnimator.Angles(overrides[name] or value)
+		end
+	end
+	for name, value in pairs(overrides) do
+		if typeof(value) == "Vector3" and rig.motors[name] and not frames[name] then
+			frames[name] = RigAnimator.Angles(value)
+		end
+	end
+	return frames
+end
+
+-- Смешать две позы (таблицы Vector3) с коэффициентом t
+function RigAnimator.Blend(a, b, t: number)
+	local out = {}
+	for name, va in pairs(a) do
+		local vb = b[name]
+		if typeof(va) == "Vector3" then
+			out[name] = typeof(vb) == "Vector3" and va:Lerp(vb, t) or va:Lerp(Vector3.zero, t)
+		end
+	end
+	for name, vb in pairs(b) do
+		if typeof(vb) == "Vector3" and out[name] == nil then
+			out[name] = Vector3.zero:Lerp(vb, t)
+		end
+	end
+	return out
+end
+
+-- Смещение всего тела: высота таза (доля длины ноги, 1 = стоит) и поворот вокруг таза
+function RigAnimator.RootFrame(rig, hipHeight: number, rootAngles: Vector3?, shift: Vector3?): CFrame
+	local drop = Vector3.new(0, (hipHeight - 1) * rig.legLength, 0)
+	local pivot = Vector3.new(0, -rig.hrpHalf, 0)
+	local offset = (shift or Vector3.zero) * rig.scale + drop
+	return CFrame.new(offset) * CFrame.new(pivot) * RigAnimator.Angles(rootAngles or Vector3.zero) * CFrame.new(-pivot)
+end
+
+-- Огибающая веса: плавно появиться за fadeIn, держаться, плавно уйти за fadeOut
+function RigAnimator.Envelope(elapsed: number, total: number, fadeIn: number, fadeOut: number): number
+	if elapsed <= 0 or elapsed >= total then
+		return 0
+	end
+	local w = 1
+	if elapsed < fadeIn then
+		w = elapsed / fadeIn
+	elseif elapsed > total - fadeOut then
+		w = (total - elapsed) / fadeOut
+	end
+	return w * w * (3 - 2 * w)
+end
+
+function RigAnimator.Smooth(t: number): number
+	t = math.clamp(t, 0, 1)
+	return t * t * (3 - 2 * t)
+end
+
+---------------------------------------------------------------------
+-- Слои
+---------------------------------------------------------------------
+
+local entries = {} -- [character] = { rig, layers }
+
+function RigAnimator.SetLayer(character: Model, name: string, layer)
+	local entry = entries[character]
+	if not entry then
+		entry = { rig = nil, layers = {} }
+		entries[character] = entry
+	end
+	entry.layers[name] = layer
+end
+
+function RigAnimator.RemoveLayer(character: Model, name: string)
+	local entry = entries[character]
+	if entry then
+		entry.layers[name] = nil
+	end
+end
+
+function RigAnimator.HasLayer(character: Model, name: string): boolean
+	local entry = entries[character]
+	return entry ~= nil and entry.layers[name] ~= nil
+end
+
+local function ensureRig(character: Model, entry)
+	local rig = entry.rig
+	if rig then
+		for _, motor in pairs(rig.motors) do
+			if not motor:IsDescendantOf(character) then
+				rig = nil
+				break
+			end
+		end
+	end
+	if not rig then
+		rig = buildRig(character)
+		entry.rig = rig
+	end
+	return rig
+end
+
+local function byPriority(a, b)
+	return a.layer.Priority < b.layer.Priority
+end
+
+-- PreSimulation идёт после стандартных анимаций: наши значения перекрывают их
+DebugTimer.connect(RunService.PreSimulation, "RigAnimator", function(dt)
+	local now = os.clock()
+	for character, entry in pairs(entries) do
+		if not character.Parent or next(entry.layers) == nil then
+			entries[character] = nil
+			continue
+		end
+		local pose = character:GetAttribute(POSE_ATTRIBUTE)
+		if pose ~= nil and pose ~= "Stand" then
+			continue
+		end
+		local rig = ensureRig(character, entry)
+		if not rig then
+			continue
+		end
+
+		local list = {}
+		for name, layer in pairs(entry.layers) do
+			table.insert(list, { name = name, layer = layer })
+		end
+		table.sort(list, byPriority)
+
+		local finals = {}
+		for name, motor in pairs(rig.motors) do
+			finals[name] = motor.Transform
+		end
+
+		local wrote = false
+		for _, item in list do
+			local ok, frames, weight, done = pcall(item.layer.Update, rig, dt, now)
+			if not ok then
+				warn("[RigAnimator] ошибка в слое", item.name, frames)
+				entry.layers[item.name] = nil
+			elseif done then
+				entry.layers[item.name] = nil
+			elseif frames and weight and weight > 0.001 then
+				wrote = true
+				for jointName, frame in pairs(frames) do
+					local motor = rig.motors[jointName]
+					if motor then
+						local target = toJointSpace(jointName, motor, frame)
+						if item.layer.Additive then
+							finals[jointName] = finals[jointName] * IDENTITY:Lerp(target, weight)
+						else
+							finals[jointName] = finals[jointName]:Lerp(target, weight)
+						end
+					end
+				end
+			end
+		end
+
+		if wrote then
+			for name, motor in pairs(rig.motors) do
+				motor.Transform = finals[name]
+			end
+		end
+	end
+end)
+
+return RigAnimator
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX18"><Properties><string name="Name">AbilityFx</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > AbilityFx
+-- Общие эффекты для способностей (только на клиенте):
+-- вспышки частиц, тряска камеры, плавные функции.
+
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
+
+local AbilityFx = {}
+
+---------------------------------------------------------------------
+-- Вспышка частиц в точке
+---------------------------------------------------------------------
+--[[
+	opts = {
+		Color = Color3 или ColorSequence,
+		Count = 30,
+		Speed = NumberRange.new(6, 14),
+		Size = 0.5,               -- начальный размер, к концу уменьшается до 0
+		Lifetime = NumberRange.new(0.3, 0.7),
+		LightEmission = 1,
+		Drag = 3,
+		Acceleration = Vector3.zero,
+		Spread = Vector2.new(180, 180),
+		Direction = Enum.NormalId.Top,
+	}
+]]
+function AbilityFx.Burst(position: Vector3, opts)
+	opts = opts or {}
+	local part = Instance.new("Part")
+	part.Name = "AbilityBurst"
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.Transparency = 1
+	part.Size = Vector3.new(0.2, 0.2, 0.2)
+	part.CFrame = CFrame.new(position)
+	part.Parent = workspace
+
+	local attachment = Instance.new("Attachment")
+	attachment.Parent = part
+
+	local lifetime = opts.Lifetime or NumberRange.new(0.3, 0.7)
+	local color = opts.Color or Color3.new(1, 1, 1)
+	local size = opts.Size or 0.5
+
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Color = typeof(color) == "ColorSequence" and color or ColorSequence.new(color)
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, size),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	emitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.7, 0.2),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	emitter.Lifetime = lifetime
+	emitter.Speed = opts.Speed or NumberRange.new(6, 14)
+	emitter.SpreadAngle = opts.Spread or Vector2.new(180, 180)
+	emitter.EmissionDirection = opts.Direction or Enum.NormalId.Top
+	emitter.LightEmission = opts.LightEmission or 1
+	emitter.Drag = opts.Drag or 3
+	emitter.Acceleration = opts.Acceleration or Vector3.zero
+	emitter.RotSpeed = NumberRange.new(-180, 180)
+	emitter.Rotation = NumberRange.new(0, 360)
+	emitter.Rate = 0
+	emitter.Parent = attachment
+	emitter:Emit(opts.Count or 30)
+
+	if opts.Light then
+		local light = Instance.new("PointLight")
+		light.Color = typeof(color) == "Color3" and color or Color3.new(1, 1, 1)
+		light.Range = opts.Light
+		light.Brightness = 3
+		light.Parent = attachment
+		task.spawn(function()
+			local start = os.clock()
+			while light.Parent and os.clock() - start < 0.35 do
+				light.Brightness = 3 * (1 - (os.clock() - start) / 0.35)
+				RunService.Heartbeat:Wait()
+			end
+			light:Destroy()
+		end)
+	end
+
+	Debris:AddItem(part, lifetime.Max + 0.3)
+	return part
+end
+
+-- Пыль у ног персонажа
+function AbilityFx.Dust(character: Model, count: number?, color: Color3?)
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not hrp or not humanoid then
+		return
+	end
+	local legLength = humanoid.RigType == Enum.HumanoidRigType.R15 and humanoid.HipHeight or 2
+	local feet = hrp.Position - Vector3.new(0, hrp.Size.Y / 2 + legLength - 0.2, 0)
+	AbilityFx.Burst(feet, {
+		Color = color or Color3.fromRGB(200, 190, 175),
+		Count = count or 24,
+		Speed = NumberRange.new(10, 18),
+		Size = 1.2,
+		Lifetime = NumberRange.new(0.4, 0.8),
+		LightEmission = 0,
+		Drag = 5,
+		Spread = Vector2.new(85, 85),
+		Acceleration = Vector3.new(0, 4, 0),
+	})
+end
+
+---------------------------------------------------------------------
+-- Тряска камеры
+---------------------------------------------------------------------
+
+local shakes = {}
+
+function AbilityFx.Shake(intensity: number, duration: number)
+	table.insert(shakes, { intensity = intensity, duration = duration, start = os.clock() })
+end
+
+RunService:BindToRenderStep("AbilityCameraShake", Enum.RenderPriority.Camera.Value + 1, function()
+	if #shakes == 0 then
+		return
+	end
+	local now = os.clock()
+	local amount = 0
+	for i = #shakes, 1, -1 do
+		local s = shakes[i]
+		local k = 1 - (now - s.start) / s.duration
+		if k <= 0 then
+			table.remove(shakes, i)
+		else
+			amount += s.intensity * k
+		end
+	end
+	if amount > 0 then
+		local camera = workspace.CurrentCamera
+		local x = math.noise(now * 25, 1.3) * amount
+		local y = math.noise(now * 25, 7.1) * amount
+		local z = math.noise(now * 25, 3.7) * amount * 0.5
+		camera.CFrame = camera.CFrame * CFrame.Angles(x, y, z)
+	end
+end)
+
+---------------------------------------------------------------------
+-- Плавные функции
+---------------------------------------------------------------------
+
+function AbilityFx.ElasticOut(t: number): number
+	if t <= 0 then
+		return 0
+	elseif t >= 1 then
+		return 1
+	end
+	return 2 ^ (-10 * t) * math.sin((t * 10 - 0.75) * (2 * math.pi / 3)) + 1
+end
+
+function AbilityFx.BackIn(t: number): number
+	t = math.clamp(t, 0, 1)
+	local c1 = 1.70158
+	return (c1 + 1) * t * t * t - c1 * t * t
+end
+
+function AbilityFx.Approach(current: number, target: number, step: number): number
+	if current < target then
+		return math.min(target, current + step)
+	end
+	return math.max(target, current - step)
+end
+
+return AbilityFx
 ]]></ProtectedString></Properties></Item></Item><Item class="ServerScriptService" referent="RBX39"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="ModuleScript" referent="RBX20"><Properties><string name="Name">AbilityRegistry</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ServerScriptService > AbilityRegistry
 -- Связывает серверные скрипты способностей между собой:
 --   * одна способность может мгновенно выключить другую (куб выключает полёт и невидимость);
