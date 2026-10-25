@@ -1,6 +1,6 @@
 # Система поз для Roblox: сесть, лечь, встать на колени
 
-**Все механики подробно — в [`MECHANICS.md`](MECHANICS.md). Инструкция для Claude в Studio — в [`STUDIO_CLAUDE.md`](STUDIO_CLAUDE.md).**
+**Все механики подробно — в [`MECHANICS.md`](MECHANICS.md). Меню отладки — клавиша F2 (раздел 12 там же). Инструкция для Claude в Studio — в [`STUDIO_CLAUDE.md`](STUDIO_CLAUDE.md).**
 
 Управление двумя кнопками:
 
@@ -250,10 +250,10 @@ RemoteEvent `PoseRequest` сервер создаёт сам.
 
 | Где | Тип | Имена |
 |---|---|---|
-| ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `NPCConfig`, `VehicleConfig`, `SoundConfig`, `WeatherConfig`, `CityConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
+| ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `NPCConfig`, `VehicleConfig`, `SoundConfig`, `WeatherConfig`, `CityConfig`, `DebugConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
 | ServerScriptService | ModuleScript | `AbilityRegistry`, `NPCRegistry`, `VehicleDefaults` |
-| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCServer`, `NPCDoors`, `NPCDemo`, `DayNightServer`, `TrafficServer`, `WeatherServer`, `PhoneServer`, `CityLifeServer` |
-| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient`, `VehicleClient`, `PoliceDeskClient`, `WeatherClient`, `PhoneClient`, `CityLifeClient` |
+| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCServer`, `NPCDoors`, `NPCDemo`, `DayNightServer`, `TrafficServer`, `WeatherServer`, `PhoneServer`, `CityLifeServer`, `DebugServer` |
+| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient`, `VehicleClient`, `PoliceDeskClient`, `WeatherClient`, `PhoneClient`, `CityLifeClient`, `DebugClient` |
 
 - `RigAnimator` — общий движок анимаций способностей. Он смешивает анимации разных способностей и не мешает системе поз.
 - `AbilityFx` — частицы, пыль и тряска камеры.

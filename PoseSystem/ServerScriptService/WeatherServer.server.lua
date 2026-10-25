@@ -79,6 +79,17 @@ local function setWeather(key: string)
 end
 setWeather(currentKey)
 
+-- Меню отладки: ForceWeather = ключ — погода включается сразу, без плавного перехода
+workspace:GetAttributeChangedSignal("ForceWeather"):Connect(function()
+	local key = workspace:GetAttribute("ForceWeather")
+	local t = type(key) == "string" and Config.Types[key]
+	if t then
+		setWeather(key)
+		state = { rain = t.Rain, clouds = t.Clouds, fog = t.Fog, brightness = t.Brightness }
+		workspace:SetAttribute("ForceWeather", nil)
+	end
+end)
+
 -- Смена погоды по расписанию
 task.spawn(function()
 	while true do

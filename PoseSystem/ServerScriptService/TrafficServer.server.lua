@@ -1052,6 +1052,8 @@ local function drive(car, spec): boolean
 	if spec.spot then
 		spec.spot.car = car -- бронь места
 	end
+	car.debugTo = toNode
+	car.debugPath = path
 	car.track = buildTrack(car.pos, car.look, path, spec, pullOut)
 	car.s = 0
 	car.stuck = 0
@@ -1644,6 +1646,9 @@ local recentEvents = {} -- для «Что нового в городе?»
 local jailed = {} -- [npc] = true
 
 local function addEvent(text: string)
+	if Registry.debugEvent then
+		Registry.debugEvent("🚔 " .. text)
+	end
 	table.insert(recentEvents, 1, text)
 	if #recentEvents > 4 then
 		table.remove(recentEvents)
@@ -2033,7 +2038,7 @@ local function openDesk(player: Player)
 end
 
 -- Новое заявление (от дежурного или с телефона). Возвращает ответ дежурного.
-local function createReport(player: Player, typeIndex: any, placeIndex: any): string?
+local function createReport(player: Player, typeIndex: any, placeIndex: any, force: boolean?): string?
 	local kind = type(typeIndex) == "number" and Config.PoliceCallTypes[typeIndex] or nil
 	local place = type(placeIndex) == "number" and places[placeIndex] or nil
 	if not kind or not place then
@@ -2046,7 +2051,7 @@ local function createReport(player: Player, typeIndex: any, placeIndex: any): st
 			active += 1
 		end
 	end
-	if now < (reportCooldown[player] or 0) or active >= 3 then
+	if not force and (now < (reportCooldown[player] or 0) or active >= 3) then
 		return "Подождите, мы ещё работаем по вашим заявлениям."
 	end
 	reportCooldown[player] = now + 15
@@ -2461,6 +2466,64 @@ local function phoneSend(player: Player, action: string, payload)
 	if phone and player.Parent then
 		phone:FireClient(player, action, payload)
 	end
+end
+
+-- Для меню отладки: вызов полиции без ограничений (место — ближайшее к игроку)
+function Registry.debugPoliceCall(player: Player, typeIndex: number): string?
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local best, bestDist = 1, math.huge
+	for i, place in places do
+		local d = root and (place.pos - root.Position).Magnitude or i
+		if d < bestDist then
+			best, bestDist = i, d
+		end
+	end
+	local answer = createReport(player, typeIndex, best, true)
+	if answer then
+		phoneSend(player, "PoliceAnswer", answer)
+	end
+	return answer and (places[best].name .. ": " .. answer) or "Нет мест (Places) или такого вида вызова"
+end
+
+-- Для меню отладки: все машины и их маршруты
+function Registry.debugCars()
+	local out = {}
+	for i, car in cars do
+		if car.model and car.model.Parent then
+			local route = {}
+			for _, name in car.debugPath or {} do
+				local n = nodes[name]
+				if n then
+					table.insert(route, n.pos)
+				end
+			end
+			table.insert(out, {
+				id = i,
+				kind = car.kind,
+				state = car.state,
+				speed = math.floor((car.v or 0) * 10) / 10,
+				pos = car.pos,
+				to = car.debugTo,
+				route = route,
+				driver = car.driver and car.driver.name or nil,
+				siren = car.model:GetAttribute("Siren") == true,
+				model = car.model,
+			})
+		end
+	end
+	return out
+end
+function Registry.debugNodes()
+	local out = {}
+	for name, n in pairs(nodes) do
+		local links = {}
+		for other in pairs(n.links) do
+			table.insert(links, other)
+		end
+		out[name] = { pos = n.pos, links = links }
+	end
+	return out
 end
 
 function Registry.phoneData(player: Player)

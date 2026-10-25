@@ -163,6 +163,9 @@ local function addStat(player: Player, stat: string, amount: number?)
 			changed = true
 			giveCoins(player, a.Reward)
 			remote:FireClient(player, "Achievement", { icon = a.Icon, name = a.Name, reward = a.Reward })
+			if Registry.debugEvent then
+				Registry.debugEvent(string.format("🏆 %s: достижение «%s»", player.Name, a.Name))
+			end
 		end
 	end
 	if changed then
@@ -860,6 +863,16 @@ end
 ---------------------------------------------------------------------
 
 Registry.cityData = cityData
+
+-- Меню отладки: сбросить прогресс игрока (вещи, достижения, счётчики)
+Registry.cityReset = function(player: Player)
+	local p = profileOf(player)
+	p.stats, p.done, p.owned, p.equipped = {}, {}, {}, {}
+	applyCosmetics(player)
+	push(player)
+end
+-- Меню отладки: добавить к счётчику (проверка достижений)
+Registry.cityAddStat = addStat
 Registry.cityAction = function(player: Player, action: string, a: any)
 	if action == "Job" then
 		startJob(player)

@@ -15,6 +15,7 @@
 9. Звуки
 10. Все клавиши
 11. Все скрипты
+12. Меню отладки (F2)
 
 ---
 
@@ -228,16 +229,38 @@
 | E | Поговорить, открыть дверь, такси, автобус, дежурный, взять посылку |
 | P | Телефон (в фоторежиме — выйти) |
 | Enter | Сделать фото (в фоторежиме) |
+| F2 | Меню отладки (только админ) |
 
 ---
 
-## 11. Все скрипты (40)
+## 11. Все скрипты (43)
 
 | Где | Тип | Имена |
 |---|---|---|
-| ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `NPCConfig`, `VehicleConfig`, `SoundConfig`, `WeatherConfig`, `CityConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
+| ReplicatedStorage | ModuleScript | `PoseConfig`, `InvisibilityConfig`, `LaserConfig`, `FlightConfig`, `CubeConfig`, `NPCConfig`, `VehicleConfig`, `SoundConfig`, `WeatherConfig`, `CityConfig`, `DebugConfig`, `AbilityButton`, `RigAnimator`, `AbilityFx` |
 | ServerScriptService | ModuleScript | `AbilityRegistry`, `NPCRegistry`, `VehicleDefaults` |
-| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCDemo`, `NPCServer`, `NPCDoors`, `DayNightServer`, `TrafficServer`, `WeatherServer`, `PhoneServer`, `CityLifeServer` |
-| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient`, `VehicleClient`, `PoliceDeskClient`, `WeatherClient`, `PhoneClient`, `CityLifeClient` |
+| ServerScriptService | Script | `PoseServer`, `InvisibilityServer`, `LaserServer`, `FlightServer`, `CubeServer`, `NPCDemo`, `NPCServer`, `NPCDoors`, `DayNightServer`, `TrafficServer`, `WeatherServer`, `PhoneServer`, `CityLifeServer`, `DebugServer` |
+| StarterPlayer → StarterPlayerScripts | LocalScript | `PoseClient`, `InvisibilityClient`, `LaserClient`, `FlightClient`, `CubeClient`, `NPCClient`, `VehicleClient`, `PoliceDeskClient`, `WeatherClient`, `PhoneClient`, `CityLifeClient`, `DebugClient` |
 
 Все они собраны в один файл `AllScripts.lua`, а готовое место со всеми скриптами — `PoseSystem.rbxlx`.
+
+---
+
+## 12. Меню отладки 🛠
+
+Для быстрой проверки обновлений. Открывается клавишей **F2** или кнопкой 🛠 слева сверху.
+**Видно только тебе:** в Studio — всем (это тест), в опубликованной игре — владельцу игры и тем, чьи UserId вписаны в `DebugConfig.Admins`. Обычные игроки кнопку не видят, а сервер не выполнит их команды, даже если они попробуют.
+
+| Вкладка | Что там |
+|---|---|
+| 📋 Новое | Все обновления по версиям: что добавлено и **что проверить**. У каждой проверки кнопка **▶** (сама ставит нужное время, погоду, телепортирует, включает слой) и отметки **✓ работает** / **🐞 баг**. Сверху: «Проверено X из Y, багов Z». Отметки сохраняются |
+| 🌍 Мир | **Время:** поставить 3:00 / 7:00 / 9:30 / 13:30 / 16:00 / 19:00 / 22:00, скорость ⏸ ×1 ×5 ×20 ×60. **Погода:** включить любую сразу. **Полиция:** вызов любого вида рядом с тобой. **Игрок:** +100 монет, сбросить кулдауны, вылечить, заказ курьера, сбросить прогресс. **Телепорт:** к дежурному, в камеру, к остановке, в любое место |
+| 🧑 Жители | Каждый житель: имя, профессия, **что делает сейчас** («🚶 Идёт: Sit (Кафе)», «💬 Болтает», «👮 Под контролем»), зона, дом, настроение, здоровье. 👁 — следить камерой, 📍 — телепорт к нему. Поиск |
+| 🚗 Машины | Каждая машина: тип, состояние, скорость, **к какой точке едет**, водитель, сирена. Стоящие подсвечены. 👁 — следить, 📍 — телепорт |
+| 🗺 Метки | Делает невидимые метки видимыми (только для тебя): **дороги** с именами, связями и стрелками направления (точки без связей — красные), точки жителей с Activity/Zone, появление, двери, парковки, остановки, участок и вызовы, места. У каждой метки линия «куда смотрит передняя грань». **Живые слои:** пути жителей (линия к цели), маршруты машин, ярлыки над головами «что делает» |
+| 🖥 Output | Все сообщения сервера (S) и клиента (C): print, предупреждения, ошибки скриптов, события игры (вызовы полиции, достижения, смена погоды и периода). Фильтры: ошибки, предупреждения, события, клиент/сервер, `[NPC]`, `[Traffic]`... Поиск, пауза, очистка, **«Текстом»** — скопировать и прислать Claude. Красный счётчик ошибок на кнопке 🛠 |
+| ✅ Проверка | Автопроверка: все ли 43 скрипта на месте и без копий, ошибки в Output, точки появления, дома без кровати (Lie), зоны для дня, двери, точки дорог без связей, разорванные дороги, кольца и развороты, развороты посреди дороги, парковки каждого типа, остановки, участок (Desk, Cell, Idle), «Почта», шаблоны машин (Body, Seat_Driver), пустые звуки, сохранение. ✅ / ⚠️ / ❌ |
+
+Снизу всегда видно: FPS клиента и сервера, память, сколько жителей и машин, время и скорость, пинг.
+
+**Настройки:** `DebugConfig` — клавиша, список админов, список обновлений с проверками.

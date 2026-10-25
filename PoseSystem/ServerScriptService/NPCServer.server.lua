@@ -1002,6 +1002,7 @@ end
 ---------------------------------------------------------------------
 
 local function walkTo(npc, target: Vector3): boolean
+	npc.debugGoal = target
 	local humanoid, hrp = npc.humanoid, npc.hrp
 	local path = PathfindingService:CreatePath({
 		AgentRadius = Config.AgentRadius,
@@ -1491,6 +1492,7 @@ local function brain(npc)
 		local now = os.clock()
 		if now < npc.fleeUntil then
 			-- Убегаем подальше
+			npc.debugAction = "😱 Убегает"
 			standUp(npc)
 			setMood(npc, "Scared", 5)
 			sfx(npc, "Scream")
@@ -1506,6 +1508,10 @@ local function brain(npc)
 		end
 
 		-- Ночью у кого есть дом — идут спать
+		npc.debugAction = "🤔 Выбирает, куда пойти"
+		if isNight() and npc.homeZone then
+			npc.debugAction = "💤 Сон (ночь)"
+		end
 		if isNight() and npc.homeZone and goSleep(npc) then
 			continue
 		end
@@ -1513,9 +1519,11 @@ local function brain(npc)
 		-- Работа или обход маршрута (между ними — перерывы)
 		if not npc.onBreak then
 			if npc.job and isWorkTime() then
+				npc.debugAction = "💼 Работа"
 				doWork(npc)
 				continue
 			elseif npc.route then
+				npc.debugAction = "🛡 Обход маршрута"
 				doPatrol(npc)
 				continue
 			end
@@ -1529,11 +1537,14 @@ local function brain(npc)
 		end
 		point.occupants += 1
 		npc.point = point
+		npc.debugAction = string.format("🚶 Идёт: %s (%s)", point.part:IsA("Seat") and "Стул" or tostring(point.activity), tostring(point.zone or "Street"))
 		local arrived = travelTo(npc, approachPosition(point))
 		if arrived and not shouldStop(npc) then
 			if point.zone ~= nil then
 				npc.zone = point.zone
 			end
+			npc.debugAction = string.format("📍 %s (%s)", point.part:IsA("Seat") and "Сидит на стуле" or tostring(point.activity), tostring(point.zone or "Street"))
+			npc.debugGoal = nil
 			doActivity(npc, point)
 		end
 		point.occupants = math.max(0, point.occupants - 1)
@@ -2393,6 +2404,46 @@ Registry.findResident = function(zone: string?, near: Vector3, radius: number)
 		end
 	end
 	return best
+end
+-- Для меню отладки: что делает каждый житель
+Registry.debugNPCs = function()
+	local out = {}
+	for model, npc in pairs(npcs) do
+		if npc.alive and model.Parent then
+			local action = npc.debugAction or "—"
+			if npc.controlled then
+				action = "👮 Под контролем: " .. tostring(npc.controlled)
+			elseif npc.inVehicle then
+				action = "🚗 В машине"
+			elseif npc.lock == "chat" then
+				action = "💬 Болтает"
+			elseif npc.lock == "player" or npc.talkingTo then
+				action = "🗨 Говорит с игроком"
+			elseif npc.following then
+				action = "😊 Идёт за игроком"
+			elseif npc.sleeping then
+				action = "💤 Спит"
+			end
+			table.insert(out, {
+				name = npc.name,
+				title = npc.title,
+				model = model,
+				pos = npc.hrp.Position,
+				goal = npc.debugGoal,
+				action = action,
+				zone = npc.zone,
+				home = npc.homeZone,
+				mood = model:GetAttribute("Mood"),
+				officer = npc.officer and true or false,
+				quest = npc.hasQuest,
+				health = math.floor(npc.humanoid.Health),
+			})
+		end
+	end
+	table.sort(out, function(a, b)
+		return a.name < b.name
+	end)
+	return out
 end
 Registry.say = say
 Registry.toast = toast

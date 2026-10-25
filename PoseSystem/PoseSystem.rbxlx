@@ -1,4 +1,4 @@
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Workspace" referent="RBX3"><Properties><string name="Name">Workspace</string></Properties><Item class="Part" referent="RBX1"><Properties><string name="Name">Baseplate</string><bool name="Anchored">true</bool><CoordinateFrame name="CFrame"><X>0</X><Y>-4</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Vector3 name="size"><X>512</X><Y>8</Y><Z>512</Z></Vector3><Color3uint8 name="Color3uint8">4284702562</Color3uint8><bool name="Locked">true</bool></Properties></Item><Item class="SpawnLocation" referent="RBX2"><Properties><string name="Name">SpawnLocation</string><bool name="Anchored">true</bool><CoordinateFrame name="CFrame"><X>0</X><Y>0.5</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Vector3 name="size"><X>12</X><Y>1</Y><Z>12</Z></Vector3><Color3uint8 name="Color3uint8">4293322470</Color3uint8></Properties></Item></Item><Item class="ReplicatedStorage" referent="RBX17"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="ModuleScript" referent="RBX4"><Properties><string name="Name">PoseConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > PoseConfig
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Workspace" referent="RBX3"><Properties><string name="Name">Workspace</string></Properties><Item class="Part" referent="RBX1"><Properties><string name="Name">Baseplate</string><bool name="Anchored">true</bool><CoordinateFrame name="CFrame"><X>0</X><Y>-4</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Vector3 name="size"><X>512</X><Y>8</Y><Z>512</Z></Vector3><Color3uint8 name="Color3uint8">4284702562</Color3uint8><bool name="Locked">true</bool></Properties></Item><Item class="SpawnLocation" referent="RBX2"><Properties><string name="Name">SpawnLocation</string><bool name="Anchored">true</bool><CoordinateFrame name="CFrame"><X>0</X><Y>0.5</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Vector3 name="size"><X>12</X><Y>1</Y><Z>12</Z></Vector3><Color3uint8 name="Color3uint8">4293322470</Color3uint8></Properties></Item></Item><Item class="ReplicatedStorage" referent="RBX18"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="ModuleScript" referent="RBX4"><Properties><string name="Name">PoseConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > PoseConfig
 -- Общие настройки системы поз (сидеть / лежать / на коленях).
 -- Используется и сервером, и клиентом.
 
@@ -1776,7 +1776,133 @@ CityConfig.SaveEnabled = true
 CityConfig.DataStoreName = "CityLife_v1"
 
 return CityConfig
-]]></ProtectedString></Properties></Item></Item><Item class="ServerScriptService" referent="RBX34"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="ModuleScript" referent="RBX18"><Properties><string name="Name">AbilityRegistry</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ServerScriptService > AbilityRegistry
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX17"><Properties><string name="Name">DebugConfig</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ReplicatedStorage > DebugConfig
+-- Меню отладки для владельца игры: клавиша F2 или кнопка 🛠 (видна только админам).
+--
+-- Кто видит меню:
+--   * в Roblox Studio — все (это твой тест);
+--   * в опубликованной игре — владелец игры (или владелец группы) и UserId из списка Admins.
+
+local DebugConfig = {}
+
+DebugConfig.Enabled = true
+DebugConfig.Key = Enum.KeyCode.F2
+DebugConfig.Admins = {
+	-- 123456789, -- впиши сюда UserId тех, кому можно открывать меню
+}
+DebugConfig.AllInStudio = true -- в Studio меню доступно всем
+DebugConfig.GroupMinRank = 255 -- если игра группы: с какого ранга группы открывается (255 = только владелец)
+DebugConfig.LogLimit = 400 -- сколько строк Output хранить
+
+-- Теги в Output, по которым удобно фильтровать
+DebugConfig.LogTags = { "[NPC]", "[Traffic]", "[CityLife]", "[RigAnimator]", "[Debug]" }
+
+--[[
+	ЧТО НОВОГО — список обновлений с проверками.
+	Каждое обновление: Version, Title, Items (что добавлено) и Tests (что проверить).
+	Тест: Text — что сделать и что должно получиться;
+	      Action (необязательно) — кнопка «▶», которая сразу всё подготовит:
+	        SetHour (Arg = час), TimeScale (Arg = множитель), Weather (Arg = ключ погоды),
+	        PoliceCall (Arg = номер вида вызова из VehicleConfig.PoliceCallTypes),
+	        Coins (Arg = сколько), Teleport (Arg = "Desk" / "Cell" / "Place:Почта" / "Stop:1" / "Node:N1"),
+	        StartJob, ResetCooldowns, ResetCity, AddStat (Arg = "Fly:30"), Overlay (Arg = слой карты), Tab (Arg = вкладка)
+	Новое обновление — добавь в НАЧАЛО списка.
+]]
+DebugConfig.Changelog = {
+	{
+		Version = "1.9",
+		Title = "Меню отладки",
+		Items = { "Меню F2: обновления, мир, жители, машины, метки, Output, проверка карты" },
+		Tests = {
+			{ Text = "Включи слой «Дороги»: видны точки, связи и имена", Action = "Overlay", Arg = "Roads" },
+			{ Text = "Вкладка «Жители»: у каждого видно, что делает", Action = "Tab", Arg = "npcs" },
+			{ Text = "Время ×20: сутки пролетают за минуту", Action = "TimeScale", Arg = 20 },
+			{ Text = "Вкладка «Проверка»: нет красных пунктов", Action = "Tab", Arg = "check" },
+		},
+	},
+	{
+		Version = "1.8",
+		Title = "Жизнь в городе",
+		Items = { "📦 Курьер", "🛍 Магазин аксессуаров", "🏆 17 достижений", "📷 Фоторежим", "💾 Сохранение" },
+		Tests = {
+			{ Text = "Начни заказ: коробка на «Почте», по E — в руках, получатель подсвечен", Action = "StartJob" },
+			{ Text = "Получи 200 монет и купи кепку в 🛍 Магазине — она ровно на голове", Action = "Coins", Arg = 200 },
+			{ Text = "Достижение «Первый полёт»: выезжает золотое окно", Action = "AddStat", Arg = "Fly:30" },
+			{ Text = "📷 Камера в телефоне: фильтры, селфи, жители машут" },
+			{ Text = "Невидимость (Q) прячет аксессуары" },
+			{ Text = "Сбросить прогресс — вещи и награды пропали", Action = "ResetCity" },
+		},
+	},
+	{
+		Version = "1.7",
+		Title = "Телефон",
+		Items = { "📱 Телефон на P: карта, такси, полиция, автобус, сообщения, погода, задания, настройки" },
+		Tests = {
+			{ Text = "P: экран блокировки → нажать → рабочий стол" },
+			{ Text = "🗺 Карта: дороги, ты, машины движутся" },
+			{ Text = "🚕 Такси: вызов, такси приезжает к тебе", Action = "Coins", Arg = 20 },
+			{ Text = "💬 Сообщения: знакомый житель пишет сам (подожди 1–2 мин)" },
+		},
+	},
+	{
+		Version = "1.6",
+		Title = "Расписание и погода",
+		Items = { "Утро, день, обед, вечер, ночь, выходные", "Ясно, облачно, дождь, гроза, туман" },
+		Tests = {
+			{ Text = "Обед 13:30: жители в кафе садятся за столы", Action = "SetHour", Arg = 13.5 },
+			{ Text = "Ночь 22:00: жители идут спать домой, горят фонари", Action = "SetHour", Arg = 22 },
+			{ Text = "Утро 7:00: просыпаются, «Доброе утро!»", Action = "SetHour", Arg = 7 },
+			{ Text = "Гроза: дождь, молнии, зонты, жители уходят под крышу", Action = "Weather", Arg = "Storm" },
+			{ Text = "Туман: дымка, машины медленнее и с фарами", Action = "Weather", Arg = "Fog" },
+			{ Text = "Ясно — вернуть погоду", Action = "Weather", Arg = "Clear" },
+		},
+	},
+	{
+		Version = "1.5",
+		Title = "Полиция",
+		Items = { "Участок: дежурный за стойкой, офицеры ходят по кабинетам", "Вызовы, опрос, задержания, камера", "Без разворотов на дороге" },
+		Tests = {
+			{ Text = "Телепорт к дежурному: стоит за стойкой лицом к входу, по E — меню", Action = "Teleport", Arg = "Desk" },
+			{ Text = "Вызов «Драка»: наряд выезжает, встаёт порознь у двери, опрос", Action = "PoliceCall", Arg = 4 },
+			{ Text = "Камера: задержанный сидит, потом выходит", Action = "Teleport", Arg = "Cell" },
+			{ Text = "Слой «Маршруты машин»: никто не разворачивается посреди дороги", Action = "Overlay", Arg = "CarRoutes" },
+		},
+	},
+	{
+		Version = "1.4",
+		Title = "Транспорт",
+		Items = { "Машины жителей, поток машин, такси, автобус, полиция, светофоры, звуки" },
+		Tests = {
+			{ Text = "Вкладка «Машины»: все едут, нет «застрявших» со скоростью 0 надолго", Action = "Tab", Arg = "cars" },
+			{ Text = "Остановка 1: автобус приезжает, открывает двери", Action = "Teleport", Arg = "Stop:1" },
+			{ Text = "Слой «Парковки»: у каждой видно тип", Action = "Overlay", Arg = "Parking" },
+		},
+	},
+	{
+		Version = "1.3",
+		Title = "Жители",
+		Items = { "Ходят по домам, двери, стулья, болтовня, разговоры, задания, дружба, работа, собаки, реакции" },
+		Tests = {
+			{ Text = "Слой «Точки жителей»: у каждой точки видно Activity и Zone", Action = "Overlay", Arg = "Points" },
+			{ Text = "Слой «Пути жителей»: линии к цели, без застреваний", Action = "Overlay", Arg = "NPCPaths" },
+			{ Text = "Садятся на стул лицом вперёд, по одному на место" },
+			{ Text = "E у жителя: окно разговора, «Пойдём со мной!» работает" },
+		},
+	},
+	{
+		Version = "1.0",
+		Title = "Способности",
+		Items = { "Позы (C/X), невидимость (Q), лазеры (R), полёт (F), куб (T)" },
+		Tests = {
+			{ Text = "Сбросить кулдауны и проверить все способности подряд", Action = "ResetCooldowns" },
+			{ Text = "Лазер по жителю: вскрикивает и убегает" },
+			{ Text = "Жители реагируют на полёт и куб" },
+		},
+	},
+}
+
+return DebugConfig
+]]></ProtectedString></Properties></Item></Item><Item class="ServerScriptService" referent="RBX36"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="ModuleScript" referent="RBX19"><Properties><string name="Name">AbilityRegistry</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ServerScriptService > AbilityRegistry
 -- Связывает серверные скрипты способностей между собой:
 --   * одна способность может мгновенно выключить другую (куб выключает полёт и невидимость);
 --   * способности могут поднять персонажа из позы (сидя/лёжа).
@@ -1820,7 +1946,7 @@ function AbilityRegistry.BlocksPose(character: Model): boolean
 end
 
 return AbilityRegistry
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX19"><Properties><string name="Name">NPCRegistry</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ServerScriptService > NPCRegistry
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX20"><Properties><string name="Name">NPCRegistry</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ServerScriptService > NPCRegistry
 -- Мост между жителями (NPCServer) и транспортом (TrafficServer).
 -- NPCServer кладёт сюда свои функции, TrafficServer — свои, и они вызывают друг друга.
 
@@ -1843,7 +1969,7 @@ NPCRegistry.assignCar = nil
 NPCRegistry.tryTrip = nil
 
 return NPCRegistry
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX20"><Properties><string name="Name">VehicleDefaults</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ServerScriptService > VehicleDefaults
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX21"><Properties><string name="Name">VehicleDefaults</string><ProtectedString name="Source"><![CDATA[-- ModuleScript: ServerScriptService > VehicleDefaults
 -- Простые шаблоны машин из деталей — на случай, если в ServerStorage > VehicleTemplates
 -- ещё нет своих. Собраны строго по правилам из VEHICLE_SETUP.md, поэтому по ним же
 -- удобно проверять свои шаблоны.
@@ -2016,7 +2142,7 @@ function VehicleDefaults.Build(): { Model }
 end
 
 return VehicleDefaults
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX21"><Properties><string name="Name">PoseServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > PoseServer
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX22"><Properties><string name="Name">PoseServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > PoseServer
 -- Сервер: принимает запросы «вниз/вверх/встать», проверяет их,
 -- выставляет атрибут позы персонажу (его видят все игроки) и блокирует ходьбу.
 
@@ -2154,7 +2280,7 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	lastRequest[player] = nil
 end)
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX22"><Properties><string name="Name">InvisibilityServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > InvisibilityServer
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX23"><Properties><string name="Name">InvisibilityServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > InvisibilityServer
 -- Сервер ведёт таймеры невидимости и кулдауна. Сами эффекты рисует
 -- каждый клиент по атрибутам: себе — «стекло», другим — полная невидимость.
 
@@ -2260,7 +2386,7 @@ Players.PlayerRemoving:Connect(function(player)
 	lastRequest[player] = nil
 	tokens[player] = nil
 end)
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX23"><Properties><string name="Name">LaserServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > LaserServer
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX24"><Properties><string name="Name">LaserServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > LaserServer
 -- Сервер ведёт таймеры лазеров, принимает прицел от игрока и наносит урон.
 -- Лучи и искры рисует каждый клиент по атрибутам персонажа.
 
@@ -2440,7 +2566,7 @@ Players.PlayerRemoving:Connect(function(player)
 	tokens[player] = nil
 	firing[player] = nil
 end)
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX24"><Properties><string name="Name">FlightServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > FlightServer
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX25"><Properties><string name="Name">FlightServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > FlightServer
 -- Сервер ведёт таймеры полёта. Саму физику полёта считает клиент игрока
 -- (персонаж принадлежит ему), анимации рисует каждый клиент.
 
@@ -2548,7 +2674,7 @@ Players.PlayerRemoving:Connect(function(player)
 	lastRequest[player] = nil
 	tokens[player] = nil
 end)
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX25"><Properties><string name="Name">CubeServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > CubeServer
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX26"><Properties><string name="Name">CubeServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > CubeServer
 -- Превращение в куб. Сервер создаёт сам куб (его видят все), с лицом и
 -- светящимися рёбрами, и меняет скорость/прыжок. Тело прячут клиенты,
 -- а подскоки, сплющивание и сальто куба тоже рисуются на клиентах.
@@ -2786,7 +2912,7 @@ Players.PlayerRemoving:Connect(function(player)
 	lastRequest[player] = nil
 	tokens[player] = nil
 end)
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX26"><Properties><string name="Name">NPCDemo</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > NPCDemo
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX27"><Properties><string name="Name">NPCDemo</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > NPCDemo
 -- Демо-городок для проверки жителей: два дома с дверями, мебелью и окнами,
 -- улица с фонтаном, скамейками и фонарями, и все точки для NPC.
 -- Строится ТОЛЬКО если на карте ещё нет папки Workspace > NPCSystem.
@@ -3219,7 +3345,7 @@ place("Ларёк с мороженым", Vector3.new(-30, 0.1, 2))
 place("Северная улица", Vector3.new(5, 0.1, 22))
 
 traffic.Parent = workspace
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX27"><Properties><string name="Name">NPCServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > NPCServer
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX28"><Properties><string name="Name">NPCServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > NPCServer
 -- Жители города (NPC):
 --   * появляются на точках Spawns, «просыпаются» (лёжа → на колени → встают);
 --   * ходят по точкам Points с поиском пути: по дому, потом на улицу, в другие дома;
@@ -4223,6 +4349,7 @@ end
 ---------------------------------------------------------------------
 
 local function walkTo(npc, target: Vector3): boolean
+	npc.debugGoal = target
 	local humanoid, hrp = npc.humanoid, npc.hrp
 	local path = PathfindingService:CreatePath({
 		AgentRadius = Config.AgentRadius,
@@ -4712,6 +4839,7 @@ local function brain(npc)
 		local now = os.clock()
 		if now < npc.fleeUntil then
 			-- Убегаем подальше
+			npc.debugAction = "😱 Убегает"
 			standUp(npc)
 			setMood(npc, "Scared", 5)
 			sfx(npc, "Scream")
@@ -4727,6 +4855,10 @@ local function brain(npc)
 		end
 
 		-- Ночью у кого есть дом — идут спать
+		npc.debugAction = "🤔 Выбирает, куда пойти"
+		if isNight() and npc.homeZone then
+			npc.debugAction = "💤 Сон (ночь)"
+		end
 		if isNight() and npc.homeZone and goSleep(npc) then
 			continue
 		end
@@ -4734,9 +4866,11 @@ local function brain(npc)
 		-- Работа или обход маршрута (между ними — перерывы)
 		if not npc.onBreak then
 			if npc.job and isWorkTime() then
+				npc.debugAction = "💼 Работа"
 				doWork(npc)
 				continue
 			elseif npc.route then
+				npc.debugAction = "🛡 Обход маршрута"
 				doPatrol(npc)
 				continue
 			end
@@ -4750,11 +4884,14 @@ local function brain(npc)
 		end
 		point.occupants += 1
 		npc.point = point
+		npc.debugAction = string.format("🚶 Идёт: %s (%s)", point.part:IsA("Seat") and "Стул" or tostring(point.activity), tostring(point.zone or "Street"))
 		local arrived = travelTo(npc, approachPosition(point))
 		if arrived and not shouldStop(npc) then
 			if point.zone ~= nil then
 				npc.zone = point.zone
 			end
+			npc.debugAction = string.format("📍 %s (%s)", point.part:IsA("Seat") and "Сидит на стуле" or tostring(point.activity), tostring(point.zone or "Street"))
+			npc.debugGoal = nil
 			doActivity(npc, point)
 		end
 		point.occupants = math.max(0, point.occupants - 1)
@@ -5615,6 +5752,46 @@ Registry.findResident = function(zone: string?, near: Vector3, radius: number)
 	end
 	return best
 end
+-- Для меню отладки: что делает каждый житель
+Registry.debugNPCs = function()
+	local out = {}
+	for model, npc in pairs(npcs) do
+		if npc.alive and model.Parent then
+			local action = npc.debugAction or "—"
+			if npc.controlled then
+				action = "👮 Под контролем: " .. tostring(npc.controlled)
+			elseif npc.inVehicle then
+				action = "🚗 В машине"
+			elseif npc.lock == "chat" then
+				action = "💬 Болтает"
+			elseif npc.lock == "player" or npc.talkingTo then
+				action = "🗨 Говорит с игроком"
+			elseif npc.following then
+				action = "😊 Идёт за игроком"
+			elseif npc.sleeping then
+				action = "💤 Спит"
+			end
+			table.insert(out, {
+				name = npc.name,
+				title = npc.title,
+				model = model,
+				pos = npc.hrp.Position,
+				goal = npc.debugGoal,
+				action = action,
+				zone = npc.zone,
+				home = npc.homeZone,
+				mood = model:GetAttribute("Mood"),
+				officer = npc.officer and true or false,
+				quest = npc.hasQuest,
+				health = math.floor(npc.humanoid.Health),
+			})
+		end
+	end
+	table.sort(out, function(a, b)
+		return a.name < b.name
+	end)
+	return out
+end
 Registry.say = say
 Registry.toast = toast
 Registry.addCoins = addCoins
@@ -5648,7 +5825,7 @@ for _, spawnPart in spawnList do
 		task.wait(0.3)
 	end
 end
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX28"><Properties><string name="Name">NPCDoors</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > NPCDoors
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX29"><Properties><string name="Name">NPCDoors</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > NPCDoors
 -- Двери из Workspace > NPCSystem > Doors:
 --   * жители открывают их сами, когда подходят, и закрывают за собой;
 --   * игроки открывают и закрывают кнопкой E;
@@ -5859,7 +6036,7 @@ RunService.Heartbeat:Connect(function(dt)
 		end
 	end
 end)
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX29"><Properties><string name="Name">DayNightServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > DayNightServer
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX30"><Properties><string name="Name">DayNightServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > DayNightServer
 -- Смена дня и ночи: время идёт само (NPCConfig.DayLengthMinutes),
 -- ночью включаются детали с атрибутом NightLight = true (фонари, окна, вывески).
 -- Атрибут Workspace.IsNight подсказывает жителям, что пора спать.
@@ -5968,7 +6145,10 @@ RunService.Heartbeat:Connect(function(dt)
 		return
 	end
 	local before = Lighting.ClockTime
-	Lighting.ClockTime = (Lighting.ClockTime + pending * hoursPerSecond) % 24
+	-- TimeScale — ускорение времени из меню отладки (1 = обычно, 0 = пауза)
+	local scale = workspace:GetAttribute("TimeScale")
+	scale = type(scale) == "number" and scale or 1
+	Lighting.ClockTime = (Lighting.ClockTime + pending * hoursPerSecond * scale) % 24
 	pending = 0
 	if Lighting.ClockTime < before then
 		day += 1 -- полночь: новый день недели
@@ -5981,7 +6161,7 @@ RunService.Heartbeat:Connect(function(dt)
 		applyLights(night)
 	end
 end)
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX30"><Properties><string name="Name">TrafficServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > TrafficServer
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX31"><Properties><string name="Name">TrafficServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > TrafficServer
 -- Транспорт города:
 --   * машины едут по дорогам (Workspace > TrafficSystem > Roads) без физики колёс:
 --     плавно, по правой полосе, со скруглёнными поворотами и поворотниками;
@@ -7035,6 +7215,8 @@ local function drive(car, spec): boolean
 	if spec.spot then
 		spec.spot.car = car -- бронь места
 	end
+	car.debugTo = toNode
+	car.debugPath = path
 	car.track = buildTrack(car.pos, car.look, path, spec, pullOut)
 	car.s = 0
 	car.stuck = 0
@@ -7627,6 +7809,9 @@ local recentEvents = {} -- для «Что нового в городе?»
 local jailed = {} -- [npc] = true
 
 local function addEvent(text: string)
+	if Registry.debugEvent then
+		Registry.debugEvent("🚔 " .. text)
+	end
 	table.insert(recentEvents, 1, text)
 	if #recentEvents > 4 then
 		table.remove(recentEvents)
@@ -8016,7 +8201,7 @@ local function openDesk(player: Player)
 end
 
 -- Новое заявление (от дежурного или с телефона). Возвращает ответ дежурного.
-local function createReport(player: Player, typeIndex: any, placeIndex: any): string?
+local function createReport(player: Player, typeIndex: any, placeIndex: any, force: boolean?): string?
 	local kind = type(typeIndex) == "number" and Config.PoliceCallTypes[typeIndex] or nil
 	local place = type(placeIndex) == "number" and places[placeIndex] or nil
 	if not kind or not place then
@@ -8029,7 +8214,7 @@ local function createReport(player: Player, typeIndex: any, placeIndex: any): st
 			active += 1
 		end
 	end
-	if now < (reportCooldown[player] or 0) or active >= 3 then
+	if not force and (now < (reportCooldown[player] or 0) or active >= 3) then
 		return "Подождите, мы ещё работаем по вашим заявлениям."
 	end
 	reportCooldown[player] = now + 15
@@ -8446,6 +8631,64 @@ local function phoneSend(player: Player, action: string, payload)
 	end
 end
 
+-- Для меню отладки: вызов полиции без ограничений (место — ближайшее к игроку)
+function Registry.debugPoliceCall(player: Player, typeIndex: number): string?
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local best, bestDist = 1, math.huge
+	for i, place in places do
+		local d = root and (place.pos - root.Position).Magnitude or i
+		if d < bestDist then
+			best, bestDist = i, d
+		end
+	end
+	local answer = createReport(player, typeIndex, best, true)
+	if answer then
+		phoneSend(player, "PoliceAnswer", answer)
+	end
+	return answer and (places[best].name .. ": " .. answer) or "Нет мест (Places) или такого вида вызова"
+end
+
+-- Для меню отладки: все машины и их маршруты
+function Registry.debugCars()
+	local out = {}
+	for i, car in cars do
+		if car.model and car.model.Parent then
+			local route = {}
+			for _, name in car.debugPath or {} do
+				local n = nodes[name]
+				if n then
+					table.insert(route, n.pos)
+				end
+			end
+			table.insert(out, {
+				id = i,
+				kind = car.kind,
+				state = car.state,
+				speed = math.floor((car.v or 0) * 10) / 10,
+				pos = car.pos,
+				to = car.debugTo,
+				route = route,
+				driver = car.driver and car.driver.name or nil,
+				siren = car.model:GetAttribute("Siren") == true,
+				model = car.model,
+			})
+		end
+	end
+	return out
+end
+function Registry.debugNodes()
+	local out = {}
+	for name, n in pairs(nodes) do
+		local links = {}
+		for other in pairs(n.links) do
+			table.insert(links, other)
+		end
+		out[name] = { pos = n.pos, links = links }
+	end
+	return out
+end
+
 function Registry.phoneData(player: Player)
 	local placeNames, types, stops = {}, {}, {}
 	for i, place in places do
@@ -8554,7 +8797,7 @@ function Registry.phoneTaxi(player: Player, placeIndex: any)
 	end
 	finish()
 end
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX31"><Properties><string name="Name">WeatherServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > WeatherServer
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX32"><Properties><string name="Name">WeatherServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > WeatherServer
 -- Погода: ясно, облачно, дождь, гроза, туман. Меняется сама и плавно:
 -- облака, туман и яркость солнца перетекают за WeatherConfig.FadeTime секунд.
 -- Атрибуты Workspace для всех скриптов:
@@ -8635,6 +8878,17 @@ local function setWeather(key: string)
 end
 setWeather(currentKey)
 
+-- Меню отладки: ForceWeather = ключ — погода включается сразу, без плавного перехода
+workspace:GetAttributeChangedSignal("ForceWeather"):Connect(function()
+	local key = workspace:GetAttribute("ForceWeather")
+	local t = type(key) == "string" and Config.Types[key]
+	if t then
+		setWeather(key)
+		state = { rain = t.Rain, clouds = t.Clouds, fog = t.Fog, brightness = t.Brightness }
+		workspace:SetAttribute("ForceWeather", nil)
+	end
+end)
+
 -- Смена погоды по расписанию
 task.spawn(function()
 	while true do
@@ -8690,7 +8944,7 @@ RunService.Heartbeat:Connect(function(dt)
 	workspace:SetAttribute("Fog", math.floor(state.fog * 100) / 100)
 	workspace:SetAttribute("Clouds", math.floor(state.clouds * 100) / 100)
 end)
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX32"><Properties><string name="Name">PhoneServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > PhoneServer
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX33"><Properties><string name="Name">PhoneServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > PhoneServer
 -- Телефон игрока: принимает запросы приложений и передаёт их жителям и транспорту.
 --   Open   — данные для приложений (места, виды заявлений, заявления, остановки, друзья)
 --   Taxi   — вызвать такси к себе
@@ -8737,7 +8991,7 @@ end)
 Players.PlayerRemoving:Connect(function(player)
 	last[player] = nil
 end)
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX33"><Properties><string name="Name">CityLifeServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > CityLifeServer
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX34"><Properties><string name="Name">CityLifeServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > CityLifeServer
 -- Новые механики города (настройки — ReplicatedStorage > CityConfig):
 --   📦 Курьер      — забрать посылку на «Почте» и отнести случайному жителю
 --   🛍 Магазин     — аксессуары за монеты (собираются из деталей прямо на персонаже)
@@ -8902,6 +9156,9 @@ local function addStat(player: Player, stat: string, amount: number?)
 			changed = true
 			giveCoins(player, a.Reward)
 			remote:FireClient(player, "Achievement", { icon = a.Icon, name = a.Name, reward = a.Reward })
+			if Registry.debugEvent then
+				Registry.debugEvent(string.format("🏆 %s: достижение «%s»", player.Name, a.Name))
+			end
 		end
 	end
 	if changed then
@@ -9599,6 +9856,16 @@ end
 ---------------------------------------------------------------------
 
 Registry.cityData = cityData
+
+-- Меню отладки: сбросить прогресс игрока (вещи, достижения, счётчики)
+Registry.cityReset = function(player: Player)
+	local p = profileOf(player)
+	p.stats, p.done, p.owned, p.equipped = {}, {}, {}, {}
+	applyCosmetics(player)
+	push(player)
+end
+-- Меню отладки: добавить к счётчику (проверка достижений)
+Registry.cityAddStat = addStat
 Registry.cityAction = function(player: Player, action: string, a: any)
 	if action == "Job" then
 		startJob(player)
@@ -9688,7 +9955,683 @@ game:BindToClose(function()
 	end
 	task.wait(2)
 end)
-]]></ProtectedString></Properties></Item></Item><Item class="StarterPlayer" referent="RBX47"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX46"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX35"><Properties><string name="Name">PoseClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > PoseClient
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX35"><Properties><string name="Name">DebugServer</string><ProtectedString name="Source"><![CDATA[-- Script: ServerScriptService > DebugServer
+-- Меню отладки (клавиша F2) — серверная часть. Доступ только у админов (DebugConfig).
+--   * Output: собирает все сообщения сервера (print, warn, ошибки скриптов) и события игры;
+--   * Мир: время (час, ускорение, пауза), погода, вызов полиции, монеты, кулдауны, телепорт;
+--   * Жители и машины: что делает каждый и куда идёт/едет;
+--   * Проверка: ищет ошибки разметки карты и установки скриптов.
+-- Каждое действие сервер проверяет сам: обычный игрок ничего не сможет вызвать.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LogService = game:GetService("LogService")
+local Lighting = game:GetService("Lighting")
+local ServerStorage = game:GetService("ServerStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+local StarterPlayer = game:GetService("StarterPlayer")
+local DataStoreService = game:GetService("DataStoreService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("DebugConfig"))
+if not Config.Enabled then
+	return
+end
+local NPCConfig = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local VehicleConfig = require(ReplicatedStorage:WaitForChild("VehicleConfig"))
+local SoundConfig = require(ReplicatedStorage:WaitForChild("SoundConfig"))
+local Registry = require(script.Parent:WaitForChild("NPCRegistry"))
+
+local remote = Instance.new("RemoteEvent")
+remote.Name = "DebugRemote"
+remote.Parent = ReplicatedStorage
+
+---------------------------------------------------------------------
+-- Кто админ
+---------------------------------------------------------------------
+
+local admins = {} -- [player] = true
+
+local function checkAdmin(player: Player): boolean
+	if RunService:IsStudio() and Config.AllInStudio then
+		return true
+	end
+	if table.find(Config.Admins, player.UserId) then
+		return true
+	end
+	if game.CreatorType == Enum.CreatorType.User and game.CreatorId == player.UserId then
+		return true
+	end
+	if game.CreatorType == Enum.CreatorType.Group then
+		local ok, rank = pcall(function()
+			return player:GetRankInGroup(game.CreatorId)
+		end)
+		if ok and rank >= Config.GroupMinRank then
+			return true
+		end
+	end
+	return false
+end
+
+---------------------------------------------------------------------
+-- Output сервера и события игры
+---------------------------------------------------------------------
+
+local logs = {} -- { t, kind, text }
+local outbox = {} -- новые строки, которые ещё не отправлены
+local KIND = {
+	[Enum.MessageType.MessageOutput] = "info",
+	[Enum.MessageType.MessageInfo] = "info",
+	[Enum.MessageType.MessageWarning] = "warn",
+	[Enum.MessageType.MessageError] = "error",
+}
+
+local function addLog(kind: string, text: string)
+	local entry = { t = workspace:GetServerTimeNow(), kind = kind, text = text, src = "S" }
+	table.insert(logs, entry)
+	if #logs > Config.LogLimit then
+		table.remove(logs, 1)
+	end
+	table.insert(outbox, entry)
+end
+
+for _, m in LogService:GetLogHistory() do
+	addLog(KIND[m.messageType] or "info", m.message)
+end
+LogService.MessageOut:Connect(function(message, messageType)
+	addLog(KIND[messageType] or "info", message)
+end)
+
+-- События игры (полиция, достижения, погода, время) — отдельным цветом
+Registry.debugEvent = function(text: string)
+	addLog("event", text)
+end
+workspace:GetAttributeChangedSignal("Period"):Connect(function()
+	addLog("event", string.format("🕗 Период: %s (%s)", tostring(workspace:GetAttribute("Period")), tostring(workspace:GetAttribute("Hour"))))
+end)
+workspace:GetAttributeChangedSignal("Weather"):Connect(function()
+	addLog("event", "🌦 Погода: " .. tostring(workspace:GetAttribute("WeatherName")))
+end)
+workspace:GetAttributeChangedSignal("Day"):Connect(function()
+	addLog("event", "📅 Новый день: " .. tostring(workspace:GetAttribute("Day")))
+end)
+
+task.spawn(function()
+	while true do
+		task.wait(0.5)
+		if #outbox > 0 then
+			local batch = outbox
+			outbox = {}
+			for player in pairs(admins) do
+				if player.Parent then
+					remote:FireClient(player, "Logs", batch)
+				end
+			end
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- Производительность
+---------------------------------------------------------------------
+
+local fps, frames, frameTimer = 60, 0, 0
+RunService.Heartbeat:Connect(function(dt)
+	frames += 1
+	frameTimer += dt
+	if frameTimer >= 1 then
+		fps = math.floor(frames / frameTimer)
+		frames, frameTimer = 0, 0
+	end
+end)
+
+local function perf()
+	local npcCount = 0
+	for _ in pairs(Registry.npcs) do
+		npcCount += 1
+	end
+	local root = workspace:FindFirstChild(VehicleConfig.MapFolder)
+	local vehicles = root and root:FindFirstChild(VehicleConfig.VehiclesFolder)
+	return {
+		fps = fps,
+		memory = math.floor(game:GetService("Stats"):GetTotalMemoryUsageMb()),
+		npcs = npcCount,
+		cars = vehicles and #vehicles:GetChildren() or 0,
+		players = #Players:GetPlayers(),
+		hour = workspace:GetAttribute("Hour"),
+		period = workspace:GetAttribute("Period"),
+		weather = workspace:GetAttribute("WeatherName"),
+		timeScale = workspace:GetAttribute("TimeScale") or 1,
+		day = workspace:GetAttribute("Day"),
+	}
+end
+
+---------------------------------------------------------------------
+-- Проверка карты и установки
+---------------------------------------------------------------------
+
+local function partsIn(folder: Instance?): { BasePart }
+	local out = {}
+	if folder then
+		for _, d in folder:GetDescendants() do
+			if d:IsA("BasePart") then
+				table.insert(out, d)
+			end
+		end
+	end
+	return out
+end
+
+local EXPECTED = {
+	{ ReplicatedStorage, { "PoseConfig", "InvisibilityConfig", "LaserConfig", "FlightConfig", "CubeConfig", "NPCConfig", "VehicleConfig", "SoundConfig", "WeatherConfig", "CityConfig", "DebugConfig", "AbilityButton", "RigAnimator", "AbilityFx" } },
+	{ ServerScriptService, { "AbilityRegistry", "NPCRegistry", "VehicleDefaults", "PoseServer", "InvisibilityServer", "LaserServer", "FlightServer", "CubeServer", "NPCDemo", "NPCServer", "NPCDoors", "DayNightServer", "TrafficServer", "WeatherServer", "PhoneServer", "CityLifeServer", "DebugServer" } },
+	{ StarterPlayer:FindFirstChild("StarterPlayerScripts"), { "PoseClient", "InvisibilityClient", "LaserClient", "FlightClient", "CubeClient", "NPCClient", "VehicleClient", "PoliceDeskClient", "WeatherClient", "PhoneClient", "CityLifeClient", "DebugClient" } },
+}
+
+local function runChecks()
+	local out = {}
+	local function add(level: string, group: string, text: string)
+		table.insert(out, { level = level, group = group, text = text })
+	end
+
+	-- Скрипты
+	local missing, dupes = {}, {}
+	for _, entry in EXPECTED do
+		local container, names = entry[1], entry[2]
+		for _, name in names do
+			local count = 0
+			if container then
+				for _, c in container:GetChildren() do
+					if c.Name == name then
+						count += 1
+					end
+				end
+			end
+			if count == 0 then
+				table.insert(missing, name)
+			elseif count > 1 then
+				table.insert(dupes, name)
+			end
+		end
+	end
+	if #missing == 0 then
+		add("ok", "Скрипты", "Все скрипты на месте")
+	else
+		add("error", "Скрипты", "Нет скриптов: " .. table.concat(missing, ", "))
+	end
+	if #dupes > 0 then
+		add("error", "Скрипты", "Двойные копии: " .. table.concat(dupes, ", "))
+	end
+	local errors = 0
+	for _, l in logs do
+		if l.kind == "error" then
+			errors += 1
+		end
+	end
+	add(errors == 0 and "ok" or "error", "Скрипты", errors == 0 and "Ошибок скриптов в Output нет" or ("Ошибок в Output: " .. errors .. " — открой вкладку Output"))
+
+	-- Жители
+	local npcRoot = workspace:FindFirstChild(NPCConfig.FolderName)
+	if not npcRoot then
+		add("warn", "Жители", "Нет папки " .. NPCConfig.FolderName .. " — работает демо-городок")
+	else
+		local spawns = partsIn(npcRoot:FindFirstChild("Spawns"))
+		local points = partsIn(npcRoot:FindFirstChild("Points"))
+		local doors = npcRoot:FindFirstChild("Doors")
+		add(#spawns > 0 and "ok" or "error", "Жители", "Точек появления: " .. #spawns)
+		local byActivity, homes, lieZones, zones, seats = {}, {}, {}, {}, 0
+		for _, s in spawns do
+			local z = s:GetAttribute("Zone")
+			if z and z ~= NPCConfig.OutdoorZone then
+				homes[z] = true
+			end
+		end
+		for _, p in points do
+			local z = p:GetAttribute("Zone") or NPCConfig.OutdoorZone
+			zones[z] = true
+			if p:IsA("Seat") then
+				seats += 1
+			else
+				local a = p:GetAttribute("Activity")
+				if type(a) ~= "string" then
+					add("error", "Жители", "У точки " .. p:GetFullName() .. " нет Activity")
+				else
+					byActivity[a] = (byActivity[a] or 0) + 1
+					if a == "Lie" then
+						lieZones[z] = true
+					end
+				end
+			end
+		end
+		local parts = {}
+		for a, n in pairs(byActivity) do
+			table.insert(parts, a .. " " .. n)
+		end
+		table.insert(parts, "стулья " .. seats)
+		add(#points > 0 and "ok" or "error", "Жители", "Точек: " .. #points .. " (" .. table.concat(parts, ", ") .. ")")
+		for home in pairs(homes) do
+			if not lieZones[home] then
+				add("error", "Жители", "В доме «" .. home .. "» нет точки Lie — жителям негде спать")
+			end
+		end
+		local other = 0
+		for z in pairs(zones) do
+			if not homes[z] and z ~= NPCConfig.OutdoorZone then
+				other += 1
+			end
+		end
+		add(other > 0 and "ok" or "warn", "Расписание", other > 0 and ("Зон для дня (кафе, магазины...): " .. other) or "Нет зон кафе/магазинов — днём жителям некуда ходить")
+		add((doors and #doors:GetChildren() > 0) and "ok" or "warn", "Жители", "Дверей: " .. (doors and #doors:GetChildren() or 0))
+	end
+
+	-- Дороги
+	local map = workspace:FindFirstChild(VehicleConfig.MapFolder)
+	if not map then
+		add("warn", "Дороги", "Нет папки " .. VehicleConfig.MapFolder .. " — работают демо-дороги")
+	else
+		local nodes = Registry.debugNodes and Registry.debugNodes() or {}
+		local count, lonely, dead, turn = 0, {}, 0, 0
+		for name, n in pairs(nodes) do
+			count += 1
+			if #n.links == 0 then
+				table.insert(lonely, name)
+			end
+		end
+		-- Связность (без учёта направления)
+		local adj = {}
+		for name, n in pairs(nodes) do
+			adj[name] = adj[name] or {}
+			for _, o in n.links do
+				adj[name][o] = true
+				adj[o] = adj[o] or {}
+				adj[o][name] = true
+			end
+		end
+		for name in pairs(adj) do
+			local k = 0
+			for _ in pairs(adj[name]) do
+				k += 1
+			end
+			if k == 1 then
+				dead += 1
+			end
+		end
+		local first = next(adj)
+		local seen, queue = {}, { first }
+		if first then
+			seen[first] = true
+		end
+		while #queue > 0 do
+			local cur = table.remove(queue)
+			for o in pairs(adj[cur] or {}) do
+				if not seen[o] then
+					seen[o] = true
+					table.insert(queue, o)
+				end
+			end
+		end
+		local reached = 0
+		for _ in pairs(seen) do
+			reached += 1
+		end
+		local oneWay = 0
+		for _, p in partsIn(map:FindFirstChild("Roads")) do
+			if p:GetAttribute("Turnaround") == true then
+				turn += 1
+			end
+			if p:GetAttribute("OneWay") == true then
+				oneWay += 1
+			end
+		end
+		add(count > 1 and "ok" or "error", "Дороги", "Точек дорог: " .. count)
+		if #lonely > 0 then
+			add("error", "Дороги", "Точки без связей: " .. table.concat(lonely, ", "))
+		end
+		add(reached == count and "ok" or "error", "Дороги", reached == count and "Все дороги связаны между собой" or string.format("Дороги разорваны: связано %d из %d точек", reached, count))
+		add((turn + dead + oneWay) > 0 and "ok" or "warn", "Развороты", string.format("Кольцо (OneWay): %d точек, Turnaround: %d, тупиков: %d", oneWay, turn, dead))
+		local uturn = 0
+		for _, l in logs do
+			if string.find(l.text, "Без разворота не доехать", 1, true) then
+				uturn += 1
+			end
+		end
+		add(uturn == 0 and "ok" or "error", "Развороты", uturn == 0 and "Никто не разворачивался посреди дороги" or ("Машины разворачивались посреди дороги: " .. uturn .. " раз — добавь кольцо или Turnaround"))
+
+		-- Парковки
+		local byType = {}
+		for _, p in partsIn(map:FindFirstChild("Parking")) do
+			local t = p:GetAttribute("Type") or "?"
+			byType[t] = (byType[t] or 0) + 1
+		end
+		for _, t in { "Civilian", "Taxi", "Police", "Bus" } do
+			local need = (VehicleConfig.Count[t] or 0) > 0
+			local n = byType[t] or 0
+			add((n > 0 or not need) and "ok" or "error", "Парковки", t .. ": " .. n)
+		end
+		local stops = partsIn(map:FindFirstChild("BusStops"))
+		add(#stops >= 2 and "ok" or "error", "Автобус", "Остановок: " .. #stops .. (#stops < 2 and " (нужно минимум 2)" or ""))
+		for _, s in stops do
+			local node = s:GetAttribute("Node")
+			if type(node) == "string" and not nodes[node] then
+				add("error", "Автобус", "Остановка " .. s.Name .. ": точки дороги «" .. node .. "» нет")
+			end
+		end
+		local calls = partsIn(map:FindFirstChild("PoliceCalls"))
+		add(#calls > 0 and "ok" or "warn", "Полиция", "Вызовов (PoliceCalls): " .. #calls)
+		local places = partsIn(map:FindFirstChild("Places"))
+		local post = false
+		for _, p in places do
+			if (p:GetAttribute("PlaceName") or p.Name) == "Почта" then
+				post = true
+			end
+		end
+		add(#places > 0 and "ok" or "warn", "Места", "Мест (Places): " .. #places)
+		add(post and "ok" or "warn", "Курьер", post and "Есть место «Почта»" or "Нет места «Почта» — посылки будут в случайном месте")
+		local station = map:FindFirstChild("PoliceStation")
+		local desk, cell, idle = 0, 0, 0
+		for _, p in partsIn(station) do
+			if string.find(p.Name, "^Desk") then
+				desk += 1
+			elseif string.find(p.Name, "^Cell") then
+				cell += 1
+			elseif string.find(p.Name, "^Idle") then
+				idle += 1
+			end
+		end
+		add(desk == 1 and "ok" or "error", "Полиция", "Desk (дежурный): " .. desk)
+		add(cell >= 1 and "ok" or "error", "Полиция", "Cell (камера): " .. cell)
+		add(idle >= 2 and "ok" or "warn", "Полиция", "Idle (кабинеты): " .. idle)
+	end
+
+	-- Шаблоны машин
+	local templates = ServerStorage:FindFirstChild(VehicleConfig.TemplatesFolder)
+	if not templates then
+		add("warn", "Машины", "Нет ServerStorage > " .. VehicleConfig.TemplatesFolder .. " — машины-заглушки")
+	else
+		local byKind = {}
+		for _, m in templates:GetChildren() do
+			if m:IsA("Model") then
+				local k = m:GetAttribute("VehicleType") or "?"
+				byKind[k] = (byKind[k] or 0) + 1
+				if not (m.PrimaryPart or m:FindFirstChild("Body")) then
+					add("error", "Машины", m.Name .. ": нет Body")
+				end
+				if not m:FindFirstChild("Seat_Driver", true) then
+					add("error", "Машины", m.Name .. ": нет Seat_Driver")
+				end
+			end
+		end
+		for _, k in { "Civilian", "Taxi", "Police", "Bus" } do
+			add((byKind[k] or 0) > 0 and "ok" or "warn", "Машины", "Шаблонов " .. k .. ": " .. (byKind[k] or 0))
+		end
+	end
+
+	-- Звуки
+	for groupName, group in pairs(SoundConfig) do
+		if type(group) == "table" and not group.Min then
+			local empty = {}
+			for key, def in pairs(group) do
+				if type(def) == "table" and def.Id == "" then
+					table.insert(empty, key)
+				end
+			end
+			if #empty > 0 then
+				add("warn", "Звуки", groupName .. ": без звука — " .. table.concat(empty, ", "))
+			end
+		end
+	end
+
+	-- Сохранение
+	local ok = pcall(function()
+		DataStoreService:GetDataStore("CityDebugCheck"):GetAsync("ping")
+	end)
+	add(ok and "ok" or "warn", "Сохранение", ok and "DataStore работает" or "DataStore недоступен (в Studio: Game Settings → Security → API Services)")
+
+	return out
+end
+
+---------------------------------------------------------------------
+-- Действия
+---------------------------------------------------------------------
+
+local function teleport(player: Player, position: Vector3)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if root then
+		if humanoid and humanoid.SeatPart then
+			humanoid.Sit = false
+			task.wait(0.1)
+		end
+		character:PivotTo(CFrame.new(position + Vector3.new(0, 3, 0)))
+	end
+end
+
+local function findTeleport(arg: string): (Vector3?, string?)
+	local map = workspace:FindFirstChild(VehicleConfig.MapFolder)
+	local kind, name = string.match(arg, "^(%a+):?(.*)$")
+	if not map then
+		return nil, "Нет папки " .. VehicleConfig.MapFolder
+	end
+	if kind == "Desk" or kind == "Cell" then
+		for _, p in partsIn(map:FindFirstChild("PoliceStation")) do
+			if string.find(p.Name, "^" .. kind) then
+				-- К дежурному — со стороны посетителей
+				return kind == "Desk" and (p.Position + p.CFrame.LookVector * 5) or p.Position
+			end
+		end
+		return nil, "Нет метки " .. kind
+	elseif kind == "Place" then
+		for _, p in partsIn(map:FindFirstChild("Places")) do
+			if (p:GetAttribute("PlaceName") or p.Name) == name then
+				return p.Position
+			end
+		end
+		return nil, "Нет места " .. name
+	elseif kind == "Stop" then
+		local order = tonumber(name)
+		for _, p in partsIn(map:FindFirstChild("BusStops")) do
+			if p:GetAttribute("Order") == order or p.Name == name then
+				return p.Position
+			end
+		end
+		return nil, "Нет остановки " .. name
+	elseif kind == "Node" then
+		local nodes = Registry.debugNodes and Registry.debugNodes() or {}
+		return nodes[name] and nodes[name].pos or nil, "Нет точки " .. name
+	end
+	return nil, "Не знаю, куда: " .. arg
+end
+
+local COOLDOWNS = { "InvisibilityConfig", "LaserConfig", "FlightConfig", "CubeConfig" }
+
+local ACTIONS = {}
+
+function ACTIONS.SetHour(player, arg)
+	local h = tonumber(arg)
+	if not h then
+		return "Нужен час"
+	end
+	Lighting.ClockTime = h % 24
+	return string.format("Время: %02d:%02d", math.floor(h), math.floor((h % 1) * 60))
+end
+function ACTIONS.TimeScale(player, arg)
+	local x = tonumber(arg) or 1
+	workspace:SetAttribute("TimeScale", x)
+	return x == 0 and "Время на паузе" or ("Скорость времени ×" .. x)
+end
+function ACTIONS.Weather(player, arg)
+	workspace:SetAttribute("ForceWeather", tostring(arg))
+	return "Погода: " .. tostring(arg)
+end
+function ACTIONS.PoliceCall(player, arg)
+	if not Registry.debugPoliceCall then
+		return "Транспорт не запущен"
+	end
+	return Registry.debugPoliceCall(player, tonumber(arg) or 1)
+end
+function ACTIONS.Coins(player, arg)
+	local stats = player:FindFirstChild("leaderstats")
+	local coins = stats and stats:FindFirstChild(NPCConfig.CurrencyName)
+	if not coins then
+		return "Нет монет"
+	end
+	coins.Value += tonumber(arg) or 100
+	return "Монет: " .. coins.Value
+end
+function ACTIONS.ResetCooldowns(player)
+	for _, name in COOLDOWNS do
+		local module = ReplicatedStorage:FindFirstChild(name)
+		if module then
+			player:SetAttribute(require(module).CooldownAttribute, 0)
+		end
+	end
+	return "Кулдауны сброшены"
+end
+function ACTIONS.ResetCity(player)
+	if Registry.cityReset then
+		Registry.cityReset(player)
+		return "Прогресс сброшен"
+	end
+	return "CityLifeServer не запущен"
+end
+function ACTIONS.AddStat(player, arg)
+	local stat, n = string.match(tostring(arg), "^(%a+):?(%d*%.?%d*)$")
+	if Registry.cityAddStat and stat then
+		Registry.cityAddStat(player, stat, tonumber(n) or 1)
+		return "+" .. (tonumber(n) or 1) .. " к " .. stat
+	end
+	return "Не получилось"
+end
+function ACTIONS.StartJob(player)
+	if Registry.cityAction then
+		Registry.cityAction(player, "Job")
+		return "Заказ курьера"
+	end
+	return "CityLifeServer не запущен"
+end
+function ACTIONS.Heal(player)
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.Health = humanoid.MaxHealth
+	end
+	return "Здоровье восстановлено"
+end
+function ACTIONS.Teleport(player, arg)
+	local pos, err = findTeleport(tostring(arg))
+	if pos then
+		teleport(player, pos)
+		return "Телепорт: " .. tostring(arg)
+	end
+	return err
+end
+function ACTIONS.TeleportTo(player, arg)
+	if typeof(arg) == "Instance" and arg:IsDescendantOf(workspace) then
+		local pivot = arg:IsA("Model") and arg:GetPivot() or (arg :: BasePart).CFrame
+		teleport(player, pivot.Position + pivot.LookVector * 5)
+		return "Телепорт к " .. arg.Name
+	end
+	return "Объект не найден"
+end
+
+---------------------------------------------------------------------
+-- Отметки «проверено» (сохраняются)
+---------------------------------------------------------------------
+
+local testStore = nil
+pcall(function()
+	testStore = DataStoreService:GetDataStore("CityDebug_v1")
+end)
+local tested = {} -- [player] = { [key] = "ok"/"bug" }
+
+local function loadTested(player: Player)
+	local data = {}
+	if testStore then
+		local ok, result = pcall(function()
+			return testStore:GetAsync("tests_" .. player.UserId)
+		end)
+		if ok and type(result) == "table" then
+			data = result
+		end
+	end
+	tested[player] = data
+	return data
+end
+
+local function saveTested(player: Player)
+	if testStore and tested[player] then
+		pcall(function()
+			testStore:SetAsync("tests_" .. player.UserId, tested[player])
+		end)
+	end
+end
+
+---------------------------------------------------------------------
+-- Запросы клиента
+---------------------------------------------------------------------
+
+local lastAction = {}
+
+remote.OnServerEvent:Connect(function(player: Player, request: any, a: any, b: any)
+	if not admins[player] then
+		return
+	end
+	if request == "Hello" then
+		remote:FireClient(player, "Hello", {
+			logs = logs,
+			tested = tested[player] or loadTested(player),
+			placeNames = (function()
+				local names = {}
+				local map = workspace:FindFirstChild(VehicleConfig.MapFolder)
+				for _, p in partsIn(map and map:FindFirstChild("Places")) do
+					table.insert(names, p:GetAttribute("PlaceName") or p.Name)
+				end
+				return names
+			end)(),
+		})
+	elseif request == "Snapshot" then
+		remote:FireClient(player, "Snapshot", {
+			npcs = Registry.debugNPCs and Registry.debugNPCs() or {},
+			cars = Registry.debugCars and Registry.debugCars() or {},
+			perf = perf(),
+		})
+	elseif request == "Nodes" then
+		remote:FireClient(player, "Nodes", Registry.debugNodes and Registry.debugNodes() or {})
+	elseif request == "Check" then
+		remote:FireClient(player, "Check", runChecks())
+	elseif request == "Action" and type(a) == "string" and ACTIONS[a] then
+		local now = os.clock()
+		if now - (lastAction[player] or 0) < 0.2 then
+			return
+		end
+		lastAction[player] = now
+		local ok, result = pcall(ACTIONS[a], player, b)
+		local text = ok and tostring(result) or ("Ошибка: " .. tostring(result))
+		addLog("debug", "[Debug] " .. player.Name .. ": " .. a .. " → " .. text)
+		remote:FireClient(player, "Result", text)
+	elseif request == "Tested" and type(a) == "string" and #a < 120 then
+		local t = tested[player] or loadTested(player)
+		t[a] = (b == "ok" or b == "bug") and b or nil
+		task.spawn(saveTested, player)
+	end
+end)
+
+local function onPlayer(player: Player)
+	if checkAdmin(player) then
+		admins[player] = true
+		player:SetAttribute("DebugAdmin", true)
+	end
+end
+for _, p in Players:GetPlayers() do
+	task.spawn(onPlayer, p)
+end
+Players.PlayerAdded:Connect(onPlayer)
+Players.PlayerRemoving:Connect(function(player)
+	admins[player] = nil
+	tested[player] = nil
+	lastAction[player] = nil
+end)
+]]></ProtectedString></Properties></Item></Item><Item class="StarterPlayer" referent="RBX50"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX49"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX37"><Properties><string name="Name">PoseClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > PoseClient
 -- Клиент:
 --   1) ловит кнопки (клавиатура, геймпад, кнопки на телефоне) и шлёт запрос серверу;
 --   2) проигрывает процедурные анимации поз для ВСЕХ персонажей на сервере
@@ -10226,7 +11169,7 @@ if PoseConfig.ShowHint and UserInputService.KeyboardEnabled then
 	hintLabel = label
 	updateLabels()
 end
-]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX36"><Properties><string name="Name">InvisibilityClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > InvisibilityClient
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX38"><Properties><string name="Name">InvisibilityClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > InvisibilityClient
 -- Клиент способности «Невидимость»:
 --   * себя видишь полупрозрачным «стеклом» с голубым оттенком и лёгкой синевой на экране;
 --   * другие невидимые игроки скрыты полностью (тело, ник, полоска здоровья, звуки);
@@ -10668,7 +11611,7 @@ RunService.Heartbeat:Connect(function(dt)
 	local cooldownLeft = math.max(0, (player:GetAttribute(Config.CooldownAttribute) or 0) - now)
 	button:Update(activeLeft, cooldownLeft)
 end)
-]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX37"><Properties><string name="Name">LaserClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > LaserClient
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX39"><Properties><string name="Name">LaserClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > LaserClient
 -- Клиент способности «Лазеры из глаз»:
 --   * рисует лучи из глаз у ВСЕХ стреляющих игроков (их видят все);
 --   * светящиеся глаза, искры и свет в точке попадания, «мерцание» луча;
@@ -11144,7 +12087,7 @@ RunService.RenderStepped:Connect(function(dt)
 	local cooldownLeft = math.max(0, (player:GetAttribute(Config.CooldownAttribute) or 0) - now)
 	button:Update(activeLeft, cooldownLeft)
 end)
-]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX38"><Properties><string name="Name">FlightClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > FlightClient
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX40"><Properties><string name="Name">FlightClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > FlightClient
 -- Клиент способности «Полёт»:
 --   * физика полёта своего персонажа: инерция, разгон, наклон по направлению,
 --     крен в поворотах, рывок при взлёте;
@@ -11628,7 +12571,7 @@ AbilityButton.Create({
 	UntilAttribute = Config.UntilAttribute,
 	CooldownAttribute = Config.CooldownAttribute,
 })
-]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX39"><Properties><string name="Name">CubeClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > CubeClient
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX41"><Properties><string name="Name">CubeClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > CubeClient
 -- Анимации куба (у всех игроков на экране):
 --   * куб «выпрыгивает» с пружинкой и облаком частиц, при выходе сжимается;
 --   * при ходьбе подскакивает, при касании земли сплющивается, наклоняется вперёд;
@@ -11822,7 +12765,7 @@ AbilityButton.Create({
 	UntilAttribute = Config.UntilAttribute,
 	CooldownAttribute = Config.CooldownAttribute,
 })
-]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX40"><Properties><string name="Name">NPCClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > NPCClient
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX42"><Properties><string name="Name">NPCClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > NPCClient
 -- Клиент жителей:
 --   * облачка с репликами над головой: «выпрыгивают», текст печатается по буквам, потом тают;
 --   * значок настроения над головой (💤 💬 🎵 😊 😱 ...), покачивается;
@@ -12726,7 +13669,7 @@ task.spawn(function()
 	end
 	doors.ChildAdded:Connect(watchDoor)
 end)
-]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX41"><Properties><string name="Name">VehicleClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > VehicleClient
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX43"><Properties><string name="Name">VehicleClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > VehicleClient
 -- Внешний вид и звуки машин (у каждого игрока на экране, плавно):
 --   * двери и багажник открываются/закрываются, автобусные двери отъезжают;
 --   * колёса крутятся по скорости;
@@ -13131,7 +14074,7 @@ remote.OnClientEvent:Connect(function(action, model, names, price)
 	scale.Scale = 0.85
 	TweenService:Create(scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 end)
-]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX42"><Properties><string name="Name">PoliceDeskClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > PoliceDeskClient
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX44"><Properties><string name="Name">PoliceDeskClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > PoliceDeskClient
 -- Меню дежурного в полицейском участке:
 --   * живой портрет дежурного, его реплики печатаются в облачке;
 --   * «Заявление»: что случилось → где → отправить (по заявлению реально выезжает наряд);
@@ -13640,7 +14583,7 @@ RunService.RenderStepped:Connect(function()
 		camera.CFrame = CFrame.lookAt(focus + head.CFrame.LookVector * 7 + offset, focus)
 	end
 end)
-]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX43"><Properties><string name="Name">WeatherClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > WeatherClient
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX45"><Properties><string name="Name">WeatherClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > WeatherClient
 -- Погода на экране игрока:
 --   * дождь струями вокруг камеры и брызги на земле (под крышей дождя нет);
 --   * шум дождя и ветра, вспышки молний и раскаты грома с задержкой;
@@ -13890,7 +14833,7 @@ RunService.RenderStepped:Connect(function(dt)
 		updateHud()
 	end
 end)
-]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX44"><Properties><string name="Name">PhoneClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > PhoneClient
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX46"><Properties><string name="Name">PhoneClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > PhoneClient
 -- Телефон игрока: клавиша P или кнопка 📱.
 --   Экран блокировки (время, дата, погода, уведомления) → рабочий стол с приложениями:
 --   🗺 Карта (дороги, ты, автобус, такси, полиция), 🚕 Такси (вызвать к себе),
@@ -15263,7 +16206,7 @@ end)
 workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
 	phoneScale.Scale = fitScale()
 end)
-]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX45"><Properties><string name="Name">CityLifeClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > CityLifeClient
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX47"><Properties><string name="Name">CityLifeClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > CityLifeClient
 -- Экранная часть новых механик (настройки — ReplicatedStorage > CityConfig):
 --   📦 курьер: подсветка цели, стрелка-луч, таймер; персонажи несут коробку двумя руками;
 --   🏆 большое золотое окно при новом достижении;
@@ -15739,6 +16682,1033 @@ RunService.RenderStepped:Connect(function(dt)
 		elseif camera.CameraType ~= Enum.CameraType.Custom then
 			camera.CameraType = Enum.CameraType.Custom
 		end
+	end
+end)
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX48"><Properties><string name="Name">DebugClient</string><ProtectedString name="Source"><![CDATA[-- LocalScript: StarterPlayer > StarterPlayerScripts > DebugClient
+-- Меню отладки: F2 или кнопка 🛠 (только у админов, см. DebugConfig).
+-- Вкладки:
+--   📋 Новое     — что добавлено в каждом обновлении + проверки с кнопкой «▶» и отметками ✓ / 🐞
+--   🌍 Мир       — время, ускорение, погода, вызов полиции, монеты, кулдауны, телепорт
+--   🧑 Жители    — что делает каждый житель, куда идёт; следить камерой, телепорт
+--   🚗 Машины    — тип, состояние, скорость, куда едет; следить, телепорт
+--   🗺 Метки     — показать на карте дороги, точки, двери, парковки, пути жителей, маршруты машин
+--   🖥 Output    — сообщения сервера и клиента, фильтры, копирование
+--   ✅ Проверка  — автопроверка разметки карты и установки скриптов
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
+local LogService = game:GetService("LogService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("DebugConfig"))
+if not Config.Enabled then
+	return
+end
+local NPCConfig = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local VehicleConfig = require(ReplicatedStorage:WaitForChild("VehicleConfig"))
+local WeatherConfig = require(ReplicatedStorage:WaitForChild("WeatherConfig"))
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local camera = workspace.CurrentCamera
+
+-- Меню только для админов: сервер ставит атрибут DebugAdmin
+if player:GetAttribute("DebugAdmin") ~= true then
+	player:GetAttributeChangedSignal("DebugAdmin"):Wait()
+end
+local remote = ReplicatedStorage:WaitForChild("DebugRemote")
+
+local W, H = 480, 560
+local C = {
+	bg = Color3.fromRGB(16, 18, 26),
+	panel = Color3.fromRGB(26, 29, 40),
+	panel2 = Color3.fromRGB(34, 38, 52),
+	text = Color3.fromRGB(235, 238, 248),
+	dim = Color3.fromRGB(150, 158, 185),
+	accent = Color3.fromRGB(90, 150, 255),
+	ok = Color3.fromRGB(80, 210, 120),
+	warn = Color3.fromRGB(255, 190, 60),
+	error = Color3.fromRGB(255, 85, 85),
+	event = Color3.fromRGB(190, 140, 255),
+	debug = Color3.fromRGB(110, 200, 255),
+}
+
+local function new(className: string, props, parent: Instance?)
+	local inst = Instance.new(className)
+	for k, v in pairs(props or {}) do
+		(inst :: any)[k] = v
+	end
+	if parent then
+		inst.Parent = parent
+	end
+	return inst
+end
+local function corner(p: Instance, r: number)
+	new("UICorner", { CornerRadius = UDim.new(0, r) }, p)
+end
+local function label(parent: Instance, text: string, size: number, color: Color3?, bold: boolean?, props)
+	local l = new("TextLabel", {
+		BackgroundTransparency = 1,
+		Text = text,
+		TextSize = size,
+		TextColor3 = color or C.text,
+		Font = bold and Enum.Font.GothamBold or Enum.Font.GothamMedium,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextWrapped = true,
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+	}, parent)
+	for k, v in pairs(props or {}) do
+		(l :: any)[k] = v
+	end
+	return l
+end
+local function btn(parent: Instance, text: string, props, onClick)
+	local b = new("TextButton", {
+		BackgroundColor3 = C.panel2,
+		Text = text,
+		TextColor3 = C.text,
+		Font = Enum.Font.GothamBold,
+		TextSize = 13,
+		AutoButtonColor = true,
+		Size = UDim2.fromOffset(0, 28),
+		AutomaticSize = Enum.AutomaticSize.X,
+	}, parent)
+	for k, v in pairs(props or {}) do
+		(b :: any)[k] = v
+	end
+	corner(b, 8)
+	if b.AutomaticSize == Enum.AutomaticSize.X then
+		new("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }, b)
+	end
+	b.Activated:Connect(onClick)
+	return b
+end
+local function vlist(parent: Instance, gap: number)
+	return new("UIListLayout", { Padding = UDim.new(0, gap), SortOrder = Enum.SortOrder.LayoutOrder }, parent)
+end
+local function hflow(parent: Instance, order: number?)
+	local f = new("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = order or 0 }, parent)
+	local layout = new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, f)
+	pcall(function()
+		layout.Wraps = true -- кнопки переносятся на новую строку
+	end)
+	return f
+end
+local function section(parent: Instance, title: string, order: number)
+	local s = new("Frame", { BackgroundColor3 = C.panel, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = order }, parent)
+	corner(s, 10)
+	new("UIPadding", { PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 10), PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }, s)
+	vlist(s, 6)
+	label(s, title, 14, C.text, true, { LayoutOrder = 0 })
+	return s
+end
+
+---------------------------------------------------------------------
+-- Окно
+---------------------------------------------------------------------
+
+local gui = new("ScreenGui", { Name = "DebugMenu", ResetOnSpawn = false, DisplayOrder = 50, ZIndexBehavior = Enum.ZIndexBehavior.Sibling }, playerGui)
+
+local toggle = new("TextButton", {
+	Position = UDim2.new(0, 16, 0, 110),
+	Size = UDim2.fromOffset(44, 44),
+	BackgroundColor3 = C.bg,
+	BackgroundTransparency = 0.1,
+	Text = "🛠",
+	TextSize = 22,
+	Font = Enum.Font.GothamBold,
+}, gui)
+corner(toggle, 12)
+new("UIStroke", { Color = C.accent, Thickness = 1.5, Transparency = 0.3 }, toggle)
+local errBadge = new("TextLabel", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, -2, 0, 2), Size = UDim2.fromOffset(22, 18), BackgroundColor3 = C.error, TextColor3 = Color3.new(1, 1, 1), TextSize = 11, Font = Enum.Font.GothamBold, Visible = false, ZIndex = 3 }, toggle)
+corner(errBadge, 9)
+
+local win = new("Frame", {
+	Position = UDim2.new(0, 70, 0, 80),
+	Size = UDim2.fromOffset(W, H),
+	BackgroundColor3 = C.bg,
+	Visible = false,
+}, gui)
+corner(win, 14)
+new("UIStroke", { Color = Color3.fromRGB(60, 70, 100), Thickness = 1.5 }, win)
+local winScale = new("UIScale", {}, win)
+
+local titleBar = new("TextButton", { Size = UDim2.new(1, 0, 0, 36), BackgroundTransparency = 1, Text = "", AutoButtonColor = false }, win)
+label(titleBar, "🛠  Меню отладки", 15, C.text, true, { Position = UDim2.fromOffset(14, 9), Size = UDim2.new(1, -60, 0, 18), AutomaticSize = Enum.AutomaticSize.None })
+btn(titleBar, "✕", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 4), Size = UDim2.fromOffset(28, 28), AutomaticSize = Enum.AutomaticSize.None, BackgroundTransparency = 1 }, function()
+	win.Visible = false
+end)
+
+-- Перетаскивание за заголовок
+do
+	local dragging, start, startPos
+	titleBar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging, start, startPos = true, input.Position, win.Position
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local d = input.Position - start
+			win.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+end
+
+local TABS = {
+	{ id = "news", text = "📋 Новое" },
+	{ id = "world", text = "🌍 Мир" },
+	{ id = "npcs", text = "🧑 Жители" },
+	{ id = "cars", text = "🚗 Машины" },
+	{ id = "overlay", text = "🗺 Метки" },
+	{ id = "output", text = "🖥 Output" },
+	{ id = "check", text = "✅ Проверка" },
+}
+local tabBar = new("ScrollingFrame", { Position = UDim2.fromOffset(8, 38), Size = UDim2.new(1, -16, 0, 32), BackgroundTransparency = 1, ScrollBarThickness = 0, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.X, ScrollingDirection = Enum.ScrollingDirection.X }, win)
+new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, tabBar)
+
+local body = new("ScrollingFrame", {
+	Position = UDim2.fromOffset(8, 76),
+	Size = UDim2.new(1, -16, 1, -112),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 4,
+	CanvasSize = UDim2.new(),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+}, win)
+
+local footer = label(win, "", 11, C.dim, false, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 12, 1, -8), Size = UDim2.new(1, -24, 0, 26), AutomaticSize = Enum.AutomaticSize.None, TextYAlignment = Enum.TextYAlignment.Center })
+local resultToast = label(win, "", 12, C.debug, true, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 12, 1, -34), Size = UDim2.new(1, -24, 0, 0), Visible = false })
+
+---------------------------------------------------------------------
+-- Состояние
+---------------------------------------------------------------------
+
+local currentTab = "news"
+local logs = {} -- { t, kind, text, src }
+local tested = {}
+local placeNames = {}
+local snapshot = { npcs = {}, cars = {}, perf = {} }
+local checks = nil
+local unseenErrors = 0
+local outputFilter, outputPaused, outputSearch = "all", false, ""
+local followTarget = nil
+local overlays = {} -- [слой] = true
+local npcSearch = ""
+local render -- объявлена ниже
+
+local function addLog(entry)
+	table.insert(logs, entry)
+	if #logs > Config.LogLimit then
+		table.remove(logs, 1)
+	end
+	if entry.kind == "error" and not (win.Visible and currentTab == "output") then
+		unseenErrors += 1
+	end
+end
+
+local function updateBadge()
+	errBadge.Visible = unseenErrors > 0
+	errBadge.Text = tostring(math.min(unseenErrors, 99))
+end
+
+-- Output клиента
+local CLIENT_KIND = {
+	[Enum.MessageType.MessageOutput] = "info",
+	[Enum.MessageType.MessageInfo] = "info",
+	[Enum.MessageType.MessageWarning] = "warn",
+	[Enum.MessageType.MessageError] = "error",
+}
+for _, m in LogService:GetLogHistory() do
+	addLog({ t = workspace:GetServerTimeNow(), kind = CLIENT_KIND[m.messageType] or "info", text = m.message, src = "C" })
+end
+local outputDirty = false
+LogService.MessageOut:Connect(function(message, messageType)
+	addLog({ t = workspace:GetServerTimeNow(), kind = CLIENT_KIND[messageType] or "info", text = message, src = "C" })
+	outputDirty = true
+	updateBadge()
+end)
+
+local function showResult(text: string)
+	resultToast.Text = "→ " .. text
+	resultToast.Visible = true
+	local token = os.clock()
+	resultToast:SetAttribute("Token", token)
+	task.delay(3, function()
+		if resultToast:GetAttribute("Token") == token then
+			resultToast.Visible = false
+		end
+	end)
+end
+
+local function action(name: string, arg: any)
+	remote:FireServer("Action", name, arg)
+end
+
+---------------------------------------------------------------------
+-- 🗺 Слои меток на карте (видны только тебе)
+---------------------------------------------------------------------
+
+local overlayRoot = new("Folder", { Name = "DebugOverlay" }, camera)
+local layerFolders = {}
+local LAYERS = {
+	{ id = "Roads", name = "🛣 Дороги: точки, связи, имена", color = Color3.fromRGB(255, 220, 60) },
+	{ id = "Points", name = "📍 Точки жителей (Activity / Zone)", color = Color3.fromRGB(80, 210, 255) },
+	{ id = "Spawns", name = "🐣 Точки появления", color = Color3.fromRGB(120, 255, 120) },
+	{ id = "Doors", name = "🚪 Двери", color = Color3.fromRGB(255, 150, 60) },
+	{ id = "Parking", name = "🅿️ Парковки", color = Color3.fromRGB(110, 140, 255) },
+	{ id = "BusStops", name = "🚏 Остановки", color = Color3.fromRGB(255, 120, 200) },
+	{ id = "Police", name = "🚔 Участок и вызовы", color = Color3.fromRGB(60, 120, 255) },
+	{ id = "Places", name = "📌 Места (Places)", color = Color3.fromRGB(255, 255, 255) },
+	{ id = "NPCPaths", name = "🧭 Пути жителей (живые)", color = Color3.fromRGB(80, 255, 200) },
+	{ id = "CarRoutes", name = "🚗 Маршруты машин (живые)", color = Color3.fromRGB(255, 90, 90) },
+	{ id = "NPCLabels", name = "🏷 Ярлыки над жителями (живые)", color = Color3.fromRGB(255, 255, 255) },
+}
+local LAYER_COLOR = {}
+for _, l in LAYERS do
+	LAYER_COLOR[l.id] = l.color
+end
+
+local function layerFolder(id: string): Folder
+	local f = layerFolders[id]
+	if not f then
+		f = new("Folder", { Name = id }, overlayRoot)
+		layerFolders[id] = f
+	end
+	return f
+end
+
+local function line(parent: Instance, a: Vector3, b: Vector3, color: Color3, width: number?)
+	local len = (b - a).Magnitude
+	if len < 0.05 then
+		return
+	end
+	new("Part", {
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+		Material = Enum.Material.Neon,
+		Color = color,
+		Transparency = 0.25,
+		Size = Vector3.new(width or 0.2, width or 0.2, len),
+		CFrame = CFrame.lookAt((a + b) / 2, b),
+	}, parent)
+end
+
+local function tag(parent: Instance, adornee: Instance?, position: Vector3?, text: string, color: Color3, offset: number?)
+	local holder = adornee
+	if not holder then
+		holder = new("Part", { Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, Transparency = 1, Size = Vector3.new(0.1, 0.1, 0.1), Position = position }, parent)
+	end
+	local bb = new("BillboardGui", { Adornee = holder, Size = UDim2.fromOffset(220, 40), StudsOffset = Vector3.new(0, offset or 2, 0), AlwaysOnTop = true, MaxDistance = 180, LightInfluence = 0 }, parent)
+	new("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Text = text,
+		TextColor3 = color,
+		TextStrokeTransparency = 0.3,
+		Font = Enum.Font.GothamBold,
+		TextSize = 13,
+		TextWrapped = true,
+	}, bb)
+	return bb
+end
+
+local function markPart(parent: Instance, part: BasePart, color: Color3, text: string?)
+	new("BoxHandleAdornment", { Adornee = part, Size = part.Size + Vector3.new(0.05, 0.05, 0.05), Color3 = color, Transparency = 0.45, AlwaysOnTop = true, ZIndex = 1 }, parent)
+	-- Стрелка «передняя грань»
+	line(parent, part.Position, part.Position + part.CFrame.LookVector * math.max(2, part.Size.Z / 2 + 1), color, 0.15)
+	if text then
+		tag(parent, part, nil, text, color, 1.5)
+	end
+end
+
+local function partsIn(folder: Instance?): { BasePart }
+	local out = {}
+	if folder then
+		for _, d in folder:GetDescendants() do
+			if d:IsA("BasePart") then
+				table.insert(out, d)
+			end
+		end
+	end
+	return out
+end
+
+local function attrText(p: Instance, keys: { string }): string
+	local bits = { p.Name }
+	for _, k in keys do
+		local v = p:GetAttribute(k)
+		if v ~= nil then
+			table.insert(bits, k .. "=" .. tostring(v))
+		end
+	end
+	return table.concat(bits, "  ")
+end
+
+local function buildStatic(id: string)
+	local f = layerFolder(id)
+	f:ClearAllChildren()
+	local npcRoot = workspace:FindFirstChild(NPCConfig.FolderName)
+	local map = workspace:FindFirstChild(VehicleConfig.MapFolder)
+	local color = LAYER_COLOR[id]
+	if id == "Roads" then
+		remote:FireServer("Nodes")
+		return -- рисуем, когда придёт граф
+	elseif id == "Points" and npcRoot then
+		for _, p in partsIn(npcRoot:FindFirstChild("Points")) do
+			markPart(f, p, color, p:IsA("Seat") and ("🪑 " .. tostring(p:GetAttribute("Zone"))) or attrText(p, { "Activity", "Zone", "Role", "Route", "Order" }))
+		end
+	elseif id == "Spawns" and npcRoot then
+		for _, p in partsIn(npcRoot:FindFirstChild("Spawns")) do
+			markPart(f, p, color, attrText(p, { "Count", "Zone" }))
+		end
+	elseif id == "Doors" and npcRoot then
+		local doors = npcRoot:FindFirstChild("Doors")
+		for _, d in doors and doors:GetChildren() or {} do
+			local part = d:IsA("BasePart") and d or (d:IsA("Model") and (d.PrimaryPart or d:FindFirstChildWhichIsA("BasePart")))
+			if part then
+				markPart(f, part, color, attrText(d, { "Hinge", "Locked" }))
+			end
+		end
+	elseif id == "Parking" and map then
+		for _, p in partsIn(map:FindFirstChild("Parking")) do
+			markPart(f, p, color, attrText(p, { "Type", "Zone" }))
+		end
+	elseif id == "BusStops" and map then
+		for _, p in partsIn(map:FindFirstChild("BusStops")) do
+			markPart(f, p, color, attrText(p, { "Order", "StopName", "Node" }))
+		end
+	elseif id == "Police" and map then
+		for _, p in partsIn(map:FindFirstChild("PoliceStation")) do
+			markPart(f, p, color, "🚔 " .. p.Name)
+		end
+		for _, p in partsIn(map:FindFirstChild("PoliceCalls")) do
+			markPart(f, p, Color3.fromRGB(150, 180, 255), attrText(p, { "Zone" }))
+		end
+	elseif id == "Places" and map then
+		for _, p in partsIn(map:FindFirstChild("Places")) do
+			markPart(f, p, color, "📌 " .. tostring(p:GetAttribute("PlaceName") or p.Name))
+		end
+	end
+end
+
+local function drawRoads(nodes)
+	local f = layerFolder("Roads")
+	f:ClearAllChildren()
+	local color = LAYER_COLOR.Roads
+	for name, n in pairs(nodes) do
+		local holder = new("Part", { Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, Shape = Enum.PartType.Ball, Size = Vector3.new(1.4, 1.4, 1.4), Position = n.pos + Vector3.new(0, 0.6, 0), Material = Enum.Material.Neon, Color = #n.links == 0 and C.error or color }, f)
+		tag(f, holder, nil, name .. (#n.links <= 1 and "  (тупик)" or ""), #n.links == 0 and C.error or color, 1.6)
+		for _, other in n.links do
+			local o = nodes[other]
+			if o then
+				local a, b = n.pos + Vector3.new(0, 0.6, 0), o.pos + Vector3.new(0, 0.6, 0)
+				line(f, a, b, color, 0.18)
+				-- Стрелка направления в середине связи
+				local mid = a:Lerp(b, 0.6)
+				local dir = (b - a).Unit
+				local side = dir:Cross(Vector3.yAxis)
+				line(f, mid, mid - dir * 1.2 + side * 0.6, color, 0.14)
+				line(f, mid, mid - dir * 1.2 - side * 0.6, color, 0.14)
+			end
+		end
+	end
+end
+
+local function drawDynamic()
+	if overlays.NPCPaths then
+		local f = layerFolder("NPCPaths")
+		f:ClearAllChildren()
+		for _, n in snapshot.npcs do
+			if n.goal then
+				line(f, n.pos, n.goal, LAYER_COLOR.NPCPaths, 0.12)
+				new("Part", { Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, Shape = Enum.PartType.Ball, Size = Vector3.new(0.8, 0.8, 0.8), Position = n.goal, Material = Enum.Material.Neon, Color = LAYER_COLOR.NPCPaths }, f)
+			end
+		end
+	end
+	if overlays.CarRoutes then
+		local f = layerFolder("CarRoutes")
+		f:ClearAllChildren()
+		for _, car in snapshot.cars do
+			local prev = car.pos
+			for _, p in car.route or {} do
+				line(f, prev + Vector3.new(0, 1, 0), p + Vector3.new(0, 1, 0), LAYER_COLOR.CarRoutes, 0.16)
+				prev = p
+			end
+		end
+	end
+	if overlays.NPCLabels then
+		local f = layerFolder("NPCLabels")
+		f:ClearAllChildren()
+		for _, n in snapshot.npcs do
+			if n.model and n.model.Parent then
+				local head = n.model:FindFirstChild("Head")
+				if head then
+					tag(f, head, nil, n.name .. "\n" .. n.action, n.officer and Color3.fromRGB(150, 180, 255) or Color3.new(1, 1, 1), 3.4)
+				end
+			end
+		end
+		for _, car in snapshot.cars do
+			if car.model and car.model.Parent then
+				tag(f, car.model.PrimaryPart, nil, string.format("%s · %s · %s → %s", car.kind, car.state, tostring(car.speed), tostring(car.to or "—")), LAYER_COLOR.CarRoutes, 4)
+			end
+		end
+	end
+end
+
+local function setOverlay(id: string, on: boolean)
+	overlays[id] = on or nil
+	if on then
+		if id == "NPCPaths" or id == "CarRoutes" or id == "NPCLabels" then
+			remote:FireServer("Snapshot")
+		else
+			buildStatic(id)
+		end
+	elseif layerFolders[id] then
+		layerFolders[id]:ClearAllChildren()
+	end
+end
+
+---------------------------------------------------------------------
+-- Слежение камерой
+---------------------------------------------------------------------
+
+local followBar = new("TextButton", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 12), Size = UDim2.fromOffset(320, 36), BackgroundColor3 = C.bg, TextColor3 = C.text, Font = Enum.Font.GothamBold, TextSize = 14, Visible = false }, gui)
+corner(followBar, 12)
+new("UIStroke", { Color = C.accent, Thickness = 1.5 }, followBar)
+
+local function stopFollow()
+	followTarget = nil
+	followBar.Visible = false
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		camera.CameraSubject = humanoid
+	end
+end
+followBar.Activated:Connect(stopFollow)
+
+local function follow(model: Instance?, name: string)
+	if not model or not model.Parent then
+		return
+	end
+	local subject = model:FindFirstChildOfClass("Humanoid") or (model:IsA("Model") and model.PrimaryPart) or model
+	camera.CameraSubject = subject
+	followTarget = model
+	followBar.Text = "👁 Слежу за: " .. name .. "   (нажми, чтобы вернуться)"
+	followBar.Visible = true
+end
+
+---------------------------------------------------------------------
+-- Вкладки
+---------------------------------------------------------------------
+
+local function clearBody()
+	for _, c in body:GetChildren() do
+		c:Destroy()
+	end
+	vlist(body, 8)
+end
+
+local function testKey(entry, i: number): string
+	return entry.Version .. "#" .. i
+end
+
+local function renderNews()
+	local total, done, bugs = 0, 0, 0
+	for _, e in Config.Changelog do
+		for i in e.Tests or {} do
+			total += 1
+			local s = tested[testKey(e, i)]
+			if s == "ok" then
+				done += 1
+			elseif s == "bug" then
+				bugs += 1
+			end
+		end
+	end
+	local top = section(body, string.format("Проверено %d из %d   🐞 багов: %d", done, total, bugs), 0)
+	label(top, "▶ — подготовить проверку (время, погода, телепорт...). ✓ — работает, 🐞 — баг. Отметки сохраняются.", 12, C.dim, false, { LayoutOrder = 1 })
+	for order, e in Config.Changelog do
+		local s = section(body, "v" .. e.Version .. " — " .. e.Title, order)
+		for _, item in e.Items or {} do
+			label(s, "• " .. item, 12, C.dim, false, { LayoutOrder = 1 })
+		end
+		for i, t in e.Tests or {} do
+			local key = testKey(e, i)
+			local state = tested[key]
+			local row = new("Frame", { BackgroundColor3 = state == "ok" and Color3.fromRGB(28, 56, 38) or state == "bug" and Color3.fromRGB(64, 28, 30) or C.panel2, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 10 + i }, s)
+			corner(row, 8)
+			new("UIPadding", { PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 104) }, row)
+			label(row, t.Text, 12, C.text, false)
+			local buttons = new("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 100, 0.5, 0), Size = UDim2.fromOffset(96, 26), BackgroundTransparency = 1 }, row)
+			new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), HorizontalAlignment = Enum.HorizontalAlignment.Right }, buttons)
+			if t.Action then
+				btn(buttons, "▶", { Size = UDim2.fromOffset(28, 26), AutomaticSize = Enum.AutomaticSize.None, BackgroundColor3 = C.accent }, function()
+					if t.Action == "Overlay" then
+						setOverlay(t.Arg, true)
+						showResult("Слой включён: " .. tostring(t.Arg))
+					elseif t.Action == "Tab" then
+						currentTab = t.Arg
+						render()
+					else
+						action(t.Action, t.Arg)
+					end
+				end)
+			end
+			for _, mark in { { "ok", "✓", C.ok }, { "bug", "🐞", C.error } } do
+				btn(buttons, mark[2], { Size = UDim2.fromOffset(28, 26), AutomaticSize = Enum.AutomaticSize.None, BackgroundColor3 = state == mark[1] and mark[3] or C.panel }, function()
+					local value = tested[key] ~= mark[1] and mark[1] or nil
+					tested[key] = value
+					remote:FireServer("Tested", key, value)
+					render()
+				end)
+			end
+		end
+	end
+end
+
+local function renderWorld()
+	local p = snapshot.perf or {}
+	local time = section(body, string.format("🕗 Время: %s  %s  (день %s, ×%s)", tostring(p.hour or "?"), tostring(p.period or ""), tostring(p.day or "?"), tostring(p.timeScale or 1)), 1)
+	local hours = hflow(time, 1)
+	for _, h in { { 3, "3:00" }, { 7, "7:00" }, { 9.5, "9:30" }, { 13.5, "13:30" }, { 16, "16:00" }, { 19, "19:00" }, { 22, "22:00" } } do
+		btn(hours, h[2], {}, function()
+			action("SetHour", h[1])
+		end)
+	end
+	local speed = hflow(time, 2)
+	for _, x in { 0, 1, 5, 20, 60 } do
+		btn(speed, x == 0 and "⏸ Пауза" or ("×" .. x), { BackgroundColor3 = (p.timeScale or 1) == x and C.accent or C.panel2 }, function()
+			action("TimeScale", x)
+		end)
+	end
+
+	local weather = section(body, "🌦 Погода: " .. tostring(p.weather or "?"), 2)
+	local wf = hflow(weather, 1)
+	for key, t in pairs(WeatherConfig.Types) do
+		btn(wf, t.Icon .. " " .. t.Name, {}, function()
+			action("Weather", key)
+		end)
+	end
+
+	local police = section(body, "🚔 Вызов полиции (место — ближайшее к тебе)", 3)
+	local pf = hflow(police, 1)
+	for i, t in VehicleConfig.PoliceCallTypes do
+		btn(pf, t.Icon .. " " .. t.Name, {}, function()
+			action("PoliceCall", i)
+		end)
+	end
+
+	local me = section(body, "🙋 Игрок", 4)
+	local mf = hflow(me, 1)
+	btn(mf, "+100 🪙", {}, function()
+		action("Coins", 100)
+	end)
+	btn(mf, "⏱ Сбросить кулдауны", {}, function()
+		action("ResetCooldowns")
+	end)
+	btn(mf, "❤️ Вылечить", {}, function()
+		action("Heal")
+	end)
+	btn(mf, "📦 Заказ курьера", {}, function()
+		action("StartJob")
+	end)
+	btn(mf, "🗑 Сбросить прогресс", { BackgroundColor3 = Color3.fromRGB(90, 40, 40) }, function()
+		action("ResetCity")
+	end)
+
+	local tp = section(body, "📍 Телепорт", 5)
+	local tf = hflow(tp, 1)
+	btn(tf, "👮 Дежурный", {}, function()
+		action("Teleport", "Desk")
+	end)
+	btn(tf, "🔒 Камера", {}, function()
+		action("Teleport", "Cell")
+	end)
+	btn(tf, "🚏 Остановка 1", {}, function()
+		action("Teleport", "Stop:1")
+	end)
+	for _, name in placeNames do
+		btn(tf, "📌 " .. name, {}, function()
+			action("Teleport", "Place:" .. name)
+		end)
+	end
+end
+
+local function renderNPCs()
+	local list = snapshot.npcs or {}
+	local top = section(body, string.format("🧑 Жителей: %d", #list), 0)
+	local box = new("TextBox", { Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = C.panel2, TextColor3 = C.text, PlaceholderText = "🔍 Поиск по имени, зоне, действию…", PlaceholderColor3 = C.dim, Text = npcSearch, Font = Enum.Font.GothamMedium, TextSize = 13, ClearTextOnFocus = false, LayoutOrder = 1 }, top)
+	corner(box, 8)
+	box.FocusLost:Connect(function()
+		npcSearch = box.Text
+		render()
+	end)
+	local q = string.lower(npcSearch)
+	for i, n in list do
+		local hay = string.lower(n.name .. " " .. (n.title or "") .. " " .. n.action .. " " .. tostring(n.zone) .. " " .. tostring(n.home))
+		if q == "" or string.find(hay, q, 1, true) then
+			local row = new("Frame", { BackgroundColor3 = C.panel, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = i + 1 }, body)
+			corner(row, 8)
+			new("UIPadding", { PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 76) }, row)
+			vlist(row, 2)
+			label(row, string.format("%s%s%s  %s", n.officer and "👮 " or "", n.title or n.name, n.quest and " ❗" or "", tostring(n.mood or "")), 13, C.text, true)
+			label(row, n.action, 12, C.debug, false)
+			label(row, string.format("зона: %s · дом: %s · ❤ %s", tostring(n.zone or "Street"), tostring(n.home or "—"), tostring(n.health)), 11, C.dim, false)
+			local bf = new("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 72, 0.5, 0), Size = UDim2.fromOffset(66, 26), BackgroundTransparency = 1 }, row)
+			new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4) }, bf)
+			btn(bf, "👁", { Size = UDim2.fromOffset(30, 26), AutomaticSize = Enum.AutomaticSize.None }, function()
+				follow(n.model, n.name)
+			end)
+			btn(bf, "📍", { Size = UDim2.fromOffset(30, 26), AutomaticSize = Enum.AutomaticSize.None }, function()
+				remote:FireServer("Action", "TeleportTo", n.model)
+			end)
+		end
+	end
+end
+
+local CAR_ICON = { Civilian = "🚗", Taxi = "🚕", Bus = "🚌", Police = "🚓" }
+local function renderCars()
+	local list = snapshot.cars or {}
+	section(body, string.format("🚗 Машин: %d", #list), 0)
+	for i, car in list do
+		local row = new("Frame", { BackgroundColor3 = C.panel, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = i }, body)
+		corner(row, 8)
+		new("UIPadding", { PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 76) }, row)
+		vlist(row, 2)
+		local stuck = car.state == "busy" and car.speed < 0.1
+		label(row, string.format("%s %s #%d %s", CAR_ICON[car.kind] or "🚗", tostring(car.kind), car.id, car.siren and "🚨" or ""), 13, C.text, true)
+		label(row, string.format("состояние: %s · скорость: %s%s", tostring(car.state), tostring(car.speed), stuck and "  (стоит)" or ""), 12, stuck and C.warn or C.debug, false)
+		label(row, string.format("едет к: %s · водитель: %s", tostring(car.to or "—"), tostring(car.driver or "—")), 11, C.dim, false)
+		local bf = new("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 72, 0.5, 0), Size = UDim2.fromOffset(66, 26), BackgroundTransparency = 1 }, row)
+		new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4) }, bf)
+		btn(bf, "👁", { Size = UDim2.fromOffset(30, 26), AutomaticSize = Enum.AutomaticSize.None }, function()
+			follow(car.model, tostring(car.kind) .. " #" .. car.id)
+		end)
+		btn(bf, "📍", { Size = UDim2.fromOffset(30, 26), AutomaticSize = Enum.AutomaticSize.None }, function()
+			remote:FireServer("Action", "TeleportTo", car.model)
+		end)
+	end
+end
+
+local function renderOverlay()
+	local s = section(body, "🗺 Метки на карте — видишь только ты", 0)
+	label(s, "Невидимые метки становятся видны: цвет, имя, атрибуты и линия «куда смотрит передняя грань».", 12, C.dim, false, { LayoutOrder = 1 })
+	for i, l in LAYERS do
+		local on = overlays[l.id] == true
+		btn(s, (on and "☑ " or "☐ ") .. l.name, { LayoutOrder = 1 + i, Size = UDim2.new(1, 0, 0, 30), AutomaticSize = Enum.AutomaticSize.None, TextXAlignment = Enum.TextXAlignment.Left, BackgroundColor3 = on and C.panel2:Lerp(l.color, 0.25) or C.panel2 }, function()
+			setOverlay(l.id, not on)
+			render()
+		end)
+	end
+	btn(s, "Выключить все", { LayoutOrder = 100 }, function()
+		for id in pairs(overlays) do
+			setOverlay(id, false)
+		end
+		render()
+	end)
+end
+
+local OUTPUT_FILTERS = {
+	{ id = "all", text = "Все" },
+	{ id = "error", text = "❌ Ошибки" },
+	{ id = "warn", text = "⚠️ Предупр." },
+	{ id = "event", text = "✨ События" },
+	{ id = "C", text = "💻 Клиент" },
+	{ id = "S", text = "🖥 Сервер" },
+}
+for _, t in Config.LogTags do
+	table.insert(OUTPUT_FILTERS, { id = t, text = t })
+end
+
+local function logMatches(l): boolean
+	local f = outputFilter
+	local ok
+	if f == "all" then
+		ok = true
+	elseif f == "error" or f == "warn" or f == "event" then
+		ok = l.kind == f
+	elseif f == "C" or f == "S" then
+		ok = l.src == f
+	else
+		ok = string.find(l.text, f, 1, true) ~= nil
+	end
+	if ok and outputSearch ~= "" then
+		ok = string.find(string.lower(l.text), string.lower(outputSearch), 1, true) ~= nil
+	end
+	return ok
+end
+
+local function filteredLogs(limit: number)
+	local out = {}
+	for i = #logs, 1, -1 do
+		if logMatches(logs[i]) then
+			table.insert(out, 1, logs[i])
+			if #out >= limit then
+				break
+			end
+		end
+	end
+	return out
+end
+
+local function timeOf(t: number): string
+	local d = os.date("!*t", math.floor(t))
+	return string.format("%02d:%02d:%02d", d.hour, d.min, d.sec)
+end
+
+local copyMode = false
+local function renderOutput()
+	unseenErrors = 0
+	updateBadge()
+	local top = section(body, "🖥 Output — сервер (S) и клиент (C)", 0)
+	local ff = hflow(top, 1)
+	for _, f in OUTPUT_FILTERS do
+		btn(ff, f.text, { BackgroundColor3 = outputFilter == f.id and C.accent or C.panel2, TextSize = 12 }, function()
+			outputFilter = f.id
+			render()
+		end)
+	end
+	local tools = hflow(top, 2)
+	btn(tools, outputPaused and "▶ Продолжить" or "⏸ Пауза", {}, function()
+		outputPaused = not outputPaused
+		render()
+	end)
+	btn(tools, "🗑 Очистить", {}, function()
+		table.clear(logs)
+		render()
+	end)
+	btn(tools, copyMode and "📄 Списком" or "📋 Текстом (скопировать)", {}, function()
+		copyMode = not copyMode
+		render()
+	end)
+	local box = new("TextBox", { Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = C.panel2, TextColor3 = C.text, PlaceholderText = "🔍 Поиск в Output…", PlaceholderColor3 = C.dim, Text = outputSearch, Font = Enum.Font.GothamMedium, TextSize = 13, ClearTextOnFocus = false, LayoutOrder = 3 }, top)
+	corner(box, 8)
+	box.FocusLost:Connect(function()
+		outputSearch = box.Text
+		render()
+	end)
+
+	local list = filteredLogs(copyMode and 300 or 120)
+	if copyMode then
+		local lines = {}
+		for _, l in list do
+			table.insert(lines, string.format("%s [%s] %s %s", timeOf(l.t), l.src or "S", string.upper(l.kind), l.text))
+		end
+		local area = new("TextBox", {
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundColor3 = C.panel,
+			TextColor3 = C.text,
+			Font = Enum.Font.Code,
+			TextSize = 12,
+			TextWrapped = true,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			ClearTextOnFocus = false,
+			TextEditable = false,
+			MultiLine = true,
+			Text = #lines > 0 and table.concat(lines, "\n") or "(пусто)",
+			LayoutOrder = 1,
+		}, body)
+		corner(area, 8)
+		new("UIPadding", { PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8) }, area)
+		label(body, "Выдели текст (Ctrl+A внутри поля) и скопируй (Ctrl+C) — так удобно прислать ошибки Claude.", 11, C.dim, false, { LayoutOrder = 2 })
+		return
+	end
+	if #list == 0 then
+		label(body, "Пусто", 12, C.dim, false, { LayoutOrder = 1 })
+	end
+	for i, l in list do
+		local color = C[l.kind] or C.text
+		local row = label(body, string.format("%s  %s  %s", timeOf(l.t), l.src or "S", l.text), 12, l.kind == "info" and C.dim:Lerp(C.text, 0.5) or color, l.kind == "error", { LayoutOrder = i, Font = Enum.Font.Code })
+		if l.kind == "error" then
+			row.BackgroundTransparency = 0.85
+			row.BackgroundColor3 = C.error
+		end
+	end
+	task.defer(function()
+		body.CanvasPosition = Vector2.new(0, math.max(0, body.AbsoluteCanvasSize.Y - body.AbsoluteSize.Y))
+	end)
+end
+
+local LEVEL = { ok = { "✅", C.ok }, warn = { "⚠️", C.warn }, error = { "❌", C.error } }
+local function renderCheck()
+	local top = section(body, "✅ Проверка карты и установки", 0)
+	label(top, "Ищет пропущенные скрипты, ошибки разметки (точки без связей, дом без кровати, нет дежурного...) и ошибки в Output.", 12, C.dim, false, { LayoutOrder = 1 })
+	btn(top, checks and "🔄 Проверить ещё раз" or "▶ Запустить проверку", { LayoutOrder = 2, BackgroundColor3 = C.accent }, function()
+		remote:FireServer("Check")
+	end)
+	if not checks then
+		return
+	end
+	local counts = { ok = 0, warn = 0, error = 0 }
+	for _, c in checks do
+		counts[c.level] += 1
+	end
+	label(top, string.format("✅ %d   ⚠️ %d   ❌ %d", counts.ok, counts.warn, counts.error), 15, C.text, true, { LayoutOrder = 3 })
+	-- Сначала ошибки, потом предупреждения
+	local order = { error = 1, warn = 2, ok = 3 }
+	local sorted = table.clone(checks)
+	table.sort(sorted, function(a, b)
+		if order[a.level] ~= order[b.level] then
+			return order[a.level] < order[b.level]
+		end
+		return a.group < b.group
+	end)
+	for i, c in sorted do
+		local lv = LEVEL[c.level]
+		label(body, string.format("%s  %s: %s", lv[1], c.group, c.text), 12, c.level == "ok" and C.dim or lv[2], c.level == "error", { LayoutOrder = i })
+	end
+end
+
+local RENDER = { news = renderNews, world = renderWorld, npcs = renderNPCs, cars = renderCars, overlay = renderOverlay, output = renderOutput, check = renderCheck }
+local tabButtons = {}
+for i, t in TABS do
+	tabButtons[t.id] = btn(tabBar, t.text, { LayoutOrder = i, Size = UDim2.fromOffset(0, 30), TextSize = 12 }, function()
+		currentTab = t.id
+		render()
+	end)
+end
+
+function render()
+	for id, b in pairs(tabButtons) do
+		b.BackgroundColor3 = id == currentTab and C.accent or C.panel2
+	end
+	local keepScroll = body.CanvasPosition
+	clearBody()
+	RENDER[currentTab]()
+	if currentTab ~= "output" then
+		task.defer(function()
+			body.CanvasPosition = keepScroll
+		end)
+	end
+end
+
+---------------------------------------------------------------------
+-- Сервер
+---------------------------------------------------------------------
+
+remote.OnClientEvent:Connect(function(kind, payload)
+	if kind == "Hello" then
+		for _, l in payload.logs do
+			addLog(l)
+		end
+		table.sort(logs, function(a, b)
+			return a.t < b.t
+		end)
+		tested = payload.tested or {}
+		placeNames = payload.placeNames or {}
+		updateBadge()
+		if win.Visible then
+			render()
+		end
+	elseif kind == "Logs" then
+		for _, l in payload do
+			addLog(l)
+		end
+		updateBadge()
+		outputDirty = true
+	elseif kind == "Snapshot" then
+		snapshot = payload
+		drawDynamic()
+		if win.Visible and (currentTab == "npcs" or currentTab == "cars") and not UserInputService:GetFocusedTextBox() then
+			render()
+		end
+	elseif kind == "Nodes" then
+		if overlays.Roads then
+			drawRoads(payload)
+		end
+	elseif kind == "Check" then
+		checks = payload
+		if currentTab == "check" then
+			render()
+		end
+	elseif kind == "Result" then
+		showResult(payload)
+		if win.Visible and currentTab == "world" then
+			remote:FireServer("Snapshot")
+			task.delay(0.4, function()
+				if currentTab == "world" then
+					render()
+				end
+			end)
+		end
+	end
+end)
+remote:FireServer("Hello")
+
+---------------------------------------------------------------------
+-- Открыть / закрыть, обновления
+---------------------------------------------------------------------
+
+local function fit()
+	local view = camera.ViewportSize
+	winScale.Scale = math.min(1, (view.Y - 100) / H, (view.X - 90) / W)
+end
+camera:GetPropertyChangedSignal("ViewportSize"):Connect(fit)
+fit()
+
+local function toggleMenu()
+	win.Visible = not win.Visible
+	if win.Visible then
+		remote:FireServer("Snapshot")
+		render()
+	end
+end
+toggle.Activated:Connect(toggleMenu)
+ContextActionService:BindAction("DebugMenu", function(_, state)
+	if state == Enum.UserInputState.Begin then
+		toggleMenu()
+	end
+	return Enum.ContextActionResult.Sink
+end, false, Config.Key)
+
+local fpsFrames, fpsTimer, clientFps = 0, 0, 60
+local snapTimer, outputTimer = 0, 0
+RunService.RenderStepped:Connect(function(dt)
+	fpsFrames += 1
+	fpsTimer += dt
+	if fpsTimer >= 1 then
+		clientFps = math.floor(fpsFrames / fpsTimer)
+		fpsFrames, fpsTimer = 0, 0
+		local p = snapshot.perf or {}
+		footer.Text = string.format("FPS: клиент %d · сервер %s   💾 %s МБ   🧑 %s   🚗 %s   🕗 %s ×%s   📶 %d мс",
+			clientFps, tostring(p.fps or "?"), tostring(p.memory or "?"), tostring(p.npcs or "?"), tostring(p.cars or "?"),
+			tostring(p.hour or "?"), tostring(p.timeScale or 1), math.floor(player:GetNetworkPing() * 1000))
+	end
+	-- Живые данные: только когда они на экране
+	local live = overlays.NPCPaths or overlays.CarRoutes or overlays.NPCLabels or (win.Visible and (currentTab == "npcs" or currentTab == "cars"))
+	snapTimer -= dt
+	if (live or win.Visible) and snapTimer <= 0 then
+		snapTimer = live and 1 or 2 -- строке внизу хватает раза в 2 секунды
+		remote:FireServer("Snapshot")
+	end
+	outputTimer -= dt
+	if outputDirty and outputTimer <= 0 and win.Visible and currentTab == "output" and not outputPaused and not copyMode and not UserInputService:GetFocusedTextBox() then
+		outputTimer = 0.6
+		outputDirty = false
+		render()
+	end
+	if followTarget and not followTarget.Parent then
+		stopFollow()
+	end
+end)
+
+player.CharacterAdded:Connect(function()
+	if followTarget then
+		task.defer(stopFollow)
 	end
 end)
 ]]></ProtectedString></Properties></Item></Item></Item></roblox>

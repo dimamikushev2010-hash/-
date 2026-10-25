@@ -107,7 +107,10 @@ RunService.Heartbeat:Connect(function(dt)
 		return
 	end
 	local before = Lighting.ClockTime
-	Lighting.ClockTime = (Lighting.ClockTime + pending * hoursPerSecond) % 24
+	-- TimeScale — ускорение времени из меню отладки (1 = обычно, 0 = пауза)
+	local scale = workspace:GetAttribute("TimeScale")
+	scale = type(scale) == "number" and scale or 1
+	Lighting.ClockTime = (Lighting.ClockTime + pending * hoursPerSecond * scale) % 24
 	pending = 0
 	if Lighting.ClockTime < before then
 		day += 1 -- полночь: новый день недели
