@@ -1192,6 +1192,20 @@ end
 ]]
 DebugConfig.Changelog = {
 	{
+		Version = "2.6",
+		Date = "2026-10-25",
+		Title = "Gemini сам находит модель",
+		Summary = "Ошибка 404 (Google убрал или переименовал модель) больше не ломает нейросеть суда: игра спрашивает у Google список моделей для ключа и берёт лучшую «flash». Если новая модель не понимает настройку раздумий — запрос повторяется без неё.",
+		Details = {
+			{ Title = "🔎 Подбор модели", Text = "В Output появится строка «[Court] Модель … не найдена — беру …». Эту модель можно вписать в CourtConfig.AI.Gemini.Model, чтобы не искать каждый раз." },
+		},
+		Files = { "CourtAI", "DebugConfig" },
+		Tests = {
+			{ Text = "Нейросеть суда: «готова», без «ошибка 404» после первого суда", Action = "CourtAIStatus" },
+			{ Text = "Суд: в шапке «🤖 живой суд», реплики пишет нейросеть", Action = "ArrestMe" },
+		},
+	},
+	{
 		Version = "2.5",
 		Date = "2026-10-25",
 		Title = "Суд на Google Gemini (бесплатный уровень)",
@@ -3295,6 +3309,67 @@ function CourtAI.status(): string
 	return "готова (" .. MODEL .. ")" .. (lastError and (", последняя ошибка: " .. lastError) or "")
 end
 
+local noThinkingConfig = false -- новая модель не понимает thinkingBudget — шлём без него
+local modelSearched = false
+
+-- Модель не найдена (404) — спросить у Google список моделей для этого ключа и взять лучшую «flash»
+local function findGeminiModel(): boolean
+	if modelSearched then
+		return false
+	end
+	modelSearched = true
+	local ok, res = pcall(function()
+		return HttpService:RequestAsync({
+			Url = "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",
+			Method = "GET",
+			Headers = { ["x-goog-api-key"] = key },
+		})
+	end)
+	if not ok or res.StatusCode ~= 200 then
+		warn("[Court] Не удалось получить список моделей Gemini: " .. (ok and tostring(res.StatusCode) or tostring(res)))
+		return false
+	end
+	local okJson, data = pcall(HttpService.JSONDecode, HttpService, res.Body)
+	if not okJson or type(data) ~= "table" or type(data.models) ~= "table" then
+		return false
+	end
+	local best, bestScore = nil, -math.huge
+	for _, m in data.models do
+		local name = type(m) == "table" and type(m.name) == "string" and string.gsub(m.name, "^models/", "") or nil
+		local methods = type(m) == "table" and m.supportedGenerationMethods or {}
+		if not name or not table.find(methods, "generateContent") or not string.find(name, "^gemini") then
+			continue
+		end
+		-- Не подходят: картинки, голос, живой режим, эмбеддинги
+		if string.find(name, "image") or string.find(name, "tts") or string.find(name, "audio") or string.find(name, "live") or string.find(name, "embed") then
+			continue
+		end
+		local version = tonumber(string.match(name, "^gemini%-(%d+%.?%d*)")) or 0
+		local score = version * 10
+		if string.find(name, "flash") then
+			score += 50 -- быстрая и с бесплатным лимитом
+		end
+		if string.find(name, "lite") then
+			score -= 5
+		end
+		if string.find(name, "preview") or string.find(name, "exp") then
+			score -= 15
+		end
+		if string.find(name, "latest") then
+			score += 3
+		end
+		if score > bestScore then
+			best, bestScore = name, score
+		end
+	end
+	if not best then
+		return false
+	end
+	print(string.format("[Court] Модель %s не найдена — беру %s (впиши её в CourtConfig.AI.Gemini.Model)", MODEL, best))
+	MODEL = best
+	return true
+end
+
 -- Фолбэк Claude при отказе модели — только там, где он есть
 local function supportsFallback(model: string): boolean
 	return string.find(model, "^claude%-opus%-5") ~= nil or string.find(model, "^claude%-fable") ~= nil or model == "claude-sonnet-5-5"
@@ -3334,14 +3409,14 @@ local function build(system: string, userText: string, schema, maxTokens: number
 			config.responseMimeType = "application/json"
 			config.responseSchema = geminiSchema(schema)
 		end
-		if G.ThinkingBudget then
+		if G.ThinkingBudget and not noThinkingConfig then
 			config.thinkingConfig = { thinkingBudget = G.ThinkingBudget }
 		end
 		local safety = {}
 		for _, category in { "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT" } do
 			table.insert(safety, { category = category, threshold = G.SafetyThreshold })
 		end
-		return string.format(G.Url, G.Model), { ["Content-Type"] = "application/json", ["x-goog-api-key"] = key }, {
+		return string.format(G.Url, MODEL), { ["Content-Type"] = "application/json", ["x-goog-api-key"] = key }, {
 			systemInstruction = { parts = { { text = system } } },
 			contents = { { role = "user", parts = { { text = userText } } } },
 			generationConfig = config,
@@ -3410,7 +3485,8 @@ local function parse(data): (string?, string?)
 end
 
 -- Один запрос: system + одно сообщение пользователя. Возвращает текст ответа или nil
-local function request(system: string, userText: string, schema, maxTokens: number): string?
+local request -- объявлена ниже (повторяет себя после смены модели)
+function request(system: string, userText: string, schema, maxTokens: number, retried: boolean?): string?
 	if not CourtAI.available() then
 		return nil
 	end
@@ -3442,7 +3518,19 @@ local function request(system: string, userText: string, schema, maxTokens: numb
 	end
 	if res.StatusCode ~= 200 then
 		lastError = "ошибка " .. res.StatusCode
-		if res.StatusCode == 401 or res.StatusCode == 403 then
+		warn("[Court] Нейросеть: " .. lastError .. " " .. string.sub(tostring(res.Body), 1, 300))
+		-- Gemini: модели нет — найти другую; не понимает thinkingBudget — без него; и повторить
+		if GEMINI and not retried then
+			if res.StatusCode == 404 and findGeminiModel() then
+				return request(system, userText, schema, maxTokens, true)
+			elseif res.StatusCode == 400 and not noThinkingConfig and string.find(string.lower(tostring(res.Body)), "think") then
+				noThinkingConfig = true
+				return request(system, userText, schema, maxTokens, true)
+			end
+		end
+		if res.StatusCode == 404 then
+			disabledUntil = math.huge -- модели нет и замену не нашли
+		elseif res.StatusCode == 401 or res.StatusCode == 403 then
 			disabledUntil = math.huge -- неверный ключ — до перезапуска сервера
 		elseif res.StatusCode == 429 then
 			lastError ..= " (кончился лимит запросов)"
@@ -3450,7 +3538,6 @@ local function request(system: string, userText: string, schema, maxTokens: numb
 		elseif res.StatusCode >= 500 then
 			disabledUntil = os.clock() + 60
 		end
-		warn("[Court] Нейросеть: " .. lastError .. " " .. string.sub(tostring(res.Body), 1, 300))
 		return nil
 	end
 	local okJson, data = pcall(HttpService.JSONDecode, HttpService, res.Body)
