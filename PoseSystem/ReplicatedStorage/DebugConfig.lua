@@ -96,6 +96,21 @@ end
 ]]
 DebugConfig.Changelog = {
 	{
+		Version = "2.5",
+		Date = "2026-10-25",
+		Title = "Суд на Google Gemini (бесплатный уровень)",
+		Summary = "Нейросеть суда теперь по умолчанию — Google Gemini (gemini-2.5-flash): у неё есть бесплатный уровень с лимитами. Claude остаётся вариантом: CourtConfig.AI.Provider = \"claude\".",
+		Details = {
+			{ Title = "🔑 Ключ", Text = "aistudio.google.com → Get API key. Creator Hub → игра → Secrets: имя gemini_api_key, домен generativelanguage.googleapis.com. Game Settings → Security → Allow HTTP Requests." },
+			{ Title = "⏳ Лимиты", Text = "Кончился бесплатный лимит (ошибка 429) — суд на полторы минуты переходит на живой спор без нейросети, потом пробует снова." },
+		},
+		Files = { "CourtAI", "CourtConfig", "DebugConfig" },
+		Tests = {
+			{ Text = "Нейросеть суда: «готова (gemini-2.5-flash)» или понятно, чего не хватает", Action = "CourtAIStatus" },
+			{ Text = "Суд с ключом: в шапке «🤖 живой суд», реплики каждый раз новые", Action = "ArrestMe" },
+		},
+	},
+	{
 		Version = "2.4",
 		Date = "2026-10-25",
 		Title = "Живой суд: спор, нейросеть и новые исходы",

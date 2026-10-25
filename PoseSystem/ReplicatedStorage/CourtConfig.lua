@@ -424,14 +424,25 @@ CourtConfig.Answers = {
 }
 
 ---------------------------------------------------------------------
--- 🤖 Живой суд через нейросеть Claude
+-- 🤖 Живой суд через нейросеть
 ---------------------------------------------------------------------
--- Нужен ключ API от console.anthropic.com (платный аккаунт; по правилам Anthropic его заводит взрослый 18+).
--- Опубликованная игра: Creator Hub → игра → Secrets → новый секрет, имя как SecretName, домен api.anthropic.com.
+-- Provider = "gemini" — Google Gemini (есть бесплатный уровень с лимитами): ключ на aistudio.google.com,
+--   Creator Hub → игра → Secrets → имя gemini_api_key, домен generativelanguage.googleapis.com.
+-- Provider = "claude" — Anthropic Claude (платно): ключ на console.anthropic.com,
+--   Secrets → имя anthropic_api_key, домен api.anthropic.com.
 -- Ещё: Game Settings → Security → Allow HTTP Requests = вкл.
--- Нет ключа, нейросеть молчит дольше Timeout или отказалась — суд идёт «живым спором» без неё (ниже), игра не ломается.
+-- Нет ключа, кончился лимит, нейросеть молчит дольше Timeout или отказалась — суд идёт «живым спором» без неё, игра не ломается.
 CourtConfig.AI = {
 	Enabled = true,
+	Provider = "gemini", -- "gemini" или "claude"
+	Gemini = {
+		SecretName = "gemini_api_key",
+		Url = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent",
+		Model = "gemini-2.5-flash", -- ещё быстрее и с большим лимитом — "gemini-2.5-flash-lite"
+		ThinkingBudget = 0, -- 0 — отвечает сразу, без долгих раздумий
+		SafetyThreshold = "BLOCK_ONLY_HIGH", -- суд про стрельбу: обычный фильтр Google слишком часто блокирует
+	},
+	-- Claude
 	SecretName = "anthropic_api_key",
 	Url = "https://api.anthropic.com/v1/messages",
 	ApiVersion = "2026-10-21",

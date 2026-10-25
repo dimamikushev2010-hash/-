@@ -1,6 +1,6 @@
 -- ModuleScript: ServerScriptService > CourtAI
 -- «Живой суд»: реплики судьи, прокурора, адвоката и свидетелей.
---   🤖 Через нейросеть Claude (ключ — в Secrets, настройки — CourtConfig.AI): каждый раз новый спор и новый исход.
+--   🤖 Через нейросеть — Google Gemini или Claude (ключ — в Secrets, настройки — CourtConfig.AI): каждый раз новый спор и исход.
 --   🎲 Без ключа, при ошибке или долгом ответе — живой спор без нейросети: характер судьи, доводы, протесты,
 --      неожиданные повороты, весы правосудия и случайность.
 -- Используют CourtServer (суд, чат адвоката) и DebugServer (проверка ключа).
@@ -51,16 +51,21 @@ local keyChecked = false
 local disabledUntil = 0 -- после ошибки — пауза (или навсегда, если ключ неверный)
 local lastError = nil
 
+-- Какая нейросеть: "gemini" (Google, есть бесплатный уровень) или "claude" (Anthropic)
+local GEMINI = AI.Provider == "gemini"
+local SECRET = GEMINI and AI.Gemini.SecretName or AI.SecretName
+local MODEL = GEMINI and AI.Gemini.Model or AI.Model
+
 local function secret()
 	if not keyChecked then
 		keyChecked = true
 		local ok, value = pcall(function()
-			return HttpService:GetSecret(AI.SecretName)
+			return HttpService:GetSecret(SECRET)
 		end)
 		if ok and value then
 			key = value
 		else
-			lastError = "нет секрета «" .. AI.SecretName .. "»"
+			lastError = "нет секрета «" .. SECRET .. "»"
 			print("[Court] Нейросеть суда выключена: " .. lastError .. " (Creator Hub → Secrets). Суд идёт живым спором без неё.")
 		end
 	end
@@ -84,18 +89,61 @@ function CourtAI.status(): string
 	if os.clock() < disabledUntil then
 		return "пауза после ошибки: " .. tostring(lastError)
 	end
-	return "готова (" .. AI.Model .. ")" .. (lastError and (", последняя ошибка: " .. lastError) or "")
+	return "готова (" .. MODEL .. ")" .. (lastError and (", последняя ошибка: " .. lastError) or "")
 end
 
--- Фолбэк при отказе модели — только там, где он есть
+-- Фолбэк Claude при отказе модели — только там, где он есть
 local function supportsFallback(model: string): boolean
 	return string.find(model, "^claude%-opus%-5") ~= nil or string.find(model, "^claude%-fable") ~= nil or model == "claude-sonnet-5-5"
 end
 
--- Один запрос: system + одно сообщение пользователя. Возвращает текст ответа или nil
-local function request(system: string, userText: string, schema, maxTokens: number): string?
-	if not CourtAI.available() then
-		return nil
+-- Схема ответа для Gemini: типы большими буквами, без additionalProperties
+local function geminiSchema(schema)
+	if type(schema) ~= "table" then
+		return schema
+	end
+	local out = {}
+	for k, v in schema do
+		if k == "additionalProperties" then
+			continue
+		elseif k == "type" and type(v) == "string" then
+			out.type = string.upper(v)
+		elseif k == "properties" then
+			out.properties = {}
+			for name, sub in v do
+				out.properties[name] = geminiSchema(sub)
+			end
+		elseif k == "items" then
+			out.items = geminiSchema(v)
+		else
+			out[k] = v
+		end
+	end
+	return out
+end
+
+-- Запрос к выбранной нейросети: Url, заголовки, тело
+local function build(system: string, userText: string, schema, maxTokens: number)
+	if GEMINI then
+		local G = AI.Gemini
+		local config = { maxOutputTokens = maxTokens }
+		if schema then
+			config.responseMimeType = "application/json"
+			config.responseSchema = geminiSchema(schema)
+		end
+		if G.ThinkingBudget then
+			config.thinkingConfig = { thinkingBudget = G.ThinkingBudget }
+		end
+		local safety = {}
+		for _, category in { "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT" } do
+			table.insert(safety, { category = category, threshold = G.SafetyThreshold })
+		end
+		return string.format(G.Url, G.Model), { ["Content-Type"] = "application/json", ["x-goog-api-key"] = key }, {
+			systemInstruction = { parts = { { text = system } } },
+			contents = { { role = "user", parts = { { text = userText } } } },
+			generationConfig = config,
+			safetySettings = safety,
+		}
 	end
 	local body = {
 		model = AI.Model,
@@ -116,10 +164,58 @@ local function request(system: string, userText: string, schema, maxTokens: numb
 		body.fallbacks = "default"
 		headers["anthropic-beta"] = "server-side-fallback-2026-07-01"
 	end
+	return AI.Url, headers, body
+end
+
+-- Текст из ответа (или nil и причина)
+local function parse(data): (string?, string?)
+	local parts = {}
+	if GEMINI then
+		if type(data.promptFeedback) == "table" and data.promptFeedback.blockReason then
+			return nil, "запрос заблокирован фильтром Google"
+		end
+		local cand = type(data.candidates) == "table" and data.candidates[1]
+		if type(cand) ~= "table" then
+			return nil, "пустой ответ"
+		end
+		if cand.finishReason == "MAX_TOKENS" then
+			return nil, "ответ обрезан (MaxTokens)"
+		elseif cand.finishReason and cand.finishReason ~= "STOP" then
+			return nil, "модель остановилась: " .. tostring(cand.finishReason)
+		end
+		for _, part in (type(cand.content) == "table" and cand.content.parts) or {} do
+			if type(part) == "table" and type(part.text) == "string" and not part.thought then
+				table.insert(parts, part.text)
+			end
+		end
+	else
+		if data.stop_reason == "refusal" then
+			return nil, "модель отказалась"
+		elseif data.stop_reason == "max_tokens" then
+			return nil, "ответ обрезан (MaxTokens)"
+		end
+		for _, block in data.content or {} do
+			if type(block) == "table" and block.type == "text" and type(block.text) == "string" then
+				table.insert(parts, block.text)
+			end
+		end
+	end
+	if #parts == 0 then
+		return nil, "пустой ответ"
+	end
+	return table.concat(parts), nil
+end
+
+-- Один запрос: system + одно сообщение пользователя. Возвращает текст ответа или nil
+local function request(system: string, userText: string, schema, maxTokens: number): string?
+	if not CourtAI.available() then
+		return nil
+	end
+	local url, headers, body = build(system, userText, schema, maxTokens)
 	local done, ok, res = false, false, nil
 	task.spawn(function()
 		ok, res = pcall(function()
-			return HttpService:RequestAsync({ Url = AI.Url, Method = "POST", Headers = headers, Body = HttpService:JSONEncode(body) })
+			return HttpService:RequestAsync({ Url = url, Method = "POST", Headers = headers, Body = HttpService:JSONEncode(body) })
 		end)
 		done = true
 	end)
@@ -145,7 +241,10 @@ local function request(system: string, userText: string, schema, maxTokens: numb
 		lastError = "ошибка " .. res.StatusCode
 		if res.StatusCode == 401 or res.StatusCode == 403 then
 			disabledUntil = math.huge -- неверный ключ — до перезапуска сервера
-		elseif res.StatusCode == 429 or res.StatusCode >= 500 then
+		elseif res.StatusCode == 429 then
+			lastError ..= " (кончился лимит запросов)"
+			disabledUntil = os.clock() + 90
+		elseif res.StatusCode >= 500 then
 			disabledUntil = os.clock() + 60
 		end
 		warn("[Court] Нейросеть: " .. lastError .. " " .. string.sub(tostring(res.Body), 1, 300))
@@ -156,26 +255,9 @@ local function request(system: string, userText: string, schema, maxTokens: numb
 		lastError = "непонятный ответ"
 		return nil
 	end
-	if data.stop_reason == "refusal" then
-		lastError = "модель отказалась"
-		return nil
-	end
-	if data.stop_reason == "max_tokens" then
-		lastError = "ответ обрезан (MaxTokens)"
-		return nil
-	end
-	local parts = {}
-	for _, block in data.content or {} do
-		if type(block) == "table" and block.type == "text" and type(block.text) == "string" then
-			table.insert(parts, block.text)
-		end
-	end
-	if #parts == 0 then
-		lastError = "пустой ответ"
-		return nil
-	end
-	lastError = nil
-	return table.concat(parts)
+	local text, why = parse(data)
+	lastError = why
+	return text
 end
 
 -- Фильтр Roblox для текста, который увидят игроки (обязателен для созданного текста)

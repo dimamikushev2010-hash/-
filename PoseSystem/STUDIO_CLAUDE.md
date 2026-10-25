@@ -375,10 +375,11 @@ Folder `PoliceStation` внутри `TrafficSystem`. Метки — Part 2 × 0.
 
 **Места для общественных работ** — `JusticeSystem > Community` (Folder), необязательно: 10–20 Part на тротуарах, во дворах, у остановок (не на дороге, не внутри домов). Там появляются кучи мусора, которые осуждённый убирает. Без папки — места берутся у `Places`, `BusStops`, `PoliceCalls`.
 
-**🤖 Нейросеть для суда (делает владелец, не ты):** суд работает и без неё («живой спор»). Чтобы реплики писала нейросеть Claude:
-1. Владелец получает ключ API на console.anthropic.com (платный аккаунт для взрослых 18+).
-2. Creator Hub → игра → **Secrets** → новый секрет: имя `anthropic_api_key`, значение — ключ, домен `api.anthropic.com`. Для проверки в Studio — локальный секрет в Game Settings → Security (если владелец хочет).
+**🤖 Нейросеть для суда (делает владелец, не ты):** суд работает и без неё («живой спор»). По умолчанию — Google Gemini (`CourtConfig.AI.Provider = "gemini"`, есть бесплатный уровень):
+1. Владелец получает ключ на aistudio.google.com → Get API key.
+2. Creator Hub → игра → **Secrets** → новый секрет: имя `gemini_api_key`, значение — ключ, домен `generativelanguage.googleapis.com`. Для проверки в Studio — локальный секрет в Game Settings → Security (если владелец хочет).
 3. Game Settings → Security → **Allow HTTP Requests** = вкл.
+Вместо Gemini можно Claude: `Provider = "claude"`, секрет `anthropic_api_key`, домен `api.anthropic.com` (платно).
 Ключ никуда не вписывай в код и не присылай в отчёте. Проверка — F2 → «📋 Проверки» → v2.4 → «Нейросеть суда».
 
 **Камеры наблюдения** — `JusticeSystem > Cameras` (Folder), необязательно:
