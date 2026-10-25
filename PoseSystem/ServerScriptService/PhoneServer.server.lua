@@ -37,6 +37,8 @@ remote.OnServerEvent:Connect(function(player: Player, action: any, a: any, b: an
 		Registry.phoneReply(player, a, b)
 	elseif action == "Friends" and Registry.friendsOf then
 		remote:FireClient(player, "Friends", Registry.friendsOf(player))
+	elseif type(action) == "string" and Registry.weaponAction and Registry.weaponAction(player, action, a) then
+		return -- оружие и патроны (WeaponServer)
 	elseif type(action) == "string" and Registry.cityAction then
 		Registry.cityAction(player, action, a, b)
 	end

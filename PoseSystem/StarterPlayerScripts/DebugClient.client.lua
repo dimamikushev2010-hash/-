@@ -732,6 +732,22 @@ local function renderWorld()
 		action("ResetCity")
 	end)
 
+	local wanted = section(body, "🔫 Оружие и розыск", 7)
+	local wf2 = hflow(wanted, 1)
+	for n = 0, 5 do
+		btn(wf2, n == 0 and "Снять розыск" or (string.rep("★", n)), { BackgroundColor3 = n == 0 and C.panel2 or Color3.fromRGB(80, 70, 30) }, function()
+			action("Wanted", n)
+		end)
+	end
+	local wf3 = hflow(wanted, 2)
+	btn(wf3, "🔫 Выдать оружие", {}, function()
+		action("GiveWeapons")
+	end)
+	btn(wf3, "🚔 Арестовать меня", {}, function()
+		action("ArrestMe")
+	end)
+	label(wanted, "Звёзды ставятся как звонок свидетеля с твоего места: полиция едет туда и ищет.", 11, C.dim, false, { LayoutOrder = 3 })
+
 	local cam = section(body, "🎥 Камера", 6)
 	local cf = hflow(cam, 1)
 	btn(cf, "🎥 Свободная камера (F3)", { BackgroundColor3 = C.accent }, function()

@@ -66,6 +66,22 @@ SoundConfig.Phone = {
 	Shutter = { Id = "", Volume = 0.5 }, -- щелчок затвора камеры (если пусто — звук нажатия)
 }
 
+-- Оружие и розыск
+SoundConfig.Weapons = {
+	PistolShot = { Id = "", Volume = 0.7 }, -- выстрел пистолета (gunshot pistol)
+	RifleShot = { Id = "", Volume = 0.6 }, -- выстрел винтовки (rifle shot)
+	Reload = { Id = "", Volume = 0.5 }, -- перезарядка (magazine reload)
+	Empty = { Id = "", Volume = 0.5 }, -- щелчок пустого магазина (dry fire click)
+	Hit = { Id = "", Volume = 0.35 }, -- попадание (hitmarker)
+	Impact = { Id = "", Volume = 0.4 }, -- пуля в стену (bullet impact)
+	Whiz = { Id = "", Volume = 0.4 }, -- пуля пролетела рядом (bullet whiz)
+	Cuffs = { Id = "", Volume = 0.6 }, -- наручники (handcuffs click)
+	Camera = { Id = "", Volume = 0.6 }, -- вспышка фото в отделе
+	Gavel = { Id = "", Volume = 0.8 }, -- молоток судьи
+	Busted = { Id = "", Volume = 0.6 }, -- звук ареста
+	Wanted = { Id = "", Volume = 0.4 }, -- звезда розыска
+}
+
 -- Голоса жителей: у каждого своя высота (случайная в этом диапазоне).
 -- Для живого голоса диапазон небольшой: 0.9–1.15 звучит естественно.
 SoundConfig.VoicePitch = NumberRange.new(0.9, 1.15)

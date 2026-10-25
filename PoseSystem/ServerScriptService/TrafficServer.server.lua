@@ -1927,6 +1927,7 @@ local function spawnOfficer(at: CFrame, title: string?)
 	if officer then
 		officer.officer = true
 		officer.noSocial = true
+		officer.model:SetAttribute("Police", true)
 		if officer.prompt then
 			officer.prompt.Enabled = false
 		end
@@ -2886,3 +2887,68 @@ function Registry.phoneTaxi(player: Player, placeIndex: any)
 	end
 	finish()
 end
+
+---------------------------------------------------------------------
+-- Для розыска (WantedServer): полицейские машины и офицеры по погоне
+---------------------------------------------------------------------
+
+local function removeCar(car)
+	for seat, who in pairs(car.occupants) do
+		if typeof(who) == "Instance" and who:IsA("Player") then
+			unseatPlayer(who, car)
+		end
+		car.occupants[seat] = nil
+	end
+	if car.spot and car.spot.car == car then
+		car.spot.car = nil
+	end
+	local i = table.find(cars, car)
+	if i then
+		table.remove(cars, i)
+	end
+	car.driveDone = true
+	if car.model then
+		car.model:Destroy()
+	end
+end
+
+-- Новая полицейская машина на точке дороги (на погоню)
+local function spawnPoliceAt(nodeName: string, look: Vector3?)
+	local node = nodes[nodeName]
+	if not node then
+		return nil
+	end
+	local car = spawnCar("Police", nil)
+	if not car then
+		return nil
+	end
+	local dir = look
+	if not dir then
+		local other = next(node.links)
+		dir = other and flat(nodes[other].pos - node.pos) or Vector3.new(0, 0, -1)
+	end
+	dir = dir.Magnitude > 0.1 and dir.Unit or Vector3.new(0, 0, -1)
+	placeCar(car, Vector3.new(node.pos.X, groundY(node.pos), node.pos.Z), dir)
+	car.state = "busy"
+	car.pursuit = true
+	return car
+end
+
+Registry.policeKit = {
+	nodes = nodes,
+	nearestNode = nearestNode,
+	spawnPoliceAt = spawnPoliceAt,
+	removeCar = removeCar,
+	drive = drive,
+	seatNPC = seatNPC,
+	unseatNPC = unseatNPC,
+	seatPlayer = seatPlayer,
+	unseatPlayer = unseatPlayer,
+	freeSeat = freeSeat,
+	boardAll = boardAll,
+	doorSide = doorSide,
+	spawnOfficer = spawnOfficer,
+	station = station,
+	groundY = groundY,
+	cars = cars,
+}

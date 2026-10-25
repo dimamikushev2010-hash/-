@@ -1393,6 +1393,30 @@ local function doActivity(npc, point)
 end
 
 local function fleePoint(npc)
+	local from = npc.fleeFrom
+	if from then
+		-- Подальше от опасности; в укрытии — лучше точка в здании, не слишком далеко
+		local best, bestScore = nil, -math.huge
+		for _, point in pairs(points) do
+			local pos = point.part.Position
+			local mine = (pos - npc.hrp.Position).Magnitude
+			local danger = (pos - from).Magnitude
+			if mine < 160 and danger > 25 and point.activity ~= "Work" and point.activity ~= "Patrol" then
+				local indoor = point.zone ~= nil and point.zone ~= Config.OutdoorZone
+				local score = danger - mine * 0.6 + ((npc.fleeMode == "cover" and indoor) and 60 or 0)
+				-- Не бежать мимо опасности
+				if flat(pos - npc.hrp.Position):Dot(flat(from - npc.hrp.Position)) > 0 then
+					score -= 80
+				end
+				if score > bestScore then
+					best, bestScore = point, score
+				end
+			end
+		end
+		if best then
+			return best
+		end
+	end
 	local best, bestDist = nil, 0
 	for _, point in pairs(points) do
 		local dist = (point.part.Position - npc.hrp.Position).Magnitude
@@ -1600,19 +1624,48 @@ local function brain(npc)
 
 		local now = os.clock()
 		if now < npc.fleeUntil then
-			-- Убегаем подальше
-			npc.debugAction = "😱 Убегает"
 			standUp(npc)
-			setMood(npc, "Scared", 5)
-			sfx(npc, "Scream")
-			npc.humanoid.WalkSpeed = Config.RunSpeed
-			local target = fleePoint(npc)
-			if target then
-				walkTo(npc, target.part.Position)
+			local from = npc.fleeFrom
+			if npc.fleeMode == "distance" and from then
+				-- Держит дистанцию: отходит и смотрит на опасность
+				npc.debugAction = "😨 Держит дистанцию"
+				setMood(npc, "Scared", 4)
+				local away = flat(npc.hrp.Position - from)
+				away = away.Magnitude > 0.1 and away.Unit or -npc.hrp.CFrame.LookVector
+				local keep = npc.keepDistance or 16
+				if (npc.hrp.Position - from).Magnitude < keep then
+					walkTo(npc, npc.hrp.Position + away * (keep - (npc.hrp.Position - from).Magnitude + 4))
+				end
+				face(npc, from - npc.hrp.Position, 0.4)
+				task.wait(1.2)
 			else
-				task.wait(1)
+				-- Убегает: в укрытие (в здание), подальше от опасности
+				npc.debugAction = npc.fleeMode == "cover" and "🏃 Бежит в укрытие" or "😱 Убегает"
+				setMood(npc, "Scared", 5)
+				if npc.fleeMode ~= "silent" then
+					sfx(npc, "Scream")
+				end
+				npc.humanoid.WalkSpeed = Config.RunSpeed
+				local target = fleePoint(npc)
+				if target then
+					walkTo(npc, approachPosition(target))
+					if npc.fleeMode == "cover" and npc.alive and os.clock() < npc.fleeUntil then
+						-- Прячется: приседает и ждёт
+						npc.debugAction = "🫣 Прячется"
+						setPose(npc, "Kneel")
+						while npc.alive and os.clock() < npc.fleeUntil and not npc.abort do
+							task.wait(0.5)
+						end
+						standUp(npc)
+					end
+				else
+					task.wait(1)
+				end
+				npc.humanoid.WalkSpeed = walkSpeedOf(npc)
 			end
-			npc.humanoid.WalkSpeed = walkSpeedOf(npc)
+			if os.clock() >= npc.fleeUntil then
+				npc.fleeFrom, npc.fleeMode = nil, nil
+			end
 			continue
 		end
 
@@ -1972,9 +2025,12 @@ local function onDied(npc)
 		clearQuest(npc.activeQuest, "😢 " .. npc.name .. " пропал(а) — задание отменено")
 	end
 	npc.anim.stopAll()
-	task.delay(Config.CorpseTime, function()
+	total -= 1 -- место для нового жителя освобождается сразу, тело ещё лежит
+	if Registry.npcDied then
+		pcall(Registry.npcDied, npc) -- ragdoll, кровь, свидетели (WeaponServer)
+	end
+	task.delay(npc.corpseTime or Config.CorpseTime, function()
 		npcs[npc.model] = nil
-		total -= 1
 		npc.model:Destroy()
 	end)
 	if npc.inVehicle then
@@ -2000,14 +2056,14 @@ end
 -- Вещи в руках (приварены к кисти и двигаются вместе с анимацией)
 local PROP_KINDS = { "Cup", "Phone", "IceCream", "Bag" }
 
-local function addProp(model: Model, kind: string)
+local function addProp(model: Model, kind: string, partName: string?)
 	local hand = model:FindFirstChild(kind == "Bag" and "LeftHand" or "RightHand")
 	if not hand then
 		return
 	end
 	local function piece(size: Vector3, color: Color3, offset: CFrame, shape: Enum.PartType?, material: Enum.Material?)
 		local p = Instance.new("Part")
-		p.Name = "Prop"
+		p.Name = partName or "Prop"
 		p.Size = size
 		p.Color = color
 		p.Material = material or Enum.Material.SmoothPlastic
@@ -2099,6 +2155,8 @@ local function createNPC(spawnPart: BasePart?, opts)
 	humanoid.WalkSpeed = speed
 	-- Сиденья не «затягивают» проходящих мимо жителей: садятся они только сами
 	humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+	humanoid.BreakJointsOnDeath = false -- тело падает целиком (ragdoll), а не разваливается
+	model:SetAttribute("Bravery", rng:NextNumber()) -- 0 — самый пугливый, 1 — самый смелый
 
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") then
@@ -2577,6 +2635,49 @@ end
 -- Для проверки путей в меню отладки: куда житель на самом деле идёт к точке
 Registry.debugApproach = function(part: BasePart): Vector3
 	return approachPosition({ part = part, activity = part:GetAttribute("Activity") })
+end
+-- Напугать жителя: mode = "distance" (отойти и смотреть), "run" (убежать), "cover" (в укрытие и спрятаться)
+Registry.scare = function(npc, from: Vector3, mode: string, seconds: number, keep: number?)
+	if not npc.alive or npc.officer or npc.controlled or npc.inVehicle then
+		return
+	end
+	local stronger = { distance = 1, run = 2, cover = 3, silent = 2 }
+	if os.clock() < npc.fleeUntil and (stronger[npc.fleeMode or "run"] or 2) > (stronger[mode] or 2) then
+		return -- уже напуган сильнее
+	end
+	if npc.talkingTo then
+		endPlayerTalk(npc, false)
+	end
+	if npc.following then
+		stopFollow(npc, false)
+	end
+	npc.fleeFrom = from
+	npc.fleeMode = mode
+	npc.keepDistance = keep
+	npc.fleeUntil = os.clock() + seconds
+	npc.abort = true
+	if npc.lock == "chat" then
+		npc.lock = nil
+	end
+end
+-- Звонок по телефону: телефон у уха, реплика; true — договорил (житель жив и не остановлен)
+Registry.phoneCall = function(npc, text: string, seconds: number): boolean
+	if not npc.alive then
+		return false
+	end
+	addProp(npc.model, "Phone", "CallPhone")
+	say(npc, text, seconds)
+	setMood(npc, "Scared", seconds)
+	local deadline = os.clock() + seconds
+	while npc.alive and os.clock() < deadline do
+		task.wait(0.25)
+	end
+	for _, d in npc.model:GetChildren() do
+		if d.Name == "CallPhone" then
+			d:Destroy()
+		end
+	end
+	return npc.alive
 end
 Registry.say = say
 Registry.toast = toast

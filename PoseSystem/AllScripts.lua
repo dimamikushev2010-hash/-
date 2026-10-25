@@ -4,7 +4,7 @@
 -- Проще всего: открыть PoseSystem.rbxlx, там всё уже расставлено.
 -- Как расставить точки для жителей — NPC_SETUP.md, транспорт и звуки — VEHICLE_SETUP.md.
 
--- СПИСОК (43 скриптов):
+-- СПИСОК (48 скриптов):
 --    1. ReplicatedStorage > ModuleScript "PoseConfig"
 --    2. ReplicatedStorage > ModuleScript "InvisibilityConfig"
 --    3. ReplicatedStorage > ModuleScript "LaserConfig"
@@ -16,38 +16,43 @@
 --    9. ReplicatedStorage > ModuleScript "WeatherConfig"
 --   10. ReplicatedStorage > ModuleScript "CityConfig"
 --   11. ReplicatedStorage > ModuleScript "DebugConfig"
---   12. ReplicatedStorage > ModuleScript "AbilityButton"
---   13. ReplicatedStorage > ModuleScript "RigAnimator"
---   14. ReplicatedStorage > ModuleScript "AbilityFx"
---   15. ServerScriptService > ModuleScript "AbilityRegistry"
---   16. ServerScriptService > ModuleScript "NPCRegistry"
---   17. ServerScriptService > ModuleScript "VehicleDefaults"
---   18. ServerScriptService > Script "PoseServer"
---   19. ServerScriptService > Script "InvisibilityServer"
---   20. ServerScriptService > Script "LaserServer"
---   21. ServerScriptService > Script "FlightServer"
---   22. ServerScriptService > Script "CubeServer"
---   23. ServerScriptService > Script "NPCDemo"
---   24. ServerScriptService > Script "NPCServer"
---   25. ServerScriptService > Script "NPCDoors"
---   26. ServerScriptService > Script "DayNightServer"
---   27. ServerScriptService > Script "TrafficServer"
---   28. ServerScriptService > Script "WeatherServer"
---   29. ServerScriptService > Script "PhoneServer"
---   30. ServerScriptService > Script "CityLifeServer"
---   31. ServerScriptService > Script "DebugServer"
---   32. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
---   33. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
---   34. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
---   35. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
---   36. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
---   37. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
---   38. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
---   39. StarterPlayer → StarterPlayerScripts > LocalScript "PoliceDeskClient"
---   40. StarterPlayer → StarterPlayerScripts > LocalScript "WeatherClient"
---   41. StarterPlayer → StarterPlayerScripts > LocalScript "PhoneClient"
---   42. StarterPlayer → StarterPlayerScripts > LocalScript "CityLifeClient"
---   43. StarterPlayer → StarterPlayerScripts > LocalScript "DebugClient"
+--   12. ReplicatedStorage > ModuleScript "WeaponConfig"
+--   13. ReplicatedStorage > ModuleScript "AbilityButton"
+--   14. ReplicatedStorage > ModuleScript "RigAnimator"
+--   15. ReplicatedStorage > ModuleScript "AbilityFx"
+--   16. ServerScriptService > ModuleScript "AbilityRegistry"
+--   17. ServerScriptService > ModuleScript "NPCRegistry"
+--   18. ServerScriptService > ModuleScript "VehicleDefaults"
+--   19. ServerScriptService > Script "PoseServer"
+--   20. ServerScriptService > Script "InvisibilityServer"
+--   21. ServerScriptService > Script "LaserServer"
+--   22. ServerScriptService > Script "FlightServer"
+--   23. ServerScriptService > Script "CubeServer"
+--   24. ServerScriptService > Script "NPCDemo"
+--   25. ServerScriptService > Script "NPCServer"
+--   26. ServerScriptService > Script "NPCDoors"
+--   27. ServerScriptService > Script "DayNightServer"
+--   28. ServerScriptService > Script "TrafficServer"
+--   29. ServerScriptService > Script "WeatherServer"
+--   30. ServerScriptService > Script "PhoneServer"
+--   31. ServerScriptService > Script "CityLifeServer"
+--   32. ServerScriptService > Script "DebugServer"
+--   33. ServerScriptService > Script "WeaponServer"
+--   34. ServerScriptService > Script "WantedServer"
+--   35. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
+--   36. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
+--   37. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
+--   38. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
+--   39. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
+--   40. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
+--   41. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
+--   42. StarterPlayer → StarterPlayerScripts > LocalScript "PoliceDeskClient"
+--   43. StarterPlayer → StarterPlayerScripts > LocalScript "WeatherClient"
+--   44. StarterPlayer → StarterPlayerScripts > LocalScript "PhoneClient"
+--   45. StarterPlayer → StarterPlayerScripts > LocalScript "CityLifeClient"
+--   46. StarterPlayer → StarterPlayerScripts > LocalScript "DebugClient"
+--   47. StarterPlayer → StarterPlayerScripts > LocalScript "WeaponClient"
+--   48. StarterPlayer → StarterPlayerScripts > LocalScript "WantedClient"
 
 
 ----------------------------------------------------------------------
@@ -1026,6 +1031,22 @@ SoundConfig.Phone = {
 	Shutter = { Id = "", Volume = 0.5 }, -- щелчок затвора камеры (если пусто — звук нажатия)
 }
 
+-- Оружие и розыск
+SoundConfig.Weapons = {
+	PistolShot = { Id = "", Volume = 0.7 }, -- выстрел пистолета (gunshot pistol)
+	RifleShot = { Id = "", Volume = 0.6 }, -- выстрел винтовки (rifle shot)
+	Reload = { Id = "", Volume = 0.5 }, -- перезарядка (magazine reload)
+	Empty = { Id = "", Volume = 0.5 }, -- щелчок пустого магазина (dry fire click)
+	Hit = { Id = "", Volume = 0.35 }, -- попадание (hitmarker)
+	Impact = { Id = "", Volume = 0.4 }, -- пуля в стену (bullet impact)
+	Whiz = { Id = "", Volume = 0.4 }, -- пуля пролетела рядом (bullet whiz)
+	Cuffs = { Id = "", Volume = 0.6 }, -- наручники (handcuffs click)
+	Camera = { Id = "", Volume = 0.6 }, -- вспышка фото в отделе
+	Gavel = { Id = "", Volume = 0.8 }, -- молоток судьи
+	Busted = { Id = "", Volume = 0.6 }, -- звук ареста
+	Wanted = { Id = "", Volume = 0.4 }, -- звезда розыска
+}
+
 -- Голоса жителей: у каждого своя высота (случайная в этом диапазоне).
 -- Для живого голоса диапазон небольшой: 0.9–1.15 звучит естественно.
 SoundConfig.VoicePitch = NumberRange.new(0.9, 1.15)
@@ -1278,6 +1299,32 @@ end
 ]]
 DebugConfig.Changelog = {
 	{
+		Version = "2.2",
+		Date = "2026-10-25",
+		Title = "Оружие, розыск и правосудие",
+		Summary = "Пистолет и винтовка с прицелом и режимами огня. Свидетели пугаются и звонят в 911, полиция ищет по району, стреляет в ответ. Арест: отдел (фото, отпечатки, допрос), КПЗ, суд, тюрьма.",
+		Details = {
+			{ Title = "🔫 Оружие", Text = "3D-модели из деталей. ПКМ — прицел (у винтовки — оптика), ЛКМ — огонь, V — режим (одиночные / очередь / авто), R — перезарядка, H — руки вверх. Отдача, разброс, трассеры, вспышка, следы пуль, хитмаркер. Сервер проверяет каждый выстрел." },
+			{ Title = "🩸 Как в GTA", Text = "Житель падает (ragdoll), кровь и лужа (17+, WeaponConfig.Blood), прохожие кричат, прячутся и звонят. Тело лежит 40 секунд." },
+			{ Title = "📞 Свидетели", Text = "Залез в дом — хозяин кричит и звонит. Достал оружие — держат дистанцию, кто-то убегает и звонит. Целишься — пугливые кричат и прячутся. Стреляешь — паника. Звонок идёт 6 секунд." },
+			{ Title = "⭐ Розыск 1–5", Text = "От звёзд — сколько машин. Полиция едет туда, где тебя видели (неточно), и прочёсывает район. Видят тебя — мигалки по краям экрана. Не видят долго — ушёл. С 3★ или после выстрела в полицию — огонь на поражение." },
+			{ Title = "⚖️ Правосудие", Text = "Наручники → машина → отдел: фото с ростомером, отпечатки, допрос (признание уменьшает срок) → КПЗ → суд (приговор, штраф) → тюрьма (срок, не сбежать) → свобода. Оружие конфискуют. Перезашёл — досиживаешь." },
+		},
+		Files = { "WeaponConfig", "WeaponServer", "WantedServer", "WeaponClient", "WantedClient", "NPCServer", "TrafficServer", "PhoneServer", "PhoneClient", "SoundConfig", "DebugServer", "DebugClient", "DebugConfig" },
+		Tests = {
+			{ Text = "Выдать оружие: в рюкзаке пистолет и винтовка, модель в руке смотрит вперёд", Action = "GiveWeapons" },
+			{ Text = "Достань оружие у жителей: отходят, кто-то убегает и звонит (телефон у уха)" },
+			{ Text = "Прицелься в жителя (ПКМ): кричит, бежит в укрытие" },
+			{ Text = "Выстрел в стену: трассер, след пули, жители в панике" },
+			{ Text = "Розыск 2★: полиция приезжает к месту звонка и ищет, звёзды мигают, когда видят", Action = "Wanted", Arg = 2 },
+			{ Text = "Розыск 3★: полиция стреляет, при малом здоровье — арест, а не смерть", Action = "Wanted", Arg = 3 },
+			{ Text = "Спрячься: через ~1 минуту «Ты ушёл от погони»" },
+			{ Text = "H — руки вверх рядом с полицией: наручники", Action = "Wanted", Arg = 1 },
+			{ Text = "Арестовать меня: отдел → фото → отпечатки → допрос → КПЗ → суд → тюрьма → свобода", Action = "ArrestMe" },
+			{ Text = "Оружие и часть монет после суда конфискованы; купить снова — 📱 Магазин" },
+		},
+	},
+	{
 		Version = "2.1",
 		Date = "2026-10-25",
 		Title = "Пешеходы, пробки, стулья и кровати",
@@ -1480,7 +1527,171 @@ DebugConfig.Changelog = {
 return DebugConfig
 
 ----------------------------------------------------------------------
--- 12. ReplicatedStorage > ModuleScript "AbilityButton"
+-- 12. ReplicatedStorage > ModuleScript "WeaponConfig"
+----------------------------------------------------------------------
+
+-- ModuleScript: ReplicatedStorage > WeaponConfig
+-- Оружие, розыск и правосудие.
+--   🔫 Оружие: пистолет и винтовка (режимы огня, прицел, отдача, перезарядка), 3D-модели из деталей.
+--   ⭐ Розыск: свидетели пугаются, прячутся и звонят в 911; полиция едет туда, где тебя видели, и ищет.
+--   ⚖️ Арест: отдел (фото, отпечатки, допрос) → КПЗ → суд → тюрьма; оружие и часть денег конфискуют.
+-- Игра с оружием и кровью — это «17+» в Roblox: заполни анкету Maturity & Compliance в настройках игры.
+
+local WeaponConfig = {}
+
+WeaponConfig.Enabled = true
+WeaponConfig.Blood = true -- брызги и лужа крови (17+). false — без крови
+WeaponConfig.PvP = true -- можно стрелять в других игроков
+WeaponConfig.CorpseTime = 40 -- сколько секунд лежит тело жителя
+WeaponConfig.StartWeapons = { "Pistol", "Rifle" } -- что есть у нового игрока (потом — покупка в 🛍 Магазине телефона)
+
+---------------------------------------------------------------------
+-- Оружие
+---------------------------------------------------------------------
+-- Modes: Semi — одиночные, Burst — очередь по 3, Auto — автоматический огонь
+WeaponConfig.Weapons = {
+	Pistol = {
+		Name = "Пистолет",
+		Icon = "🔫",
+		Price = 150,
+		Damage = 28,
+		HeadMultiplier = 2.2,
+		RPM = 380, -- выстрелов в минуту
+		Modes = { "Semi" },
+		Magazine = 12,
+		StartAmmo = 48, -- запас патронов
+		AmmoPrice = 10, -- за полный магазин
+		ReloadTime = 1.5,
+		Range = 220,
+		Spread = 1.4, -- разброс в градусах от бедра
+		AimSpread = 0.35, -- разброс в прицеле
+		Recoil = 2.2, -- подброс камеры в градусах
+		AimFov = 52, -- поле зрения в прицеле (меньше — сильнее приближение)
+		Scope = false,
+		Sound = "PistolShot",
+	},
+	Rifle = {
+		Name = "Винтовка",
+		Icon = "🎯",
+		Price = 400,
+		Damage = 24,
+		HeadMultiplier = 2,
+		RPM = 650,
+		Modes = { "Auto", "Burst", "Semi" },
+		BurstCount = 3,
+		Magazine = 30,
+		StartAmmo = 120,
+		AmmoPrice = 20,
+		ReloadTime = 2.2,
+		Range = 350,
+		Spread = 2.6,
+		AimSpread = 0.25,
+		Recoil = 1.3,
+		AimFov = 28,
+		Scope = true, -- оптический прицел с сеткой
+		Sound = "RifleShot",
+	},
+}
+
+WeaponConfig.Keys = {
+	Reload = Enum.KeyCode.R, -- пока оружие в руках, R — перезарядка (лазеры не включаются)
+	Mode = Enum.KeyCode.V, -- сменить режим огня
+	Surrender = Enum.KeyCode.H, -- поднять руки / сдаться полиции
+}
+
+-- Урон по игрокам от полиции
+WeaponConfig.PoliceDamage = 14
+WeaponConfig.PoliceFireInterval = NumberRange.new(0.55, 1.1)
+WeaponConfig.PoliceAccuracy = 0.55 -- шанс попасть на 20 стадах (дальше — меньше)
+
+---------------------------------------------------------------------
+-- ⭐ Розыск
+---------------------------------------------------------------------
+WeaponConfig.Wanted = {
+	-- Уровни преступлений (сколько звёзд даёт звонок в 911)
+	Trespass = 1, -- залез в чужой дом
+	WeaponSeen = 1, -- ходит с оружием
+	Aiming = 2, -- целился в человека
+	Shots = 2, -- стрелял
+	Injury = 3, -- ранил
+	Murder = 3, -- убил — огонь на поражение
+	PoliceAttack = 4, -- стрелял в полицию
+	PoliceKill = 5, -- убил полицейского
+	ManyKills = 5, -- убил 4 и больше
+
+	-- Сколько полицейских машин едет на каждый уровень звёзд
+	Units = { 1, 2, 3, 4, 5 },
+	-- С какого уровня полиция стреляет без предупреждения
+	ShootOnSight = 3,
+	-- Через сколько секунд после звонка выезжает полиция (по звёздам)
+	DispatchDelay = { 18, 10, 4, 2, 1 },
+
+	-- Свидетели
+	SightRange = 45, -- на каком расстоянии житель замечает оружие
+	HearShots = 90, -- на каком расстоянии слышны выстрелы
+	CallChance = { WeaponSeen = 0.25, Aiming = 0.65, Shots = 0.5, Murder = 0.9, Trespass = 0.8 },
+	FleeChance = { WeaponSeen = 0.35, Aiming = 0.85, Shots = 0.9 },
+	CallTime = 6, -- столько секунд житель говорит по телефону (если его остановить — звонка не будет)
+	KeepDistance = 16, -- на сколько жители отходят от человека с оружием
+	TrespassGrace = 6, -- сколько секунд можно стоять в чужом доме, пока не позвонят
+
+	-- Поиск
+	ReportNoise = 18, -- свидетель описывает место неточно (± стадов)
+	SearchRadius = 45, -- где полиция ищет вокруг последнего места
+	PoliceSight = 70, -- как далеко видит полицейский
+	EvadeTime = 45, -- сколько секунд не видеть игрока, чтобы снять звёзды (+ по 15 за звезду)
+	EvadePerStar = 15,
+	ArrestDistance = 6, -- с какого расстояния надевают наручники
+	SurrenderTime = 2.5, -- «Руки вверх!» — сколько секунд стоять спокойно
+	DownedHealth = 12, -- при таком здоровье игрока в розыске не убивают, а задерживают
+}
+
+---------------------------------------------------------------------
+-- ⚖️ Правосудие
+---------------------------------------------------------------------
+WeaponConfig.Justice = {
+	HoldingTime = 25, -- сколько секунд в КПЗ до суда
+	Sentence = { Base = 30, PerStar = 30, PerKill = 20, Max = 300 }, -- срок в секундах
+	ConfessDiscount = 0.2, -- признался на допросе — срок меньше на 20%
+	LieExtra = 0.15, -- соврал — больше на 15%
+	FineBase = 50, -- штраф: база + доля монет
+	FineFraction = 0.25,
+	ConfiscateWeapons = true,
+	WastedFine = 0.15, -- погиб в розыске — теряешь эту долю монет и оружие
+	PrisonRadius = 30, -- уйти дальше от тюрьмы во время срока нельзя (вернёт обратно)
+
+	JudgeName = "Судья",
+	JudgeShirt = Color3.fromRGB(20, 20, 24),
+	Questions = {
+		{ Text = "Где вы были в момент происшествия?", Answers = { { "Это был я. Признаю.", "confess" }, { "Я был дома, спал.", "lie" }, { "Без адвоката говорить не буду.", "silent" } } },
+		{ Text = "Откуда у вас оружие?", Answers = { { "Купил в магазине.", "confess" }, { "Нашёл на улице.", "lie" }, { "...", "silent" } } },
+		{ Text = "Вы понимаете, что пострадали люди?", Answers = { { "Да. Мне очень жаль.", "confess" }, { "Никто не пострадал!", "lie" }, { "Я ничего не скажу.", "silent" } } },
+	},
+	Verdicts = {
+		"Суд признаёт подсудимого виновным.",
+		"Учитывая обстоятельства дела, суд постановил:",
+	},
+}
+
+-- Фразы
+WeaponConfig.Lines = {
+	SeeWeapon = { "У него пистолет!", "Осторожно, оружие!", "Ой… уберите это!", "Он вооружён!" },
+	Aimed = { "Не стреляйте!", "А-а-а! Помогите!", "Пожалуйста, не надо!", "Он целится в меня!" },
+	Shots = { "Стреляют!", "Ложись!", "Бегите!", "Помогите!" },
+	Body = { "Он убил человека!", "О боже… Вызовите полицию!", "Скорую! Кто-нибудь!" },
+	Trespass = { "Эй! Кто вы такой?!", "Вон из моего дома!", "Я вызываю полицию!" },
+	Call = { "Алло, 911? Тут человек с оружием!", "Полиция? Здесь стрельба!", "Алло! Срочно приезжайте!", "Кто-то залез ко мне в дом!" },
+	PoliceArrive = { "Полиция! Всем оставаться на местах!", "Ищем подозреваемого.", "Проверим район." },
+	PoliceSee = { "Вот он! Стоять!", "Полиция! Руки вверх!", "Подозреваемый замечен!" },
+	PoliceShoot = { "Бросай оружие!", "Огонь!", "Открываем огонь!" },
+	PoliceArrest = { "Вы арестованы. Руки за спину.", "Вы имеете право хранить молчание." },
+	PoliceLost = { "Потеряли его.", "Ушёл. Прочёсываем район.", "Отбой, никого." },
+}
+
+return WeaponConfig
+
+----------------------------------------------------------------------
+-- 13. ReplicatedStorage > ModuleScript "AbilityButton"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > AbilityButton
@@ -1761,7 +1972,7 @@ end
 return AbilityButton
 
 ----------------------------------------------------------------------
--- 13. ReplicatedStorage > ModuleScript "RigAnimator"
+-- 14. ReplicatedStorage > ModuleScript "RigAnimator"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > RigAnimator
@@ -2045,7 +2256,7 @@ end)
 return RigAnimator
 
 ----------------------------------------------------------------------
--- 14. ReplicatedStorage > ModuleScript "AbilityFx"
+-- 15. ReplicatedStorage > ModuleScript "AbilityFx"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ReplicatedStorage > AbilityFx
@@ -2223,7 +2434,7 @@ end
 return AbilityFx
 
 ----------------------------------------------------------------------
--- 15. ServerScriptService > ModuleScript "AbilityRegistry"
+-- 16. ServerScriptService > ModuleScript "AbilityRegistry"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ServerScriptService > AbilityRegistry
@@ -2272,7 +2483,7 @@ end
 return AbilityRegistry
 
 ----------------------------------------------------------------------
--- 16. ServerScriptService > ModuleScript "NPCRegistry"
+-- 17. ServerScriptService > ModuleScript "NPCRegistry"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ServerScriptService > NPCRegistry
@@ -2300,7 +2511,7 @@ NPCRegistry.tryTrip = nil
 return NPCRegistry
 
 ----------------------------------------------------------------------
--- 17. ServerScriptService > ModuleScript "VehicleDefaults"
+-- 18. ServerScriptService > ModuleScript "VehicleDefaults"
 ----------------------------------------------------------------------
 
 -- ModuleScript: ServerScriptService > VehicleDefaults
@@ -2478,7 +2689,7 @@ end
 return VehicleDefaults
 
 ----------------------------------------------------------------------
--- 18. ServerScriptService > Script "PoseServer"
+-- 19. ServerScriptService > Script "PoseServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > PoseServer
@@ -2621,7 +2832,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 19. ServerScriptService > Script "InvisibilityServer"
+-- 20. ServerScriptService > Script "InvisibilityServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > InvisibilityServer
@@ -2732,7 +2943,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 20. ServerScriptService > Script "LaserServer"
+-- 21. ServerScriptService > Script "LaserServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > LaserServer
@@ -2918,7 +3129,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 21. ServerScriptService > Script "FlightServer"
+-- 22. ServerScriptService > Script "FlightServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > FlightServer
@@ -3031,7 +3242,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 22. ServerScriptService > Script "CubeServer"
+-- 23. ServerScriptService > Script "CubeServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > CubeServer
@@ -3274,7 +3485,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 23. ServerScriptService > Script "NPCDemo"
+-- 24. ServerScriptService > Script "NPCDemo"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > NPCDemo
@@ -3712,7 +3923,7 @@ place("Северная улица", Vector3.new(5, 0.1, 22))
 traffic.Parent = workspace
 
 ----------------------------------------------------------------------
--- 24. ServerScriptService > Script "NPCServer"
+-- 25. ServerScriptService > Script "NPCServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > NPCServer
@@ -5110,6 +5321,30 @@ local function doActivity(npc, point)
 end
 
 local function fleePoint(npc)
+	local from = npc.fleeFrom
+	if from then
+		-- Подальше от опасности; в укрытии — лучше точка в здании, не слишком далеко
+		local best, bestScore = nil, -math.huge
+		for _, point in pairs(points) do
+			local pos = point.part.Position
+			local mine = (pos - npc.hrp.Position).Magnitude
+			local danger = (pos - from).Magnitude
+			if mine < 160 and danger > 25 and point.activity ~= "Work" and point.activity ~= "Patrol" then
+				local indoor = point.zone ~= nil and point.zone ~= Config.OutdoorZone
+				local score = danger - mine * 0.6 + ((npc.fleeMode == "cover" and indoor) and 60 or 0)
+				-- Не бежать мимо опасности
+				if flat(pos - npc.hrp.Position):Dot(flat(from - npc.hrp.Position)) > 0 then
+					score -= 80
+				end
+				if score > bestScore then
+					best, bestScore = point, score
+				end
+			end
+		end
+		if best then
+			return best
+		end
+	end
 	local best, bestDist = nil, 0
 	for _, point in pairs(points) do
 		local dist = (point.part.Position - npc.hrp.Position).Magnitude
@@ -5317,19 +5552,48 @@ local function brain(npc)
 
 		local now = os.clock()
 		if now < npc.fleeUntil then
-			-- Убегаем подальше
-			npc.debugAction = "😱 Убегает"
 			standUp(npc)
-			setMood(npc, "Scared", 5)
-			sfx(npc, "Scream")
-			npc.humanoid.WalkSpeed = Config.RunSpeed
-			local target = fleePoint(npc)
-			if target then
-				walkTo(npc, target.part.Position)
+			local from = npc.fleeFrom
+			if npc.fleeMode == "distance" and from then
+				-- Держит дистанцию: отходит и смотрит на опасность
+				npc.debugAction = "😨 Держит дистанцию"
+				setMood(npc, "Scared", 4)
+				local away = flat(npc.hrp.Position - from)
+				away = away.Magnitude > 0.1 and away.Unit or -npc.hrp.CFrame.LookVector
+				local keep = npc.keepDistance or 16
+				if (npc.hrp.Position - from).Magnitude < keep then
+					walkTo(npc, npc.hrp.Position + away * (keep - (npc.hrp.Position - from).Magnitude + 4))
+				end
+				face(npc, from - npc.hrp.Position, 0.4)
+				task.wait(1.2)
 			else
-				task.wait(1)
+				-- Убегает: в укрытие (в здание), подальше от опасности
+				npc.debugAction = npc.fleeMode == "cover" and "🏃 Бежит в укрытие" or "😱 Убегает"
+				setMood(npc, "Scared", 5)
+				if npc.fleeMode ~= "silent" then
+					sfx(npc, "Scream")
+				end
+				npc.humanoid.WalkSpeed = Config.RunSpeed
+				local target = fleePoint(npc)
+				if target then
+					walkTo(npc, approachPosition(target))
+					if npc.fleeMode == "cover" and npc.alive and os.clock() < npc.fleeUntil then
+						-- Прячется: приседает и ждёт
+						npc.debugAction = "🫣 Прячется"
+						setPose(npc, "Kneel")
+						while npc.alive and os.clock() < npc.fleeUntil and not npc.abort do
+							task.wait(0.5)
+						end
+						standUp(npc)
+					end
+				else
+					task.wait(1)
+				end
+				npc.humanoid.WalkSpeed = walkSpeedOf(npc)
 			end
-			npc.humanoid.WalkSpeed = walkSpeedOf(npc)
+			if os.clock() >= npc.fleeUntil then
+				npc.fleeFrom, npc.fleeMode = nil, nil
+			end
 			continue
 		end
 
@@ -5689,9 +5953,12 @@ local function onDied(npc)
 		clearQuest(npc.activeQuest, "😢 " .. npc.name .. " пропал(а) — задание отменено")
 	end
 	npc.anim.stopAll()
-	task.delay(Config.CorpseTime, function()
+	total -= 1 -- место для нового жителя освобождается сразу, тело ещё лежит
+	if Registry.npcDied then
+		pcall(Registry.npcDied, npc) -- ragdoll, кровь, свидетели (WeaponServer)
+	end
+	task.delay(npc.corpseTime or Config.CorpseTime, function()
 		npcs[npc.model] = nil
-		total -= 1
 		npc.model:Destroy()
 	end)
 	if npc.inVehicle then
@@ -5717,14 +5984,14 @@ end
 -- Вещи в руках (приварены к кисти и двигаются вместе с анимацией)
 local PROP_KINDS = { "Cup", "Phone", "IceCream", "Bag" }
 
-local function addProp(model: Model, kind: string)
+local function addProp(model: Model, kind: string, partName: string?)
 	local hand = model:FindFirstChild(kind == "Bag" and "LeftHand" or "RightHand")
 	if not hand then
 		return
 	end
 	local function piece(size: Vector3, color: Color3, offset: CFrame, shape: Enum.PartType?, material: Enum.Material?)
 		local p = Instance.new("Part")
-		p.Name = "Prop"
+		p.Name = partName or "Prop"
 		p.Size = size
 		p.Color = color
 		p.Material = material or Enum.Material.SmoothPlastic
@@ -5816,6 +6083,8 @@ local function createNPC(spawnPart: BasePart?, opts)
 	humanoid.WalkSpeed = speed
 	-- Сиденья не «затягивают» проходящих мимо жителей: садятся они только сами
 	humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+	humanoid.BreakJointsOnDeath = false -- тело падает целиком (ragdoll), а не разваливается
+	model:SetAttribute("Bravery", rng:NextNumber()) -- 0 — самый пугливый, 1 — самый смелый
 
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") then
@@ -6295,6 +6564,49 @@ end
 Registry.debugApproach = function(part: BasePart): Vector3
 	return approachPosition({ part = part, activity = part:GetAttribute("Activity") })
 end
+-- Напугать жителя: mode = "distance" (отойти и смотреть), "run" (убежать), "cover" (в укрытие и спрятаться)
+Registry.scare = function(npc, from: Vector3, mode: string, seconds: number, keep: number?)
+	if not npc.alive or npc.officer or npc.controlled or npc.inVehicle then
+		return
+	end
+	local stronger = { distance = 1, run = 2, cover = 3, silent = 2 }
+	if os.clock() < npc.fleeUntil and (stronger[npc.fleeMode or "run"] or 2) > (stronger[mode] or 2) then
+		return -- уже напуган сильнее
+	end
+	if npc.talkingTo then
+		endPlayerTalk(npc, false)
+	end
+	if npc.following then
+		stopFollow(npc, false)
+	end
+	npc.fleeFrom = from
+	npc.fleeMode = mode
+	npc.keepDistance = keep
+	npc.fleeUntil = os.clock() + seconds
+	npc.abort = true
+	if npc.lock == "chat" then
+		npc.lock = nil
+	end
+end
+-- Звонок по телефону: телефон у уха, реплика; true — договорил (житель жив и не остановлен)
+Registry.phoneCall = function(npc, text: string, seconds: number): boolean
+	if not npc.alive then
+		return false
+	end
+	addProp(npc.model, "Phone", "CallPhone")
+	say(npc, text, seconds)
+	setMood(npc, "Scared", seconds)
+	local deadline = os.clock() + seconds
+	while npc.alive and os.clock() < deadline do
+		task.wait(0.25)
+	end
+	for _, d in npc.model:GetChildren() do
+		if d.Name == "CallPhone" then
+			d:Destroy()
+		end
+	end
+	return npc.alive
+end
 Registry.say = say
 Registry.toast = toast
 Registry.addCoins = addCoins
@@ -6330,7 +6642,7 @@ for _, spawnPart in spawnList do
 end
 
 ----------------------------------------------------------------------
--- 25. ServerScriptService > Script "NPCDoors"
+-- 26. ServerScriptService > Script "NPCDoors"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > NPCDoors
@@ -6554,7 +6866,7 @@ DebugTimer.connect(RunService.Heartbeat, "NPCDoors", function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 26. ServerScriptService > Script "DayNightServer"
+-- 27. ServerScriptService > Script "DayNightServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > DayNightServer
@@ -6685,7 +6997,7 @@ DebugTimer.connect(RunService.Heartbeat, "DayNightServer", function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 27. ServerScriptService > Script "TrafficServer"
+-- 28. ServerScriptService > Script "TrafficServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > TrafficServer
@@ -8617,6 +8929,7 @@ local function spawnOfficer(at: CFrame, title: string?)
 	if officer then
 		officer.officer = true
 		officer.noSocial = true
+		officer.model:SetAttribute("Police", true)
 		if officer.prompt then
 			officer.prompt.Enabled = false
 		end
@@ -9577,8 +9890,73 @@ function Registry.phoneTaxi(player: Player, placeIndex: any)
 	finish()
 end
 
+---------------------------------------------------------------------
+-- Для розыска (WantedServer): полицейские машины и офицеры по погоне
+---------------------------------------------------------------------
+
+local function removeCar(car)
+	for seat, who in pairs(car.occupants) do
+		if typeof(who) == "Instance" and who:IsA("Player") then
+			unseatPlayer(who, car)
+		end
+		car.occupants[seat] = nil
+	end
+	if car.spot and car.spot.car == car then
+		car.spot.car = nil
+	end
+	local i = table.find(cars, car)
+	if i then
+		table.remove(cars, i)
+	end
+	car.driveDone = true
+	if car.model then
+		car.model:Destroy()
+	end
+end
+
+-- Новая полицейская машина на точке дороги (на погоню)
+local function spawnPoliceAt(nodeName: string, look: Vector3?)
+	local node = nodes[nodeName]
+	if not node then
+		return nil
+	end
+	local car = spawnCar("Police", nil)
+	if not car then
+		return nil
+	end
+	local dir = look
+	if not dir then
+		local other = next(node.links)
+		dir = other and flat(nodes[other].pos - node.pos) or Vector3.new(0, 0, -1)
+	end
+	dir = dir.Magnitude > 0.1 and dir.Unit or Vector3.new(0, 0, -1)
+	placeCar(car, Vector3.new(node.pos.X, groundY(node.pos), node.pos.Z), dir)
+	car.state = "busy"
+	car.pursuit = true
+	return car
+end
+
+Registry.policeKit = {
+	nodes = nodes,
+	nearestNode = nearestNode,
+	spawnPoliceAt = spawnPoliceAt,
+	removeCar = removeCar,
+	drive = drive,
+	seatNPC = seatNPC,
+	unseatNPC = unseatNPC,
+	seatPlayer = seatPlayer,
+	unseatPlayer = unseatPlayer,
+	freeSeat = freeSeat,
+	boardAll = boardAll,
+	doorSide = doorSide,
+	spawnOfficer = spawnOfficer,
+	station = station,
+	groundY = groundY,
+	cars = cars,
+}
+
 ----------------------------------------------------------------------
--- 28. ServerScriptService > Script "WeatherServer"
+-- 29. ServerScriptService > Script "WeatherServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > WeatherServer
@@ -9731,7 +10109,7 @@ DebugTimer.connect(RunService.Heartbeat, "WeatherServer", function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 29. ServerScriptService > Script "PhoneServer"
+-- 30. ServerScriptService > Script "PhoneServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > PhoneServer
@@ -9773,6 +10151,8 @@ remote.OnServerEvent:Connect(function(player: Player, action: any, a: any, b: an
 		Registry.phoneReply(player, a, b)
 	elseif action == "Friends" and Registry.friendsOf then
 		remote:FireClient(player, "Friends", Registry.friendsOf(player))
+	elseif type(action) == "string" and Registry.weaponAction and Registry.weaponAction(player, action, a) then
+		return -- оружие и патроны (WeaponServer)
 	elseif type(action) == "string" and Registry.cityAction then
 		Registry.cityAction(player, action, a, b)
 	end
@@ -9783,7 +10163,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 30. ServerScriptService > Script "CityLifeServer"
+-- 31. ServerScriptService > Script "CityLifeServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > CityLifeServer
@@ -10768,7 +11148,7 @@ game:BindToClose(function()
 end)
 
 ----------------------------------------------------------------------
--- 31. ServerScriptService > Script "DebugServer"
+-- 32. ServerScriptService > Script "DebugServer"
 ----------------------------------------------------------------------
 
 -- Script: ServerScriptService > DebugServer
@@ -11161,9 +11541,9 @@ end
 ---------------------------------------------------------------------
 
 local EXPECTED = {
-	{ ReplicatedStorage, { "PoseConfig", "InvisibilityConfig", "LaserConfig", "FlightConfig", "CubeConfig", "NPCConfig", "VehicleConfig", "SoundConfig", "WeatherConfig", "CityConfig", "DebugConfig", "AbilityButton", "RigAnimator", "AbilityFx" } },
-	{ ServerScriptService, { "AbilityRegistry", "NPCRegistry", "VehicleDefaults", "PoseServer", "InvisibilityServer", "LaserServer", "FlightServer", "CubeServer", "NPCDemo", "NPCServer", "NPCDoors", "DayNightServer", "TrafficServer", "WeatherServer", "PhoneServer", "CityLifeServer", "DebugServer" } },
-	{ StarterPlayer:FindFirstChild("StarterPlayerScripts"), { "PoseClient", "InvisibilityClient", "LaserClient", "FlightClient", "CubeClient", "NPCClient", "VehicleClient", "PoliceDeskClient", "WeatherClient", "PhoneClient", "CityLifeClient", "DebugClient" } },
+	{ ReplicatedStorage, { "PoseConfig", "InvisibilityConfig", "LaserConfig", "FlightConfig", "CubeConfig", "NPCConfig", "VehicleConfig", "SoundConfig", "WeatherConfig", "CityConfig", "DebugConfig", "WeaponConfig", "AbilityButton", "RigAnimator", "AbilityFx" } },
+	{ ServerScriptService, { "AbilityRegistry", "NPCRegistry", "VehicleDefaults", "PoseServer", "InvisibilityServer", "LaserServer", "FlightServer", "CubeServer", "NPCDemo", "NPCServer", "NPCDoors", "DayNightServer", "TrafficServer", "WeatherServer", "PhoneServer", "CityLifeServer", "DebugServer", "WeaponServer", "WantedServer" } },
+	{ StarterPlayer:FindFirstChild("StarterPlayerScripts"), { "PoseClient", "InvisibilityClient", "LaserClient", "FlightClient", "CubeClient", "NPCClient", "VehicleClient", "PoliceDeskClient", "WeatherClient", "PhoneClient", "CityLifeClient", "DebugClient", "WeaponClient", "WantedClient" } },
 }
 
 local function runChecks()
@@ -11366,6 +11746,31 @@ local function runChecks()
 		local ownCw = #partsIn(map:FindFirstChild("Crosswalks"))
 		add(road > 0 and "ok" or "warn", "Пешеходы", "Зон проезжей части: " .. road .. (road == 0 and " — жители будут ходить по дорогам" or ""))
 		add(cw > 0 and "ok" or "warn", "Пешеходы", string.format("Переходов: %d%s", cw, ownCw == 0 and " (автоматически у перекрёстков — лучше поставить свои в TrafficSystem > Crosswalks)" or ""))
+		-- Правосудие: отдел, суд, тюрьма
+		for _, name in { "Mugshot", "Fingerprint", "Interview", "Holding" } do
+			local found = false
+			for _, p in partsIn(map:FindFirstChild("PoliceStation")) do
+				if p.Name == name then
+					found = true
+				end
+			end
+			add(found and "ok" or "warn", "Правосудие", (found and "Есть метка " or "Нет метки ") .. name .. (found and "" or " (этап пройдёт у стойки дежурного)"))
+		end
+		local justice = workspace:FindFirstChild("JusticeSystem")
+		local function jHas(group: string, prefix: string): number
+			local g = justice and justice:FindFirstChild(group)
+			local n = 0
+			for _, p in partsIn(g) do
+				if string.find(p.Name, "^" .. prefix) then
+					n += 1
+				end
+			end
+			return n
+		end
+		for _, item in { { "Court", "Judge" }, { "Court", "Dock" }, { "Court", "CourtDoor" }, { "Prison", "PrisonDoor" }, { "Prison", "PrisonCell" }, { "Prison", "PrisonExit" } } do
+			local n = jHas(item[1], item[2])
+			add(n > 0 and "ok" or "warn", "Правосудие", string.format("JusticeSystem > %s > %s: %d%s", item[1], item[2], n, n == 0 and " (без суда/тюрьмы приговор и срок — в участке)" or ""))
+		end
 		local calls = partsIn(map:FindFirstChild("PoliceCalls"))
 		add(#calls > 0 and "ok" or "warn", "Полиция", "Вызовов (PoliceCalls): " .. #calls)
 		local places = partsIn(map:FindFirstChild("Places"))
@@ -11575,6 +11980,35 @@ function ACTIONS.Teleport(player, arg)
 	end
 	return err
 end
+function ACTIONS.Wanted(player, arg)
+	if not Registry.debugWanted then
+		return "WantedServer не запущен"
+	end
+	Registry.debugWanted(player, tonumber(arg) or 0)
+	return (tonumber(arg) or 0) > 0 and ("Розыск " .. tostring(arg) .. "★ — свидетель «позвонил» с твоего места") or "Розыск снят"
+end
+function ACTIONS.ArrestMe(player)
+	if not Registry.arrestPlayer then
+		return "WantedServer не запущен"
+	end
+	Registry.arrestPlayer(player)
+	return "Арест: отдел → КПЗ → суд → тюрьма"
+end
+function ACTIONS.GiveWeapons(player)
+	local p = Registry.weaponProfile and Registry.weaponProfile(player)
+	if not p then
+		return "WeaponServer не запущен"
+	end
+	for _, id in { "Pistol", "Rifle" } do
+		p.owned[id] = true
+		p.ammo[id] = 300
+		p.mag[id] = nil
+	end
+	if Registry.blockWeapons then
+		Registry.blockWeapons(player, false)
+	end
+	return "Пистолет и винтовка + патроны"
+end
 function ACTIONS.TeleportPos(player, arg)
 	if typeof(arg) == "Vector3" then
 		teleport(player, arg - Vector3.new(0, 3, 0))
@@ -11711,7 +12145,2268 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 32. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
+-- 33. ServerScriptService > Script "WeaponServer"
+----------------------------------------------------------------------
+
+-- Script: ServerScriptService > WeaponServer
+-- Оружие игрока (настройки — ReplicatedStorage > WeaponConfig):
+--   * пистолет и винтовка — 3D-модели из деталей (или свои: ServerStorage > WeaponModels > Pistol / Rifle);
+--   * сервер сам проверяет каждый выстрел: темп, патроны, откуда стреляют, куда попали;
+--   * урон по жителям, полиции и игрокам; ragdoll и кровь (как в GTA, 17+);
+--   * патроны, перезарядка, режимы огня, покупка в телефоне, конфискация при аресте;
+--   * о стрельбе узнаёт розыск (WantedServer) — через свидетелей.
+
+local Players = game:GetService("Players")
+local ServerStorage = game:GetService("ServerStorage")
+local TweenService = game:GetService("TweenService")
+local DataStoreService = game:GetService("DataStoreService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("WeaponConfig"))
+if not Config.Enabled then
+	return
+end
+local NPCConfig = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local Registry = require(script.Parent:WaitForChild("NPCRegistry"))
+
+local rng = Random.new()
+local remote = Instance.new("RemoteEvent")
+remote.Name = "WeaponRemote"
+remote.Parent = ReplicatedStorage
+
+local function toast(player: Player, text: string)
+	if Registry.toast then
+		Registry.toast(player, text)
+	end
+end
+
+local function coins(player: Player): IntValue?
+	if Registry.getCoins then
+		return Registry.getCoins(player)
+	end
+	local stats = player:FindFirstChild("leaderstats")
+	return stats and stats:FindFirstChild(NPCConfig.CurrencyName) or nil
+end
+
+---------------------------------------------------------------------
+-- 3D-модели оружия
+---------------------------------------------------------------------
+
+local METAL = Color3.fromRGB(38, 40, 44)
+local DARK = Color3.fromRGB(22, 23, 26)
+local POLYMER = Color3.fromRGB(30, 31, 34)
+local TAN = Color3.fromRGB(150, 128, 92)
+
+local function piece(model: Instance, handle: BasePart?, name: string, size: Vector3, offset: CFrame, color: Color3, material: Enum.Material?, shape: Enum.PartType?)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.Color = color
+	p.Material = material or Enum.Material.Metal
+	p.Reflectance = 0.02
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	p.CastShadow = true
+	if shape then
+		p.Shape = shape
+	end
+	if handle then
+		p.CFrame = handle.CFrame * offset
+		local w = Instance.new("WeldConstraint")
+		w.Part0 = handle
+		w.Part1 = p
+		w.Parent = p
+	end
+	p.Parent = model
+	return p
+end
+
+local ALONG = CFrame.Angles(0, math.rad(90), 0) -- цилиндр вдоль ствола (ось -Z)
+
+-- Ствол смотрит вдоль -Z детали Handle (передняя грань — к дулу)
+local BUILD = {}
+
+function BUILD.Pistol(model: Instance)
+	local handle = piece(model, nil, "Handle", Vector3.new(0.32, 0.75, 0.42), CFrame.new(), POLYMER, Enum.Material.SmoothPlastic)
+	local tilt = handle.CFrame * CFrame.Angles(math.rad(-12), 0, 0)
+	handle.CFrame = tilt
+	-- Рамка, затвор, ствол, спуск, мушка, магазин
+	piece(model, handle, "Frame", Vector3.new(0.3, 0.28, 1.25), CFrame.Angles(math.rad(12), 0, 0) * CFrame.new(0, 0.44, -0.42), POLYMER, Enum.Material.SmoothPlastic)
+	local slide = piece(model, handle, "Slide", Vector3.new(0.31, 0.3, 1.38), CFrame.Angles(math.rad(12), 0, 0) * CFrame.new(0, 0.7, -0.46), METAL, Enum.Material.Metal)
+	for i = 0, 4 do
+		piece(model, handle, "Serration", Vector3.new(0.32, 0.22, 0.03), CFrame.Angles(math.rad(12), 0, 0) * CFrame.new(0, 0.7, 0.05 - i * 0.07), DARK)
+	end
+	piece(model, handle, "Barrel", Vector3.new(0.14, 0.14, 0.2), CFrame.Angles(math.rad(12), 0, 0) * CFrame.new(0, 0.7, -1.2) * ALONG, DARK, Enum.Material.Metal, Enum.PartType.Cylinder)
+	piece(model, handle, "FrontSight", Vector3.new(0.05, 0.07, 0.07), CFrame.Angles(math.rad(12), 0, 0) * CFrame.new(0, 0.88, -1.06), DARK)
+	piece(model, handle, "RearSight", Vector3.new(0.2, 0.07, 0.06), CFrame.Angles(math.rad(12), 0, 0) * CFrame.new(0, 0.88, 0.14), DARK)
+	piece(model, handle, "TriggerGuard", Vector3.new(0.06, 0.06, 0.42), CFrame.Angles(math.rad(12), 0, 0) * CFrame.new(0, 0.15, -0.45), POLYMER, Enum.Material.SmoothPlastic)
+	piece(model, handle, "Trigger", Vector3.new(0.04, 0.16, 0.05), CFrame.Angles(math.rad(12), 0, 0) * CFrame.new(0, 0.26, -0.32), METAL)
+	piece(model, handle, "MagBase", Vector3.new(0.34, 0.08, 0.44), CFrame.new(0, -0.4, 0), DARK, Enum.Material.SmoothPlastic)
+	for i = 0, 3 do
+		piece(model, handle, "Grip", Vector3.new(0.33, 0.04, 0.43), CFrame.new(0, -0.25 + i * 0.15, 0), DARK, Enum.Material.Fabric)
+	end
+	local muzzle = Instance.new("Attachment")
+	muzzle.Name = "Muzzle"
+	muzzle.Parent = slide
+	muzzle.Position = Vector3.new(0, 0, -0.75)
+	return handle
+end
+
+function BUILD.Rifle(model: Instance)
+	local handle = piece(model, nil, "Handle", Vector3.new(0.3, 0.7, 0.4), CFrame.new(), POLYMER, Enum.Material.SmoothPlastic)
+	handle.CFrame = handle.CFrame * CFrame.Angles(math.rad(-15), 0, 0)
+	local up = CFrame.Angles(math.rad(15), 0, 0)
+	-- Ствольная коробка, цевьё, ствол, приклад, магазин, прицел
+	local receiver = piece(model, handle, "Receiver", Vector3.new(0.38, 0.5, 2), up * CFrame.new(0, 0.55, -0.55), METAL, Enum.Material.Metal)
+	piece(model, handle, "Handguard", Vector3.new(0.42, 0.44, 1.7), up * CFrame.new(0, 0.58, -2.35), TAN, Enum.Material.SmoothPlastic)
+	for i = 0, 5 do
+		piece(model, handle, "Vent", Vector3.new(0.43, 0.12, 0.12), up * CFrame.new(0, 0.58, -1.75 - i * 0.24), DARK)
+	end
+	local barrel = piece(model, handle, "Barrel", Vector3.new(1.4, 0.13, 0.13), up * CFrame.new(0, 0.62, -3.85) * ALONG, DARK, Enum.Material.Metal, Enum.PartType.Cylinder)
+	piece(model, handle, "FlashHider", Vector3.new(0.3, 0.2, 0.2), up * CFrame.new(0, 0.62, -4.6) * ALONG, DARK, Enum.Material.Metal, Enum.PartType.Cylinder)
+	piece(model, handle, "Stock", Vector3.new(0.34, 0.55, 1.35), up * CFrame.new(0, 0.45, 1.05), TAN, Enum.Material.SmoothPlastic)
+	piece(model, handle, "ButtPad", Vector3.new(0.36, 0.6, 0.12), up * CFrame.new(0, 0.42, 1.78), DARK, Enum.Material.Fabric)
+	piece(model, handle, "BufferTube", Vector3.new(0.9, 0.18, 0.18), up * CFrame.new(0, 0.72, 0.75) * ALONG, METAL, Enum.Material.Metal, Enum.PartType.Cylinder)
+	piece(model, handle, "Magazine", Vector3.new(0.28, 0.95, 0.42), up * CFrame.new(0, -0.05, -0.95) * CFrame.Angles(math.rad(10), 0, 0), DARK, Enum.Material.SmoothPlastic)
+	piece(model, handle, "TriggerGuard", Vector3.new(0.06, 0.06, 0.45), up * CFrame.new(0, 0.2, -0.2), POLYMER, Enum.Material.SmoothPlastic)
+	piece(model, handle, "Rail", Vector3.new(0.24, 0.08, 1.9), up * CFrame.new(0, 0.84, -0.6), DARK)
+	-- Оптический прицел: труба, линзы, кольца
+	piece(model, handle, "ScopeTube", Vector3.new(1.3, 0.24, 0.24), up * CFrame.new(0, 1.12, -0.55) * ALONG, DARK, Enum.Material.Metal, Enum.PartType.Cylinder)
+	piece(model, handle, "ScopeFront", Vector3.new(0.32, 0.36, 0.36), up * CFrame.new(0, 1.12, -1.3) * ALONG, DARK, Enum.Material.Metal, Enum.PartType.Cylinder)
+	piece(model, handle, "ScopeBack", Vector3.new(0.26, 0.3, 0.3), up * CFrame.new(0, 1.12, 0.18) * ALONG, DARK, Enum.Material.Metal, Enum.PartType.Cylinder)
+	piece(model, handle, "Lens", Vector3.new(0.02, 0.3, 0.3), up * CFrame.new(0, 1.12, -1.47) * ALONG, Color3.fromRGB(70, 140, 220), Enum.Material.Glass, Enum.PartType.Cylinder).Reflectance = 0.5
+	for _, z in { -0.95, -0.2 } do
+		piece(model, handle, "ScopeRing", Vector3.new(0.12, 0.34, 0.34), up * CFrame.new(0, 1.12, z) * ALONG, METAL, Enum.Material.Metal, Enum.PartType.Cylinder)
+	end
+	local muzzle = Instance.new("Attachment")
+	muzzle.Name = "Muzzle"
+	muzzle.Parent = barrel
+	muzzle.Position = Vector3.new(0.7, 0, 0) -- конец ствола (цилиндр повёрнут: его ось X смотрит вперёд, вдоль -Z оружия)
+	local _ = receiver
+	return handle
+end
+
+-- Своя модель: ServerStorage > WeaponModels > Pistol / Rifle (Tool с Handle и Attachment «Muzzle»)
+local function makeTool(id: string): Tool?
+	local def = Config.Weapons[id]
+	if not def then
+		return nil
+	end
+	local custom = ServerStorage:FindFirstChild("WeaponModels")
+	custom = custom and custom:FindFirstChild(id)
+	local tool
+	if custom and custom:IsA("Tool") then
+		tool = custom:Clone()
+	else
+		tool = Instance.new("Tool")
+		tool.Name = id
+		tool.CanBeDropped = false
+		tool.RequiresHandle = true
+		BUILD[id](tool)
+		tool.Grip = CFrame.new(0, -0.15, 0.1)
+	end
+	tool.ToolTip = def.Name
+	tool:SetAttribute("WeaponId", id)
+	tool:SetAttribute("Mode", def.Modes[1])
+	return tool
+end
+
+-- Модель пистолета для полиции (без Tool): приваривается к руке
+Registry.buildGun = function(id: string): Model
+	local model = Instance.new("Model")
+	model.Name = "PoliceGun"
+	local handle = BUILD[id or "Pistol"](model)
+	model.PrimaryPart = handle
+	return model
+end
+
+---------------------------------------------------------------------
+-- Профили: какое оружие есть, патроны (DataStore)
+---------------------------------------------------------------------
+
+local store = nil
+pcall(function()
+	store = DataStoreService:GetDataStore("Weapons_v1")
+end)
+local profiles = {} -- [player] = { owned = {id=true}, ammo = {id = запас}, mag = {id = в магазине}, jail = секунд }
+local blocked = {} -- [player] = true — оружие отобрано на время ареста
+
+local function newProfile()
+	local p = { owned = {}, ammo = {}, mag = {} }
+	for _, id in Config.StartWeapons do
+		p.owned[id] = true
+		p.ammo[id] = Config.Weapons[id].StartAmmo
+		p.mag[id] = Config.Weapons[id].Magazine
+	end
+	return p
+end
+
+local function profileOf(player: Player)
+	profiles[player] = profiles[player] or newProfile()
+	return profiles[player]
+end
+
+local function save(player: Player)
+	local p = profiles[player]
+	if store and p and p.loaded then
+		pcall(function()
+			store:SetAsync("w_" .. player.UserId, { owned = p.owned, ammo = p.ammo, mag = p.mag, jail = p.jail, record = p.record })
+		end)
+	end
+end
+
+local function load(player: Player)
+	local p = newProfile()
+	if store then
+		local ok, data = pcall(function()
+			return store:GetAsync("w_" .. player.UserId)
+		end)
+		if ok and type(data) == "table" then
+			p.owned = data.owned or {}
+			p.ammo = data.ammo or {}
+			p.mag = data.mag or {}
+			p.jail = data.jail
+			p.record = data.record
+		end
+	end
+	p.loaded = true
+	profiles[player] = p
+	return p
+end
+
+Registry.weaponProfile = profileOf
+Registry.weaponSave = save
+
+---------------------------------------------------------------------
+-- Выдать / забрать оружие
+---------------------------------------------------------------------
+
+local function removeTools(player: Player)
+	for _, container in { player:FindFirstChildOfClass("Backpack"), player.Character } do
+		if container then
+			for _, t in container:GetChildren() do
+				if t:IsA("Tool") and t:GetAttribute("WeaponId") then
+					local p = profileOf(player)
+					local id = t:GetAttribute("WeaponId")
+					p.mag[id] = t:GetAttribute("Ammo") or p.mag[id]
+					p.ammo[id] = t:GetAttribute("Reserve") or p.ammo[id]
+					t:Destroy()
+				end
+			end
+		end
+	end
+end
+
+local function giveTools(player: Player)
+	if blocked[player] then
+		return
+	end
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if not backpack then
+		return
+	end
+	local p = profileOf(player)
+	for _, id in { "Pistol", "Rifle" } do
+		local def = Config.Weapons[id]
+		if def and p.owned[id] and not backpack:FindFirstChild(id) and not (player.Character and player.Character:FindFirstChild(id)) then
+			local tool = makeTool(id)
+			if tool then
+				tool:SetAttribute("Ammo", math.clamp(p.mag[id] or def.Magazine, 0, def.Magazine))
+				tool:SetAttribute("Reserve", p.ammo[id] or def.StartAmmo)
+				tool.Parent = backpack
+			end
+		end
+	end
+end
+
+local function pushPhone(player: Player)
+	local phone = ReplicatedStorage:FindFirstChild("PhoneRemote")
+	if phone and player.Parent then
+		local p = profileOf(player)
+		phone:FireClient(player, "Weapons", { owned = p.owned, ammo = p.ammo, blocked = blocked[player] == true })
+	end
+end
+
+-- Для розыска: отобрать на время ареста / конфисковать / вернуть
+Registry.blockWeapons = function(player: Player, on: boolean)
+	blocked[player] = on or nil
+	if on then
+		removeTools(player)
+	else
+		giveTools(player)
+	end
+	pushPhone(player)
+end
+Registry.confiscateWeapons = function(player: Player)
+	removeTools(player)
+	local p = profileOf(player)
+	p.owned, p.ammo, p.mag = {}, {}, {}
+	pushPhone(player)
+	save(player)
+end
+
+---------------------------------------------------------------------
+-- Выстрел (общий: игроки и полиция)
+---------------------------------------------------------------------
+
+local shotParams = RaycastParams.new()
+shotParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function spreadDir(dir: Vector3, degrees: number): Vector3
+	if degrees <= 0 then
+		return dir.Unit
+	end
+	local cf = CFrame.lookAt(Vector3.zero, dir)
+	local a = rng:NextNumber() * math.pi * 2
+	local r = math.rad(degrees) * math.sqrt(rng:NextNumber())
+	return (cf * CFrame.Angles(math.cos(a) * r, math.sin(a) * r, 0)).LookVector
+end
+
+local function humanoidOf(part: Instance): (Model?, Humanoid?)
+	local model = part:FindFirstAncestorOfClass("Model")
+	while model do
+		local h = model:FindFirstChildOfClass("Humanoid")
+		if h then
+			return model, h
+		end
+		model = model.Parent and model.Parent:FindFirstAncestorOfClass("Model")
+	end
+	return nil, nil
+end
+
+-- Луч выстрела + эффекты у всех. Возвращает: результат, модель, humanoid, позицию попадания
+Registry.fireShot = function(origin: Vector3, dir: Vector3, range: number, ignore: { Instance }, weaponId: string, shooter: Instance?)
+	shotParams.FilterDescendantsInstances = ignore
+	local result = workspace:Raycast(origin, dir.Unit * range, shotParams)
+	local hitPos = result and result.Position or origin + dir.Unit * range
+	local model, humanoid = nil, nil
+	local kind = "none"
+	if result then
+		model, humanoid = humanoidOf(result.Instance)
+		kind = (humanoid and humanoid.Health > 0) and "flesh" or "wall"
+	end
+	remote:FireAllClients("Shot", {
+		shooter = shooter,
+		from = origin,
+		to = hitPos,
+		normal = result and result.Normal or nil,
+		kind = kind,
+		weapon = weaponId,
+	})
+	return result, model, humanoid, hitPos
+end
+
+local function isHead(part: BasePart): boolean
+	if part.Name == "Head" then
+		return true
+	end
+	local acc = part.Parent
+	return acc ~= nil and acc:IsA("Accessory")
+end
+
+---------------------------------------------------------------------
+-- Выстрелы игроков
+---------------------------------------------------------------------
+
+local lastShot = {} -- [player] = время
+local aiming = {} -- [player] = прицеливается ли
+
+local function equippedTool(player: Player, id: string?): Tool?
+	local character = player.Character
+	if not character then
+		return nil
+	end
+	for _, t in character:GetChildren() do
+		if t:IsA("Tool") and t:GetAttribute("WeaponId") and (id == nil or t:GetAttribute("WeaponId") == id) then
+			return t
+		end
+	end
+	return nil
+end
+
+local function onFire(player: Player, id: any, origin: any, direction: any)
+	local def = type(id) == "string" and Config.Weapons[id]
+	if not def or typeof(origin) ~= "Vector3" or typeof(direction) ~= "Vector3" or direction.Magnitude < 0.5 then
+		return
+	end
+	local character = player.Character
+	local head = character and character:FindFirstChild("Head")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local tool = equippedTool(player, id)
+	if not head or not tool or not humanoid or humanoid.Health <= 0 or blocked[player] or character:GetAttribute("Cuffed") then
+		return
+	end
+	if tool:GetAttribute("Reloading") then
+		return
+	end
+	local now = os.clock()
+	if now - (lastShot[player] or 0) < 60 / def.RPM * 0.8 then
+		return
+	end
+	local ammo = tool:GetAttribute("Ammo") or 0
+	if ammo <= 0 then
+		return
+	end
+	lastShot[player] = now
+	tool:SetAttribute("Ammo", ammo - 1)
+	-- Откуда стреляет: дуло рядом с головой, иначе — из головы
+	if (origin - head.Position).Magnitude > 7 then
+		origin = head.Position
+	end
+	local dir = spreadDir(direction, (aiming[player] and def.AimSpread or def.Spread) * 0.5)
+	local result, model, victim, hitPos = Registry.fireShot(origin, dir, def.Range, { character }, id, character)
+	if Registry.gunshot then
+		Registry.gunshot(player, origin)
+	end
+	if not (result and victim and victim.Health > 0 and model) then
+		return
+	end
+	local victimPlayer = Players:GetPlayerFromCharacter(model)
+	if victimPlayer and Config.PvP == false then
+		return
+	end
+	local dist = (hitPos - origin).Magnitude
+	local falloff = dist > def.Range * 0.6 and math.max(0.5, 1 - (dist - def.Range * 0.6) / (def.Range * 0.4) * 0.5) or 1
+	local headshot = isHead(result.Instance)
+	local damage = def.Damage * falloff * (headshot and def.HeadMultiplier or 1)
+	model:SetAttribute("LastAttacker", player.UserId)
+	model:SetAttribute("LastHitDir", dir)
+	local wasAlive = victim.Health > 0
+	victim:TakeDamage(damage)
+	local killed = wasAlive and victim.Health <= 0
+	remote:FireClient(player, "Hit", { head = headshot, kill = killed })
+	-- Преступление (узнают свидетели или полиция — WantedServer)
+	if Registry.wantedCrime then
+		local isOfficer = model:GetAttribute("Police") == true
+		local kind
+		if isOfficer then
+			kind = killed and "PoliceKill" or "PoliceAttack"
+		else
+			kind = killed and "Murder" or "Injury"
+		end
+		Registry.wantedCrime(player, kind, hitPos, model)
+	end
+end
+
+remote.OnServerEvent:Connect(function(player: Player, action: any, a: any, b: any, c: any)
+	if action == "Fire" then
+		onFire(player, a, b, c)
+	elseif action == "Aim" then
+		local character = player.Character
+		if character and typeof(a) == "Vector3" then
+			local tool = equippedTool(player, nil)
+			aiming[player] = b == true
+			character:SetAttribute("AimGun", tool ~= nil)
+			character:SetAttribute("AimDir", a.Unit)
+			character:SetAttribute("Aiming", b == true and tool ~= nil)
+		end
+	elseif action == "Reload" then
+		local tool = equippedTool(player, nil)
+		local id = tool and tool:GetAttribute("WeaponId")
+		local def = id and Config.Weapons[id]
+		if not def or tool:GetAttribute("Reloading") then
+			return
+		end
+		local ammo, reserve = tool:GetAttribute("Ammo") or 0, tool:GetAttribute("Reserve") or 0
+		if ammo >= def.Magazine or reserve <= 0 then
+			return
+		end
+		tool:SetAttribute("Reloading", true)
+		task.delay(def.ReloadTime, function()
+			if tool.Parent then
+				local need = math.min(def.Magazine - (tool:GetAttribute("Ammo") or 0), tool:GetAttribute("Reserve") or 0)
+				tool:SetAttribute("Ammo", (tool:GetAttribute("Ammo") or 0) + need)
+				tool:SetAttribute("Reserve", (tool:GetAttribute("Reserve") or 0) - need)
+				tool:SetAttribute("Reloading", nil)
+				local p = profileOf(player)
+				p.mag[id] = tool:GetAttribute("Ammo")
+				p.ammo[id] = tool:GetAttribute("Reserve")
+			end
+		end)
+	elseif action == "Mode" then
+		local tool = equippedTool(player, nil)
+		local def = tool and Config.Weapons[tool:GetAttribute("WeaponId")]
+		if def and #def.Modes > 1 then
+			local i = table.find(def.Modes, tool:GetAttribute("Mode")) or 1
+			tool:SetAttribute("Mode", def.Modes[i % #def.Modes + 1])
+		end
+	elseif action == "Surrender" then
+		local character = player.Character
+		if character then
+			character:SetAttribute("HandsUp", not character:GetAttribute("HandsUp") or nil)
+			if character:GetAttribute("HandsUp") then
+				local humanoid = character:FindFirstChildOfClass("Humanoid")
+				if humanoid then
+					humanoid:UnequipTools()
+				end
+			end
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- Смерть жителя: ragdoll и кровь
+---------------------------------------------------------------------
+
+local function ragdoll(model: Model)
+	for _, motor in model:GetDescendants() do
+		if motor:IsA("Motor6D") and motor.Part0 and motor.Part1 and motor.Name ~= "RootJoint" and motor.Name ~= "Root" then
+			local a0 = Instance.new("Attachment")
+			a0.CFrame = motor.C0
+			a0.Parent = motor.Part0
+			local a1 = Instance.new("Attachment")
+			a1.CFrame = motor.C1
+			a1.Parent = motor.Part1
+			local socket = Instance.new("BallSocketConstraint")
+			socket.Attachment0 = a0
+			socket.Attachment1 = a1
+			socket.LimitsEnabled = true
+			socket.UpperAngle = 50
+			socket.TwistLimitsEnabled = true
+			socket.TwistLowerAngle = -40
+			socket.TwistUpperAngle = 40
+			socket.Parent = motor.Part1
+			motor.Enabled = false
+		end
+	end
+	for _, p in model:GetDescendants() do
+		if p:IsA("BasePart") then
+			p.CanCollide = p.Name ~= "HumanoidRootPart"
+			p.Massless = p.Name == "HumanoidRootPart"
+		end
+	end
+	local root = model:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if root then
+		pcall(function()
+			root:SetNetworkOwner(nil)
+		end)
+		local dir = model:GetAttribute("LastHitDir")
+		if typeof(dir) == "Vector3" then
+			local torso = (model:FindFirstChild("UpperTorso") or model:FindFirstChild("Torso")) :: BasePart?
+			if torso then
+				torso:ApplyImpulse(dir * torso.AssemblyMass * 18)
+			end
+		end
+	end
+end
+
+local function bloodPool(model: Model)
+	local torso = (model:FindFirstChild("UpperTorso") or model:FindFirstChild("Torso")) :: BasePart?
+	if not torso then
+		return
+	end
+	task.delay(1.2, function()
+		if not torso.Parent then
+			return
+		end
+		shotParams.FilterDescendantsInstances = { model }
+		local hit = workspace:Raycast(torso.Position, Vector3.new(0, -8, 0), shotParams)
+		if not hit then
+			return
+		end
+		local pool = Instance.new("Part")
+		pool.Name = "BloodPool"
+		pool.Shape = Enum.PartType.Cylinder
+		pool.Anchored = true
+		pool.CanCollide = false
+		pool.CanQuery = false
+		pool.CanTouch = false
+		pool.Material = Enum.Material.Glass
+		pool.Color = Color3.fromRGB(95, 6, 10)
+		pool.Transparency = 0.15
+		pool.Size = Vector3.new(0.06, 0.4, 0.4)
+		pool.CFrame = CFrame.new(hit.Position + Vector3.new(0, 0.03, 0)) * CFrame.Angles(0, 0, math.rad(90))
+		pool.Parent = model
+		local size = rng:NextNumber(3.2, 5)
+		TweenService:Create(pool, TweenInfo.new(7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = Vector3.new(0.06, size, size * rng:NextNumber(0.8, 1)) }):Play()
+	end)
+end
+
+Registry.npcDied = function(npc)
+	local model = npc.model
+	npc.corpseTime = Config.CorpseTime or 40
+	ragdoll(model)
+	local attacker = model:GetAttribute("LastAttacker")
+	if Config.Blood and attacker then
+		bloodPool(model)
+	end
+	-- Тело постепенно исчезает в конце
+	task.delay(npc.corpseTime - 2, function()
+		for _, p in model:GetDescendants() do
+			if p:IsA("BasePart") and p.Name ~= "BloodPool" then
+				TweenService:Create(p, TweenInfo.new(1.8), { Transparency = 1 }):Play()
+			end
+		end
+	end)
+end
+
+---------------------------------------------------------------------
+-- Магазин в телефоне
+---------------------------------------------------------------------
+
+Registry.weaponAction = function(player: Player, action: string, id: any): boolean
+	if action ~= "WeaponBuy" and action ~= "AmmoBuy" and action ~= "Weapons" then
+		return false
+	end
+	if action == "Weapons" then
+		pushPhone(player)
+		return true
+	end
+	local def = type(id) == "string" and Config.Weapons[id]
+	local wallet = coins(player)
+	if not def or not wallet then
+		return true
+	end
+	if blocked[player] then
+		toast(player, "🚫 Оружие сейчас недоступно")
+		return true
+	end
+	local p = profileOf(player)
+	if action == "WeaponBuy" then
+		if p.owned[id] then
+			return true
+		end
+		if wallet.Value < def.Price then
+			toast(player, "Не хватает монет 🪙")
+			return true
+		end
+		wallet.Value -= def.Price
+		p.owned[id] = true
+		p.ammo[id] = def.StartAmmo
+		p.mag[id] = def.Magazine
+		toast(player, string.format("%s %s куплен! -%d 🪙", def.Icon, def.Name, def.Price))
+		giveTools(player)
+	else
+		if not p.owned[id] then
+			return true
+		end
+		if wallet.Value < def.AmmoPrice then
+			toast(player, "Не хватает монет 🪙")
+			return true
+		end
+		wallet.Value -= def.AmmoPrice
+		local tool = equippedTool(player, id) or (player:FindFirstChildOfClass("Backpack") and player.Backpack:FindFirstChild(id))
+		if tool then
+			tool:SetAttribute("Reserve", (tool:GetAttribute("Reserve") or 0) + def.Magazine)
+		end
+		p.ammo[id] = (p.ammo[id] or 0) + def.Magazine
+		toast(player, string.format("+%d патронов %s", def.Magazine, def.Icon))
+	end
+	pushPhone(player)
+	save(player)
+	return true
+end
+
+---------------------------------------------------------------------
+-- Игроки
+---------------------------------------------------------------------
+
+local function onPlayer(player: Player)
+	task.spawn(function()
+		load(player)
+		if player.Character then
+			giveTools(player)
+		end
+		pushPhone(player)
+	end)
+	player.CharacterAdded:Connect(function(character)
+		character:WaitForChild("HumanoidRootPart", 10)
+		task.wait(0.3)
+		local p = profiles[player]
+		if p and p.loaded then
+			giveTools(player)
+		end
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.BreakJointsOnDeath = false
+			humanoid.Died:Connect(function()
+				-- Сохраняем патроны из инструментов; тело падает (ragdoll)
+				removeTools(player)
+				ragdoll(character)
+			end)
+		end
+	end)
+end
+for _, p in Players:GetPlayers() do
+	onPlayer(p)
+end
+Players.PlayerAdded:Connect(onPlayer)
+Players.PlayerRemoving:Connect(function(player)
+	removeTools(player)
+	save(player)
+	profiles[player] = nil
+	blocked[player] = nil
+	lastShot[player] = nil
+	aiming[player] = nil
+end)
+game:BindToClose(function()
+	for _, p in Players:GetPlayers() do
+		task.spawn(save, p)
+	end
+	task.wait(2)
+end)
+task.spawn(function()
+	while true do
+		task.wait(90)
+		for _, p in Players:GetPlayers() do
+			task.spawn(save, p)
+		end
+	end
+end)
+
+----------------------------------------------------------------------
+-- 34. ServerScriptService > Script "WantedServer"
+----------------------------------------------------------------------
+
+-- Script: ServerScriptService > WantedServer
+-- Розыск и правосудие (настройки — ReplicatedStorage > WeaponConfig.Wanted / Justice).
+--
+-- Как в жизни: полиция НЕ знает, где ты. Узнаёт только от свидетелей или когда видит сама.
+--   * Залез в чужой дом — хозяин кричит и звонит в 911.
+--   * Достал оружие — жителям страшно: держат дистанцию, кто-то убегает и звонит.
+--   * Целишься — пугливые кричат, бегут в укрытие, звонят.
+--   * Стреляешь — паника, полиция едет быстрее. Убил — огонь на поражение.
+--   * ⭐ 1–5: от звёзд зависит, сколько машин приедет. Полиция едет туда, где тебя видели, и прочёсывает район.
+--   * Не видели долго — ушёл от погони. Стрелял в полицию — отстреливаются.
+-- Арест: наручники → машина → отдел (фото, отпечатки, допрос) → КПЗ → суд → тюрьма; оружие и часть денег конфискуют.
+--
+-- Метки (необязательно, без них этапы проходят в участке):
+--   TrafficSystem > PoliceStation: Mugshot, Fingerprint, Interview, Holding
+--   Workspace > JusticeSystem > Court: Judge, Dock, CourtDoor
+--   Workspace > JusticeSystem > Prison: PrisonDoor, PrisonCell (1 и больше), PrisonExit
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+
+local Config = require(ReplicatedStorage:WaitForChild("WeaponConfig"))
+if not Config.Enabled then
+	return
+end
+local W = Config.Wanted
+local J = Config.Justice
+local L = Config.Lines
+local NPCConfig = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local VehicleConfig = require(ReplicatedStorage:WaitForChild("VehicleConfig"))
+local Registry = require(script.Parent:WaitForChild("NPCRegistry"))
+local AbilityRegistry = require(ServerScriptService:WaitForChild("AbilityRegistry"))
+
+local rng = Random.new()
+local remote = Instance.new("RemoteEvent")
+remote.Name = "WantedRemote"
+remote.Parent = ReplicatedStorage
+
+local function pick(list)
+	return list[rng:NextInteger(1, #list)]
+end
+local function flat(v: Vector3): Vector3
+	return Vector3.new(v.X, 0, v.Z)
+end
+local function now(): number
+	return os.clock()
+end
+local function serverNow(): number
+	return workspace:GetServerTimeNow()
+end
+local function say(npc, text: string, seconds: number?)
+	if Registry.say and npc and npc.alive then
+		Registry.say(npc, text, seconds)
+	end
+end
+local function toast(player: Player, text: string)
+	if Registry.toast then
+		Registry.toast(player, text)
+	end
+end
+local function event(text: string)
+	if Registry.debugEvent then
+		Registry.debugEvent(text)
+	end
+end
+
+-- Набор полиции из TrafficServer
+local kit = nil
+task.spawn(function()
+	local t = os.clock()
+	while not Registry.policeKit and os.clock() - t < 20 do
+		task.wait(0.5)
+	end
+	kit = Registry.policeKit
+	if not kit then
+		warn("[Wanted] Нет транспорта (TrafficServer) — полиция не сможет выезжать на розыск")
+	end
+end)
+
+---------------------------------------------------------------------
+-- Видимость
+---------------------------------------------------------------------
+
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function lineOfSight(from: Vector3, to: Vector3, ignore: { Instance }): boolean
+	rayParams.FilterDescendantsInstances = ignore
+	local hit = workspace:Raycast(from, to - from, rayParams)
+	return hit == nil
+end
+
+-- Видит ли житель/офицер персонажа (дистанция, обзор, прямая видимость, невидимость)
+local function sees(npc, character: Model, range: number, fov: number?): boolean
+	if not npc.alive then
+		return false
+	end
+	local head = npc.model:FindFirstChild("Head")
+	local target = character:FindFirstChild("Head")
+	if not head or not target then
+		return false
+	end
+	if character:GetAttribute("Invisible") == true then
+		return false
+	end
+	local delta = target.Position - head.Position
+	if delta.Magnitude > range then
+		return false
+	end
+	if fov then
+		local look = npc.hrp.CFrame.LookVector
+		if flat(delta).Magnitude > 2 and flat(look):Dot(flat(delta).Unit) < fov then
+			return false
+		end
+	end
+	return lineOfSight(head.Position, target.Position, { npc.model, character })
+end
+
+local function residents()
+	local list = {}
+	for _, npc in pairs(Registry.npcs) do
+		if npc.alive and not npc.officer and not npc.inVehicle then
+			table.insert(list, npc)
+		end
+	end
+	return list
+end
+
+local function officers()
+	local list = {}
+	for model, npc in pairs(Registry.npcs) do
+		if npc.alive and model:GetAttribute("Police") == true then
+			table.insert(list, npc)
+		end
+	end
+	return list
+end
+
+---------------------------------------------------------------------
+-- Состояние игроков
+---------------------------------------------------------------------
+
+local states = {} -- [player] = состояние
+local function st(player: Player)
+	local s = states[player]
+	if not s then
+		s = {
+			stars = 0,
+			mode = "free", -- free / wanted / arrested / booking / holding / court / prison
+			units = {},
+			lastSeen = 0,
+			reportTime = 0,
+			knownPos = nil,
+			reportPos = nil,
+			kills = 0,
+			policeKills = 0,
+			injuries = 0,
+			attackedPolice = false,
+			lastShot = 0,
+			calls = 0,
+			lastCall = {},
+			trespass = 0,
+			surrender = 0,
+		}
+		states[player] = s
+	end
+	return s
+end
+
+local function publish(player: Player)
+	local s = st(player)
+	player:SetAttribute("WantedStars", s.stars)
+	player:SetAttribute("WantedMode", s.mode)
+	player:SetAttribute("WantedSeen", now() - s.lastSeen < 2)
+	local evade = W.EvadeTime + W.EvadePerStar * s.stars
+	local ref = math.max(s.lastSeen, s.reportTime)
+	player:SetAttribute("WantedEvadeLeft", s.stars > 0 and math.max(0, evade - (now() - ref)) or nil)
+	player:SetAttribute("WantedEvadeTotal", evade)
+end
+
+local function setStars(player: Player, n: number, reason: string?)
+	local s = st(player)
+	n = math.clamp(n, 0, 5)
+	if n > s.stars then
+		event(string.format("⭐ %s: розыск %d★ (%s)", player.Name, n, reason or ""))
+		remote:FireClient(player, "Stars", { stars = n, reason = reason })
+	end
+	s.stars = n
+	if n > 0 and s.mode == "free" then
+		s.mode = "wanted"
+	end
+	publish(player)
+end
+
+---------------------------------------------------------------------
+-- 📞 Звонки в 911 и выезды
+---------------------------------------------------------------------
+
+local ensureUnits -- объявлена ниже
+
+local function report(player: Player, level: number, pos: Vector3, exact: boolean?, why: string?)
+	local s = st(player)
+	if s.mode ~= "free" and s.mode ~= "wanted" then
+		return
+	end
+	local noise = exact and 0 or W.ReportNoise
+	local offset = Vector3.new(rng:NextNumber(-1, 1), 0, rng:NextNumber(-1, 1)) * noise
+	s.reportPos = pos + offset
+	s.reportTime = now()
+	player:SetAttribute("PoliceSearch", s.reportPos)
+	local before = s.stars
+	if level > s.stars then
+		setStars(player, level, why)
+	else
+		publish(player)
+	end
+	if before == 0 then
+		remote:FireClient(player, "Called", { why = why })
+	end
+	local delay = W.DispatchDelay[math.clamp(s.stars, 1, 5)] or 10
+	task.delay(delay, function()
+		if ensureUnits then
+			ensureUnits(player)
+		end
+	end)
+end
+
+-- Житель звонит (если его остановят — звонка не будет)
+local function witnessCall(npc, player: Player, level: number, pos: Vector3, why: string)
+	local s = st(player)
+	if s.calls >= 2 or now() - (s.lastCall[level] or 0) < 12 then
+		return
+	end
+	s.calls += 1
+	s.lastCall[level] = now()
+	task.spawn(function()
+		local done = Registry.phoneCall and Registry.phoneCall(npc, pick(L.Call), W.CallTime) or true
+		s.calls -= 1
+		if done and player.Parent then
+			event(string.format("📞 %s звонит в 911: %s", npc.name, why))
+			report(player, level, pos, false, why)
+		end
+	end)
+end
+
+-- Полицейский увидел сам — сразу и точно
+local function policeWitness(player: Player, level: number, pos: Vector3, why: string)
+	local character = player.Character
+	if not character then
+		return false
+	end
+	for _, o in officers() do
+		if sees(o, character, W.PoliceSight, -0.2) then
+			local s = st(player)
+			s.lastSeen = now()
+			s.knownPos = pos
+			report(player, level, pos, true, why)
+			say(o, pick(L.PoliceSee), 2)
+			return true
+		end
+	end
+	return false
+end
+
+---------------------------------------------------------------------
+-- 😱 Реакции жителей
+---------------------------------------------------------------------
+
+local reacted = {} -- [npc] = { [вид] = время }
+local function canReact(npc, kind: string, cooldown: number): boolean
+	local r = reacted[npc]
+	if not r then
+		r = {}
+		reacted[npc] = r
+	end
+	if now() - (r[kind] or -999) < cooldown then
+		return false
+	end
+	r[kind] = now()
+	return true
+end
+
+local function bravery(npc): number
+	return npc.model:GetAttribute("Bravery") or 0.5
+end
+
+local function scream(npc)
+	if Registry.sfx then
+		Registry.sfx(npc, "Scream")
+	end
+end
+
+-- Увидел оружие
+local function onWeaponSeen(npc, player: Player, from: Vector3)
+	if not canReact(npc, "WeaponSeen", 30) then
+		return
+	end
+	local fear = 1 - bravery(npc)
+	if rng:NextNumber() < 0.7 then
+		say(npc, pick(L.SeeWeapon), 2.5)
+	end
+	if rng:NextNumber() < W.FleeChance.WeaponSeen * (0.5 + fear) then
+		Registry.scare(npc, from, "run", 10)
+	else
+		Registry.scare(npc, from, "distance", 14, W.KeepDistance)
+	end
+	if rng:NextNumber() < W.CallChance.WeaponSeen * (0.5 + fear) then
+		task.delay(1.5, witnessCall, npc, player, W.WeaponSeen, from, "человек с оружием")
+	end
+end
+
+-- В него целятся
+local function onAimed(npc, player: Player, from: Vector3)
+	if not canReact(npc, "Aiming", 15) then
+		return
+	end
+	local fear = 1 - bravery(npc)
+	if fear > 0.3 then
+		say(npc, pick(L.Aimed), 2.5)
+		scream(npc)
+	end
+	if rng:NextNumber() < W.FleeChance.Aiming * (0.5 + fear) then
+		Registry.scare(npc, from, "cover", 22)
+	else
+		Registry.scare(npc, from, "distance", 12, W.KeepDistance + 6)
+	end
+	if rng:NextNumber() < W.CallChance.Aiming then
+		task.delay(2, witnessCall, npc, player, W.Aiming, from, "в людей целятся из оружия")
+	end
+end
+
+-- Слышал выстрелы
+local function onShots(npc, player: Player, from: Vector3, seen: boolean)
+	if not canReact(npc, "Shots", 10) then
+		return
+	end
+	if rng:NextNumber() < 0.5 then
+		say(npc, pick(L.Shots), 2)
+	end
+	if rng:NextNumber() < 0.6 then
+		scream(npc)
+	end
+	Registry.scare(npc, from, rng:NextNumber() < W.FleeChance.Shots and "cover" or "run", 25)
+	if rng:NextNumber() < W.CallChance.Shots then
+		task.delay(2.5, witnessCall, npc, player, W.Shots, from, seen and "стрельба, видел стрелка" or "слышны выстрелы")
+	end
+end
+
+-- Видел убийство / тело
+local function onBody(npc, player: Player, from: Vector3, bodyPos: Vector3)
+	if not canReact(npc, "Body", 20) then
+		return
+	end
+	say(npc, pick(L.Body), 3)
+	scream(npc)
+	Registry.scare(npc, from, "cover", 30)
+	if rng:NextNumber() < W.CallChance.Murder then
+		task.delay(2, witnessCall, npc, player, W.Murder, from, "убийство")
+	end
+	local _ = bodyPos
+end
+
+-- Выстрел игрока (от WeaponServer)
+Registry.gunshot = function(player: Player, pos: Vector3)
+	local s = st(player)
+	s.lastShot = now()
+	local character = player.Character
+	if not character then
+		return
+	end
+	local root = character:FindFirstChild("HumanoidRootPart")
+	local from = root and root.Position or pos
+	for _, npc in residents() do
+		local d = (npc.hrp.Position - pos).Magnitude
+		if d < W.HearShots then
+			local seen = d < W.SightRange * 1.5 and sees(npc, character, W.SightRange * 1.5, nil)
+			onShots(npc, player, from, seen)
+		end
+	end
+	-- Полицейские слышат выстрелы и едут на звук
+	for _, o in officers() do
+		if (o.hrp.Position - pos).Magnitude < W.HearShots then
+			if not policeWitness(player, W.Shots, pos, "стрельба рядом с полицией") then
+				report(player, W.Shots, pos + Vector3.new(rng:NextNumber(-8, 8), 0, rng:NextNumber(-8, 8)), false, "полиция слышала выстрелы")
+			end
+			break
+		end
+	end
+end
+
+-- Преступление (от WeaponServer): Injury / Murder / PoliceAttack / PoliceKill
+Registry.wantedCrime = function(player: Player, kind: string, pos: Vector3, victim: Model?)
+	local s = st(player)
+	if kind == "Murder" then
+		s.kills += 1
+	elseif kind == "PoliceKill" then
+		s.policeKills += 1
+		s.kills += 1
+		s.attackedPolice = true
+	elseif kind == "PoliceAttack" then
+		s.attackedPolice = true
+	elseif kind == "Injury" then
+		s.injuries += 1
+	end
+	local level = W[kind] or 2
+	if s.kills >= 4 then
+		level = math.max(level, W.ManyKills)
+	end
+	local character = player.Character
+	if not character then
+		return
+	end
+	local from = character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart.Position or pos
+	-- Нападение на полицию — сразу и точно; полиция видела сама — тоже
+	if kind == "PoliceAttack" or kind == "PoliceKill" then
+		s.lastSeen = now()
+		s.knownPos = from
+		report(player, level, from, true, kind == "PoliceKill" and "убит полицейский" or "нападение на полицию")
+		return
+	end
+	if policeWitness(player, level, from, kind == "Murder" and "убийство на глазах полиции" or "стрельба по людям") then
+		return
+	end
+	-- Уже в розыске — звёзды растут, если кто-то видел
+	for _, npc in residents() do
+		local d = (npc.hrp.Position - pos).Magnitude
+		if d < 60 and (sees(npc, character, 60, -0.3) or (victim and npc.model:FindFirstChild("Head") and lineOfSight(npc.model.Head.Position, pos, { npc.model, victim, character }))) then
+			if kind == "Murder" then
+				onBody(npc, player, from, pos)
+			else
+				onShots(npc, player, from, true)
+			end
+		end
+	end
+end
+
+-- Оружие на виду и прицел: проверяем несколько раз в секунду
+local zones = nil -- дома: { zone, min, max }
+local function homeZones()
+	if zones then
+		return zones
+	end
+	zones = {}
+	local root = workspace:FindFirstChild(NPCConfig.FolderName)
+	if not root then
+		return zones
+	end
+	local boxes = {}
+	for _, folderName in { "Points", "Spawns" } do
+		local f = root:FindFirstChild(folderName)
+		for _, p in f and f:GetDescendants() or {} do
+			if p:IsA("BasePart") then
+				local z = p:GetAttribute("Zone")
+				if type(z) == "string" and z ~= NPCConfig.OutdoorZone then
+					local b = boxes[z] or { min = p.Position, max = p.Position }
+					b.min = b.min:Min(p.Position)
+					b.max = b.max:Max(p.Position)
+					boxes[z] = b
+				end
+			end
+		end
+	end
+	for z, b in pairs(boxes) do
+		table.insert(zones, { zone = z, min = b.min - Vector3.new(3, 3, 3), max = b.max + Vector3.new(3, 8, 3) })
+	end
+	return zones
+end
+
+local function zoneAt(pos: Vector3): string?
+	for _, z in homeZones() do
+		if pos.X > z.min.X and pos.X < z.max.X and pos.Y > z.min.Y and pos.Y < z.max.Y and pos.Z > z.min.Z and pos.Z < z.max.Z then
+			return z.zone
+		end
+	end
+	return nil
+end
+
+task.spawn(function()
+	while true do
+		task.wait(0.3)
+		if not Registry.scare then
+			continue
+		end
+		for _, player in Players:GetPlayers() do
+			local s = st(player)
+			local character = player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			if not root or (s.mode ~= "free" and s.mode ~= "wanted") then
+				continue
+			end
+			local armed = character:GetAttribute("AimGun") == true
+			local aimDir = character:GetAttribute("AimDir")
+			local head = character:FindFirstChild("Head")
+			if armed then
+				for _, npc in residents() do
+					local d = (npc.hrp.Position - root.Position).Magnitude
+					if d < W.SightRange and sees(npc, character, W.SightRange, -0.1) then
+						onWeaponSeen(npc, player, root.Position)
+					end
+					-- Прицел на жителя: луч из головы по направлению взгляда
+					if typeof(aimDir) == "Vector3" and head and d < 80 and npc.model:FindFirstChild("Head") then
+						local to = npc.model.Head.Position - head.Position
+						if to.Unit:Dot(aimDir) > math.cos(math.rad(character:GetAttribute("Aiming") and 5 or 8))
+							and lineOfSight(head.Position, npc.model.Head.Position, { character, npc.model }) then
+							onAimed(npc, player, root.Position)
+						end
+					end
+				end
+				-- Полицейский видит оружие
+				if s.stars == 0 then
+					for _, o in officers() do
+						if sees(o, character, W.PoliceSight * 0.6, -0.2) and canReact(o, "SeeArmed", 20) then
+							say(o, "Эй! Уберите оружие!", 2.5)
+							report(player, W.WeaponSeen, root.Position, true, "вооружённый человек")
+							s.lastSeen = now()
+							s.knownPos = root.Position
+							break
+						end
+					end
+				end
+			end
+			-- Проникновение в чужой дом
+			local zone = zoneAt(root.Position)
+			if zone then
+				local owner = nil
+				for _, npc in residents() do
+					if npc.homeZone == zone and npc.zone == zone and sees(npc, character, 30, -0.4) then
+						owner = npc
+						break
+					end
+				end
+				if owner then
+					s.trespass += 0.3
+					if s.trespass >= W.TrespassGrace and canReact(owner, "Trespass", 60) then
+						say(owner, pick(L.Trespass), 3)
+						scream(owner)
+						Registry.scare(owner, root.Position, "distance", 12, 12)
+						witnessCall(owner, player, W.Trespass, root.Position, "проникновение в дом")
+					end
+				else
+					s.trespass = math.max(0, s.trespass - 0.3)
+				end
+			else
+				s.trespass = 0
+			end
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- 🚓 Наряды на розыск
+---------------------------------------------------------------------
+
+local arrest -- объявлена ниже
+local damagePlayer -- объявлена ниже
+
+local function attachGun(officer)
+	if officer.model:FindFirstChild("PoliceGun") or not Registry.buildGun then
+		return
+	end
+	local hand = officer.model:FindFirstChild("RightHand") or officer.model:FindFirstChild("Right Arm")
+	if not hand then
+		return
+	end
+	local gun = Registry.buildGun("Pistol")
+	gun:PivotTo(hand.CFrame * CFrame.new(0, -0.3, -0.35) * CFrame.Angles(math.rad(-90), 0, 0))
+	for _, p in gun:GetDescendants() do
+		if p:IsA("BasePart") then
+			p:SetAttribute("BaseT", p.Transparency)
+			p.Transparency = 1 -- в кобуре, пока не достал
+		end
+	end
+	local w = Instance.new("WeldConstraint")
+	w.Part0 = hand
+	w.Part1 = gun.PrimaryPart
+	w.Parent = gun.PrimaryPart
+	gun.Parent = officer.model
+end
+
+local function drawGun(officer, on: boolean)
+	if officer.model:GetAttribute("AimGun") == on then
+		return
+	end
+	officer.model:SetAttribute("AimGun", on)
+	local gun = officer.model:FindFirstChild("PoliceGun")
+	if gun then
+		for _, p in gun:GetDescendants() do
+			if p:IsA("BasePart") then
+				p.Transparency = on and (p:GetAttribute("BaseT") or 0) or 1
+			end
+		end
+	end
+end
+
+local function faceTo(npc, pos: Vector3)
+	local hrp = npc.hrp
+	local d = flat(pos - hrp.Position)
+	if d.Magnitude > 0.1 then
+		npc.humanoid.AutoRotate = false
+		hrp.CFrame = CFrame.lookAt(hrp.Position, hrp.Position + d.Unit)
+	end
+end
+
+-- Полицейский стреляет
+local function policeShoot(officer, player: Player)
+	local character = player.Character
+	local target = character and (character:FindFirstChild("UpperTorso") or character:FindFirstChild("HumanoidRootPart"))
+	local head = officer.model:FindFirstChild("Head")
+	if not target or not head or not Registry.fireShot then
+		return
+	end
+	local gun = officer.model:FindFirstChild("PoliceGun")
+	local muzzle = gun and gun:FindFirstChild("Muzzle", true)
+	local origin = muzzle and muzzle.WorldPosition or (head.Position + officer.hrp.CFrame.LookVector * 1.5)
+	local dist = (target.Position - origin).Magnitude
+	local speed = target.AssemblyLinearVelocity.Magnitude
+	local chance = Config.PoliceAccuracy * math.clamp(20 / math.max(dist, 1), 0.25, 1.3) * (speed > 12 and 0.6 or 1)
+	local aim = target.Position
+	if rng:NextNumber() > chance then
+		aim += Vector3.new(rng:NextNumber(-1, 1), rng:NextNumber(-0.5, 1), rng:NextNumber(-1, 1)).Unit * rng:NextNumber(2.5, 5)
+	end
+	local _, model, humanoid = Registry.fireShot(origin, aim - origin, 260, { officer.model }, "Pistol", officer.model)
+	if humanoid and model == character then
+		damagePlayer(player, Config.PoliceDamage)
+	elseif humanoid and humanoid.Health > 0 then
+		humanoid:TakeDamage(Config.PoliceDamage)
+	end
+end
+
+-- Точка дороги для появления наряда: подальше от игрока, чтобы машина ехала по городу
+local function spawnNode(target: Vector3): string?
+	local good, any = {}, {}
+	for name, n in pairs(kit.nodes) do
+		local d = (n.pos - target).Magnitude
+		table.insert(any, { name = name, d = d })
+		if d > 90 and d < 240 then
+			table.insert(good, name)
+		end
+	end
+	if #good > 0 then
+		return pick(good)
+	end
+	table.sort(any, function(a, b)
+		return a.d > b.d
+	end)
+	return any[1] and any[1].name or nil
+end
+
+local function unitAlive(unit): boolean
+	return unit.car and unit.car.model and unit.car.model.Parent ~= nil
+end
+
+local function dismissUnit(unit)
+	unit.state = "leave"
+end
+
+local function cleanupUnit(unit)
+	for _, o in unit.officers do
+		if o.alive and o.inVehicle and kit then
+			o.inVehicle = nil
+		end
+		if o.model and o.model.Parent then
+			o.alive = false
+			o.model:Destroy()
+		end
+	end
+	unit.officers = {}
+	if unit.car and kit then
+		kit.removeCar(unit.car)
+	end
+	unit.car = nil
+end
+
+local officerLoop -- объявлена ниже
+
+local function unitLoop(unit)
+	local player = unit.player
+	local s = st(player)
+	while player.Parent and unitAlive(unit) and unit.state ~= "leave" and unit.state ~= "arrest" do
+		if unit.state == "drive" then
+			local dest = (now() - s.lastSeen < 6 and s.knownPos) or s.reportPos or s.knownPos
+			if not dest then
+				break
+			end
+			unit.car.model:SetAttribute("Siren", true)
+			kit.drive(unit.car, { node = kit.nearestNode(dest), curb = 4 })
+			if unit.state ~= "drive" then
+				break
+			end
+			-- Выходим и ищем
+			for _, o in unit.officers do
+				if o.alive and o.inVehicle then
+					task.spawn(kit.unseatNPC, o)
+				end
+			end
+			task.wait(1.4)
+			for _, o in unit.officers do
+				if o.alive then
+					if rng:NextNumber() < 0.6 then
+						say(o, pick(L.PoliceArrive), 2.5)
+					end
+					task.spawn(officerLoop, unit, o)
+				end
+			end
+			unit.searchCenter = dest
+			unit.state = "foot"
+		elseif unit.state == "foot" then
+			task.wait(1)
+			-- Подозреваемого видели далеко отсюда — снова в машину
+			local center = (now() - s.lastSeen < 10 and s.knownPos) or s.reportPos
+			local near = false
+			for _, o in unit.officers do
+				if o.alive and center and (o.hrp.Position - center).Magnitude < 110 then
+					near = true
+				end
+			end
+			if center and not near then
+				unit.state = "board"
+				local people = {}
+				for i, o in unit.officers do
+					if o.alive then
+						table.insert(people, { npc = o, seat = i == 1 and unit.car.driverSeat or unit.car.seats[i - 1] })
+					end
+				end
+				kit.boardAll(unit.car, people)
+				if unit.state == "board" then
+					unit.state = "drive"
+				end
+			end
+			-- Все офицеры погибли
+			local any = false
+			for _, o in unit.officers do
+				any = any or o.alive
+			end
+			if not any then
+				break
+			end
+		else
+			task.wait(0.5)
+		end
+	end
+	if unit.state == "arrest" then
+		return -- машиной распоряжается арест
+	end
+	-- Отбой: садятся и уезжают
+	if unitAlive(unit) then
+		unit.state = "leave"
+		unit.car.model:SetAttribute("Siren", false)
+		local people = {}
+		for i, o in unit.officers do
+			if o.alive and not o.inVehicle then
+				table.insert(people, { npc = o, seat = i == 1 and unit.car.driverSeat or unit.car.seats[i - 1] })
+			end
+		end
+		if #people > 0 then
+			kit.boardAll(unit.car, people)
+		end
+		local far = spawnNode(unit.car.pos)
+		if far then
+			kit.drive(unit.car, { node = far })
+		end
+	end
+	cleanupUnit(unit)
+	local i = table.find(s.units, unit)
+	if i then
+		table.remove(s.units, i)
+	end
+end
+
+function officerLoop(unit, officer)
+	local player = unit.player
+	local s = st(player)
+	officer.humanoid.WalkSpeed = 16
+	local walking = false
+	local nextShot = 0
+	local lastShout = 0
+	local calm = 0
+	while officer.alive and unit.state == "foot" and player.Parent and s.mode == "wanted" do
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local t = now()
+		if root and humanoid and humanoid.Health > 0 and sees(officer, character, W.PoliceSight, -0.35) then
+			s.lastSeen = t
+			s.knownPos = root.Position
+			player:SetAttribute("PoliceSearch", root.Position)
+			if walking then
+				officer.abort = true
+				walking = false
+			end
+			local dist = (root.Position - officer.hrp.Position).Magnitude
+			local hostile = s.stars >= W.ShootOnSight or s.attackedPolice
+			local armed = character:GetAttribute("AimGun") == true
+			if hostile then
+				drawGun(officer, true)
+				faceTo(officer, root.Position)
+				if dist > 30 then
+					officer.humanoid.WalkSpeed = 18
+					officer.humanoid:MoveTo(root.Position)
+				elseif dist < 10 then
+					officer.humanoid:MoveTo(officer.hrp.Position - flat(root.Position - officer.hrp.Position).Unit * 4)
+				else
+					officer.humanoid:MoveTo(officer.hrp.Position)
+				end
+				if t > lastShout + 6 then
+					lastShout = t
+					say(officer, pick(L.PoliceShoot), 1.5)
+				end
+				if t >= nextShot then
+					nextShot = t + rng:NextNumber(Config.PoliceFireInterval.Min, Config.PoliceFireInterval.Max)
+					policeShoot(officer, player)
+				end
+			else
+				drawGun(officer, armed)
+				if t > lastShout + 5 then
+					lastShout = t
+					say(officer, dist < 15 and "Руки вверх! Не двигаться!" or pick(L.PoliceSee), 2)
+				end
+				if dist > W.ArrestDistance then
+					officer.humanoid.WalkSpeed = 18
+					officer.humanoid:MoveTo(root.Position - flat(root.Position - officer.hrp.Position).Unit * 2.5)
+					calm = 0
+				else
+					officer.humanoid:MoveTo(officer.hrp.Position)
+					faceTo(officer, root.Position)
+					local quiet = t - s.lastShot > 3 and root.AssemblyLinearVelocity.Magnitude < 5
+					calm = quiet and calm + 0.25 or 0
+					if character:GetAttribute("HandsUp") or calm >= W.SurrenderTime then
+						arrest(player, unit, officer)
+						return
+					end
+				end
+			end
+		else
+			drawGun(officer, s.stars >= W.ShootOnSight and t - s.lastSeen < 15)
+			officer.humanoid.AutoRotate = true
+			if not walking then
+				-- Идём туда, где видели, и прочёсываем район
+				local center = (t - s.lastSeen < 20 and s.knownPos) or s.reportPos or unit.searchCenter
+				if center then
+					walking = true
+					officer.abort = false
+					local r = (t - s.lastSeen < 5) and 4 or W.SearchRadius
+					local goal = center + Vector3.new(rng:NextNumber(-r, r), 0, rng:NextNumber(-r, r))
+					task.spawn(function()
+						officer.humanoid.WalkSpeed = (t - s.lastSeen < 10) and 16 or 10
+						if Registry.walkTo then
+							Registry.walkTo(officer, goal)
+						end
+						task.wait(rng:NextNumber(1, 3))
+						walking = false
+					end)
+				end
+			end
+		end
+		task.wait(0.25)
+	end
+	officer.abort = true
+	drawGun(officer, false)
+	officer.humanoid.AutoRotate = true
+end
+
+local function spawnUnit(player: Player)
+	local s = st(player)
+	local target = s.reportPos or s.knownPos
+	if not kit or not target then
+		return
+	end
+	local node = spawnNode(target)
+	if not node then
+		return
+	end
+	local dir = flat(target - kit.nodes[node].pos)
+	local car = kit.spawnPoliceAt(node, dir)
+	if not car then
+		return
+	end
+	local unit = { car = car, officers = {}, player = player, state = "spawn" }
+	table.insert(s.units, unit)
+	for i = 1, VehicleConfig.PoliceOfficersPerCar or 2 do
+		local seat = i == 1 and car.driverSeat or car.seats[i - 1]
+		local at = CFrame.new(kit.doorSide(car, seat or car.driverSeat) + Vector3.new(0, 3, 0))
+		local officer = kit.spawnOfficer(at)
+		if officer then
+			attachGun(officer)
+			table.insert(unit.officers, officer)
+			if seat then
+				task.spawn(kit.seatNPC, officer, car, seat)
+			end
+		end
+	end
+	task.wait(1)
+	event(string.format("🚓 Наряд на розыск %s (%d★)", player.Name, s.stars))
+	unit.state = "drive"
+	task.spawn(unitLoop, unit)
+end
+
+function ensureUnits(player: Player)
+	local s = st(player)
+	if s.mode ~= "wanted" or s.stars <= 0 or not kit then
+		return
+	end
+	local need = W.Units[math.clamp(s.stars, 1, 5)] or 1
+	local active = 0
+	for _, u in s.units do
+		if u.state ~= "leave" then
+			active += 1
+		end
+	end
+	for _ = active + 1, need do
+		task.spawn(spawnUnit, player)
+		task.wait(0.5)
+	end
+end
+
+local function clearWanted(player: Player, why: string?)
+	local s = st(player)
+	for _, u in s.units do
+		if u.state ~= "arrest" then
+			dismissUnit(u)
+		end
+	end
+	if s.stars > 0 and why then
+		event(string.format("✅ %s: розыск снят (%s)", player.Name, why))
+	end
+	s.stars = 0
+	s.kills, s.policeKills, s.injuries = 0, 0, 0
+	s.attackedPolice = false
+	s.knownPos, s.reportPos = nil, nil
+	s.trespass = 0
+	if s.mode == "wanted" then
+		s.mode = "free"
+	end
+	player:SetAttribute("PoliceSearch", nil)
+	publish(player)
+end
+Registry.clearWanted = clearWanted
+
+-- Ушёл от погони
+task.spawn(function()
+	while true do
+		task.wait(1)
+		for _, player in Players:GetPlayers() do
+			local s = st(player)
+			if s.mode == "wanted" then
+				local limit = W.EvadeTime + W.EvadePerStar * s.stars
+				local ref = math.max(s.lastSeen, s.reportTime)
+				if now() - ref > limit then
+					for _, u in s.units do
+						for _, o in u.officers do
+							if o.alive and rng:NextNumber() < 0.5 then
+								say(o, pick(L.PoliceLost), 2.5)
+								break
+							end
+						end
+					end
+					remote:FireClient(player, "Evaded", {})
+					toast(player, "✅ Ты ушёл от погони")
+					clearWanted(player, "ушёл от погони")
+				end
+			end
+			publish(player)
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- Урон игроку от полиции, «потрачено»
+---------------------------------------------------------------------
+
+function damagePlayer(player: Player, amount: number)
+	local s = st(player)
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return
+	end
+	if s.mode == "wanted" and humanoid.Health - amount <= W.DownedHealth then
+		-- Не убивают — задерживают
+		humanoid.Health = W.DownedHealth
+		local best, unitBest, bestD = nil, nil, math.huge
+		for _, u in s.units do
+			for _, o in u.officers do
+				if o.alive then
+					local d = (o.hrp.Position - humanoid.RootPart.Position).Magnitude
+					if d < bestD then
+						best, unitBest, bestD = o, u, d
+					end
+				end
+			end
+		end
+		arrest(player, unitBest, best)
+		return
+	end
+	humanoid:TakeDamage(amount)
+end
+
+local function stopAbilities(player: Player, block: boolean)
+	local character = player.Character
+	if character and block then
+		for _, name in { "Flight", "Cube", "Invisibility" } do
+			pcall(AbilityRegistry.Stop, name, player, character)
+		end
+	end
+	for _, name in { "InvisibilityConfig", "LaserConfig", "FlightConfig", "CubeConfig" } do
+		local m = ReplicatedStorage:FindFirstChild(name)
+		if m then
+			player:SetAttribute(require(m).CooldownAttribute, block and serverNow() + 100000 or 0)
+		end
+	end
+end
+
+local function coinsOf(player: Player): IntValue?
+	return Registry.getCoins and Registry.getCoins(player) or nil
+end
+
+---------------------------------------------------------------------
+-- ⚖️ Арест и правосудие
+---------------------------------------------------------------------
+
+local function marker(path: { string }): BasePart?
+	local node: Instance? = workspace
+	for _, name in path do
+		node = node and node:FindFirstChild(name)
+	end
+	if node and node:IsA("BasePart") then
+		return node
+	end
+	return nil
+end
+
+local function stationPart(name: string): BasePart?
+	return marker({ VehicleConfig.MapFolder, "PoliceStation", name })
+end
+
+local function justicePart(group: string, name: string): BasePart?
+	local root = workspace:FindFirstChild("JusticeSystem")
+	local g = root and root:FindFirstChild(group)
+	if not g then
+		return nil
+	end
+	for _, d in g:GetDescendants() do
+		if d:IsA("BasePart") and string.find(d.Name, "^" .. name) then
+			return d
+		end
+	end
+	return nil
+end
+
+local function placeAt(player: Player, part: BasePart?, fallback: Vector3?)
+	local character = player.Character
+	if not character then
+		return
+	end
+	local pos = part and part.Position or fallback
+	if not pos then
+		return
+	end
+	local look = part and flat(part.CFrame.LookVector) or Vector3.new(0, 0, -1)
+	look = look.Magnitude > 0.1 and look.Unit or Vector3.new(0, 0, -1)
+	local p = pos + Vector3.new(0, 3.2, 0)
+	character:PivotTo(CFrame.lookAt(p, p + look))
+end
+
+local stageDone = {} -- [player] = данные ответа клиента
+
+local function stage(player: Player, name: string, data, seconds: number, waitClient: boolean?)
+	player:SetAttribute("JusticeStage", name)
+	player:SetAttribute("JusticeEnd", serverNow() + seconds)
+	stageDone[player] = nil
+	remote:FireClient(player, "Stage", name, data or {}, seconds)
+	local deadline = now() + seconds
+	while player.Parent and now() < deadline do
+		if waitClient and stageDone[player] then
+			break
+		end
+		task.wait(0.2)
+	end
+	return stageDone[player]
+end
+
+local function fade(player: Player, seconds: number)
+	remote:FireClient(player, "Fade", seconds)
+	task.wait(0.45)
+end
+
+-- Перевезти в полицейской машине (или переход с затемнением, если дорог нет)
+local function transport(player: Player, car, dest: Vector3, unit)
+	local character = player.Character
+	if not kit or not character then
+		fade(player, 1.2)
+		return
+	end
+	local temporary = false
+	if not car or not car.model or not car.model.Parent then
+		local root = character:FindFirstChild("HumanoidRootPart")
+		local node = root and kit.nearestNode(root.Position)
+		car = node and kit.spawnPoliceAt(node, nil)
+		temporary = true
+		if not car then
+			fade(player, 1.2)
+			return
+		end
+		local driver = kit.spawnOfficer(CFrame.new(kit.doorSide(car, car.driverSeat) + Vector3.new(0, 3, 0)))
+		if driver then
+			kit.seatNPC(driver, car, car.driverSeat)
+			unit = { officers = { driver } }
+		end
+	end
+	local seat = kit.freeSeat(car)
+	if seat then
+		fade(player, 1.2)
+		local side = kit.doorSide(car, seat)
+		character:PivotTo(CFrame.new(side + Vector3.new(0, 3.2, 0)))
+		task.wait(0.2)
+		kit.seatPlayer(player, car, seat)
+	end
+	car.model:SetAttribute("Siren", false)
+	car.state = "busy"
+	local ok = kit.drive(car, { node = kit.nearestNode(dest), curb = 4 })
+	if seat then
+		kit.unseatPlayer(player, car)
+	end
+	fade(player, 1.2)
+	if temporary then
+		if unit then
+			cleanupUnit({ officers = unit.officers, car = car })
+		else
+			kit.removeCar(car)
+		end
+	end
+	return ok
+end
+
+local judge = nil
+local function ensureJudge(): any
+	local spot = justicePart("Court", "Judge")
+	if not spot or not Registry.spawnCustom then
+		return nil
+	end
+	if judge and judge.alive then
+		return judge
+	end
+	local look = flat(spot.CFrame.LookVector)
+	local p = spot.Position + Vector3.new(0, 3, 0)
+	judge = Registry.spawnCustom(CFrame.lookAt(p, p + (look.Magnitude > 0.1 and look.Unit or Vector3.new(0, 0, -1))), {
+		prefix = J.JudgeName,
+		shirt = J.JudgeShirt,
+		pants = J.JudgeShirt,
+		role = "Суд",
+	})
+	if judge then
+		judge.officer = true
+		judge.noSocial = true
+		if judge.prompt then
+			judge.prompt.Enabled = false
+		end
+		judge.humanoid.WalkSpeed = 0
+	end
+	return judge
+end
+
+local function sentenceOf(s, modifier: number): number
+	local base = J.Sentence.Base + J.Sentence.PerStar * s.finalStars + J.Sentence.PerKill * s.finalKills
+	return math.floor(math.clamp(base * modifier, J.Sentence.Base, J.Sentence.Max))
+end
+
+-- Держим внутри (КПЗ, тюрьма)
+local function confine(player: Player, center: Vector3, radius: number, untilFn: () -> boolean)
+	task.spawn(function()
+		while player.Parent and not untilFn() do
+			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			if root and (root.Position - center).Magnitude > radius then
+				player.Character:PivotTo(CFrame.new(center + Vector3.new(0, 3.2, 0)))
+			end
+			task.wait(0.5)
+		end
+	end)
+end
+
+local function setCuffed(player: Player, on: boolean)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return
+	end
+	character:SetAttribute("Cuffed", on or nil)
+	-- Под арестом урон не проходит (иначе можно «сбежать», погибнув)
+	local shield = character:FindFirstChild("JusticeShield")
+	if not shield then
+		shield = Instance.new("ForceField")
+		shield.Name = "JusticeShield"
+		shield.Visible = false
+		shield.Parent = character
+	end
+	character:SetAttribute("HandsUp", nil)
+	character:SetAttribute("AimGun", nil)
+	if on then
+		humanoid:UnequipTools()
+		humanoid.WalkSpeed = 0
+		humanoid.JumpPower = 0
+		humanoid.JumpHeight = 0
+	else
+		humanoid.WalkSpeed = 16
+		humanoid.JumpPower = 50
+		humanoid.JumpHeight = 7.2
+	end
+end
+
+local function release(player: Player)
+	local s = st(player)
+	local exit = justicePart("Prison", "PrisonExit") or justicePart("Prison", "PrisonDoor")
+	fade(player, 1.5)
+	setCuffed(player, false)
+	local shield = player.Character and player.Character:FindFirstChild("JusticeShield")
+	if shield then
+		shield:Destroy()
+	end
+	if exit then
+		placeAt(player, exit)
+	else
+		player:LoadCharacter()
+	end
+	stopAbilities(player, false)
+	if Registry.blockWeapons then
+		Registry.blockWeapons(player, false)
+	end
+	local p = Registry.weaponProfile and Registry.weaponProfile(player)
+	if p then
+		p.jail = nil
+		if Registry.weaponSave then
+			Registry.weaponSave(player)
+		end
+	end
+	s.mode = "free"
+	clearWanted(player, nil)
+	player:SetAttribute("JusticeStage", nil)
+	remote:FireClient(player, "Stage", "Released", {}, 4)
+	event("🔓 " .. player.Name .. " вышел на свободу")
+end
+
+-- Срок в тюрьме (и после перезахода)
+local function servePrison(player: Player, seconds: number)
+	local s = st(player)
+	s.mode = "prison"
+	publish(player)
+	local cells = {}
+	local root = workspace:FindFirstChild("JusticeSystem")
+	local prison = root and root:FindFirstChild("Prison")
+	for _, d in prison and prison:GetDescendants() or {} do
+		if d:IsA("BasePart") and string.find(d.Name, "^PrisonCell") then
+			table.insert(cells, d)
+		end
+	end
+	local cell = (#cells > 0 and pick(cells)) or (kit and kit.station.cell)
+	setCuffed(player, false)
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.WalkSpeed = 10 -- в тюрьме ходить можно, медленно
+		humanoid.JumpPower = 0
+		humanoid.JumpHeight = 0
+	end
+	if cell then
+		placeAt(player, cell)
+	end
+	local endAt = now() + seconds
+	if cell then
+		confine(player, cell.Position, prison and J.PrisonRadius or 10, function()
+			return now() >= endAt or s.mode ~= "prison"
+		end)
+	end
+	task.spawn(function()
+		while player.Parent and now() < endAt and s.mode == "prison" do
+			local p = Registry.weaponProfile and Registry.weaponProfile(player)
+			if p then
+				p.jail = math.ceil(endAt - now())
+			end
+			task.wait(5)
+		end
+	end)
+	stage(player, "Prison", { seconds = seconds }, seconds)
+	if player.Parent and s.mode == "prison" then
+		release(player)
+	end
+end
+
+local bookingNumber = 1000
+local function justiceFlow(player: Player, unit, officer)
+	local s = st(player)
+	s.finalStars = s.stars
+	s.finalKills = s.kills
+	bookingNumber += 1
+	local number = bookingNumber
+	event(string.format("🚔 %s арестован (%d★, убийств: %d)", player.Name, s.stars, s.kills))
+	stage(player, "Busted", { stars = s.stars }, 3.5)
+
+	-- 1. В участок
+	s.mode = "booking"
+	publish(player)
+	local desk = kit and kit.station.desk
+	local stationPos = desk and desk.Position or (player.Character and player.Character:GetPivot().Position)
+	if unit and unit.car and stationPos then
+		for i, o in unit.officers do
+			if o.alive and not o.inVehicle then
+				task.spawn(function()
+					local seat = i == 1 and unit.car.driverSeat or nil
+					if seat and Registry.walkTo(o, kit.doorSide(unit.car, seat)) then
+						kit.seatNPC(o, unit.car, seat)
+					end
+				end)
+			end
+		end
+		task.wait(2)
+		if unit.car.occupants[unit.car.driverSeat] == nil and officer and officer.alive then
+			kit.seatNPC(officer, unit.car, unit.car.driverSeat)
+		end
+		transport(player, unit.car, stationPos, unit)
+	elseif stationPos then
+		transport(player, nil, stationPos, nil)
+	end
+	if unit then
+		cleanupUnit(unit)
+		local i = table.find(s.units, unit)
+		if i then
+			table.remove(s.units, i)
+		end
+	end
+	-- Остальные наряды уезжают
+	for _, u in s.units do
+		dismissUnit(u)
+	end
+
+	-- 2. Фото
+	placeAt(player, stationPart("Mugshot") or desk, stationPos)
+	stage(player, "Mugshot", {
+		number = number,
+		name = player.DisplayName,
+		date = os.date("!%d.%m.%Y"),
+		stars = s.finalStars,
+	}, 14, true)
+
+	-- 3. Отпечатки
+	placeAt(player, stationPart("Fingerprint") or desk, stationPos)
+	stage(player, "Fingerprint", {}, 25, true)
+
+	-- 4. Допрос
+	placeAt(player, stationPart("Interview") or desk, stationPos)
+	local answers = stage(player, "Interview", { questions = J.Questions }, 60, true)
+	local modifier = 1
+	local confessed = 0
+	if type(answers) == "table" then
+		for _, a in answers do
+			if a == "confess" then
+				confessed += 1
+				modifier -= J.ConfessDiscount / #J.Questions
+			elseif a == "lie" then
+				modifier += J.LieExtra / #J.Questions
+			end
+		end
+	end
+
+	-- 5. КПЗ — ждёт суда
+	s.mode = "holding"
+	publish(player)
+	local holding = stationPart("Holding") or (kit and kit.station.cell)
+	placeAt(player, holding, stationPos)
+	setCuffed(player, false)
+	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.WalkSpeed = 8
+		hum.JumpPower = 0
+		hum.JumpHeight = 0
+	end
+	local holdEnd = now() + J.HoldingTime
+	if holding then
+		confine(player, holding.Position, 8, function()
+			return now() >= holdEnd
+		end)
+	end
+	stage(player, "Holding", {}, J.HoldingTime)
+
+	-- 6. Суд
+	s.mode = "court"
+	publish(player)
+	local dock = justicePart("Court", "Dock")
+	local door = justicePart("Court", "CourtDoor")
+	setCuffed(player, true)
+	if dock then
+		transport(player, nil, (door or dock).Position, nil)
+		placeAt(player, dock)
+	end
+	local sentence = sentenceOf(s, modifier)
+	local wallet = coinsOf(player)
+	local fine = 0
+	if wallet then
+		fine = math.floor(J.FineBase + wallet.Value * J.FineFraction)
+		fine = math.min(fine, wallet.Value)
+	end
+	local j = ensureJudge()
+	local lines = {
+		pick(J.Verdicts),
+		string.format("Розыск: %d★. Убийств: %d. Ранений: %d.", s.finalStars, s.finalKills, s.injuries),
+		confessed > 0 and "Суд учитывает чистосердечное признание." or "Подсудимый не признал вину.",
+		string.format("Приговор: %d с лишения свободы и штраф %d монет.", sentence, fine),
+		J.ConfiscateWeapons and "Оружие конфисковать." or nil,
+	}
+	if j then
+		task.spawn(function()
+			for _, line in lines do
+				if line then
+					say(j, line, 3)
+					task.wait(2.6)
+				end
+			end
+		end)
+	end
+	stage(player, "Court", { judge = j and j.name or J.JudgeName, lines = lines, sentence = sentence, fine = fine }, 14)
+	if wallet then
+		wallet.Value -= fine
+	end
+	if J.ConfiscateWeapons and Registry.confiscateWeapons then
+		Registry.confiscateWeapons(player)
+	end
+	event(string.format("⚖️ %s: %d с, штраф %d", player.Name, sentence, fine))
+
+	-- 7. Тюрьма
+	local prisonDoor = justicePart("Prison", "PrisonDoor")
+	if prisonDoor then
+		transport(player, nil, prisonDoor.Position, nil)
+	end
+	servePrison(player, sentence)
+end
+
+function arrest(player: Player, unit, officer)
+	local s = st(player)
+	if s.mode ~= "wanted" then
+		return
+	end
+	s.mode = "arrested"
+	if unit then
+		unit.state = "arrest"
+	end
+	if officer then
+		drawGun(officer, false)
+		say(officer, pick(L.PoliceArrest), 3)
+	end
+	setCuffed(player, true)
+	stopAbilities(player, true)
+	if Registry.blockWeapons then
+		Registry.blockWeapons(player, true)
+	end
+	publish(player)
+	task.spawn(justiceFlow, player, unit, officer)
+end
+Registry.arrestPlayer = function(player: Player)
+	local s = st(player)
+	if s.mode == "free" then
+		s.mode = "wanted"
+		s.stars = math.max(s.stars, 1)
+	end
+	arrest(player, nil, nil)
+end
+
+---------------------------------------------------------------------
+-- Клиент, игроки
+---------------------------------------------------------------------
+
+remote.OnServerEvent:Connect(function(player: Player, action: any, data: any)
+	if action == "StageDone" then
+		stageDone[player] = type(data) == "table" and data or true
+	end
+end)
+
+local function onCharacter(player: Player, character: Model)
+	local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
+	if not humanoid then
+		return
+	end
+	humanoid.Died:Connect(function()
+		local s = st(player)
+		if s.mode == "wanted" then
+			-- «Потрачено»: штраф, конфискация, розыск снят
+			local wallet = coinsOf(player)
+			local lost = wallet and math.floor(wallet.Value * J.WastedFine) or 0
+			if wallet then
+				wallet.Value -= lost
+			end
+			if Registry.confiscateWeapons then
+				Registry.confiscateWeapons(player)
+			end
+			remote:FireClient(player, "Stage", "Wasted", { lost = lost }, 5)
+			event("💀 " .. player.Name .. ": потрачено")
+			clearWanted(player, "погиб")
+		end
+	end)
+	-- Тюремный срок после перезахода
+	task.delay(2, function()
+		local s = st(player)
+		if s.mode == "free" then
+			local p = Registry.weaponProfile and Registry.weaponProfile(player)
+			if p and type(p.jail) == "number" and p.jail > 0 then
+				if Registry.blockWeapons then
+					Registry.blockWeapons(player, true)
+				end
+				stopAbilities(player, true)
+				servePrison(player, p.jail)
+			end
+		end
+	end)
+end
+
+local function onPlayer(player: Player)
+	st(player)
+	publish(player)
+	if player.Character then
+		task.spawn(onCharacter, player, player.Character)
+	end
+	player.CharacterAdded:Connect(function(c)
+		onCharacter(player, c)
+	end)
+end
+for _, p in Players:GetPlayers() do
+	onPlayer(p)
+end
+Players.PlayerAdded:Connect(onPlayer)
+Players.PlayerRemoving:Connect(function(player)
+	local s = states[player]
+	if s then
+		for _, u in s.units do
+			task.spawn(cleanupUnit, u)
+		end
+	end
+	states[player] = nil
+	stageDone[player] = nil
+end)
+
+-- Для меню отладки
+Registry.debugWanted = function(player: Player, stars: number)
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if stars <= 0 then
+		clearWanted(player, "меню отладки")
+	elseif root then
+		report(player, stars, root.Position, false, "меню отладки")
+	end
+end
+
+----------------------------------------------------------------------
+-- 35. StarterPlayer → StarterPlayerScripts > LocalScript "PoseClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > PoseClient
@@ -12255,7 +14950,7 @@ if PoseConfig.ShowHint and UserInputService.KeyboardEnabled then
 end
 
 ----------------------------------------------------------------------
--- 33. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
+-- 36. StarterPlayer → StarterPlayerScripts > LocalScript "InvisibilityClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > InvisibilityClient
@@ -12703,7 +15398,7 @@ DebugTimer.connect(RunService.Heartbeat, "InvisibilityClient", function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 34. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
+-- 37. StarterPlayer → StarterPlayerScripts > LocalScript "LaserClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > LaserClient
@@ -13185,7 +15880,7 @@ DebugTimer.connect(RunService.RenderStepped, "LaserClient", function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 35. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
+-- 38. StarterPlayer → StarterPlayerScripts > LocalScript "FlightClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > FlightClient
@@ -13675,7 +16370,7 @@ AbilityButton.Create({
 })
 
 ----------------------------------------------------------------------
--- 36. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
+-- 39. StarterPlayer → StarterPlayerScripts > LocalScript "CubeClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > CubeClient
@@ -13875,7 +16570,7 @@ AbilityButton.Create({
 })
 
 ----------------------------------------------------------------------
--- 37. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
+-- 40. StarterPlayer → StarterPlayerScripts > LocalScript "NPCClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > NPCClient
@@ -14794,7 +17489,7 @@ task.spawn(function()
 end)
 
 ----------------------------------------------------------------------
--- 38. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
+-- 41. StarterPlayer → StarterPlayerScripts > LocalScript "VehicleClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > VehicleClient
@@ -15205,7 +17900,7 @@ remote.OnClientEvent:Connect(function(action, model, names, price)
 end)
 
 ----------------------------------------------------------------------
--- 39. StarterPlayer → StarterPlayerScripts > LocalScript "PoliceDeskClient"
+-- 42. StarterPlayer → StarterPlayerScripts > LocalScript "PoliceDeskClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > PoliceDeskClient
@@ -15720,7 +18415,7 @@ DebugTimer.connect(RunService.RenderStepped, "PoliceDeskClient", function()
 end)
 
 ----------------------------------------------------------------------
--- 40. StarterPlayer → StarterPlayerScripts > LocalScript "WeatherClient"
+-- 43. StarterPlayer → StarterPlayerScripts > LocalScript "WeatherClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > WeatherClient
@@ -15976,7 +18671,7 @@ DebugTimer.connect(RunService.RenderStepped, "WeatherClient", function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 41. StarterPlayer → StarterPlayerScripts > LocalScript "PhoneClient"
+-- 44. StarterPlayer → StarterPlayerScripts > LocalScript "PhoneClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > PhoneClient
@@ -16257,6 +18952,7 @@ local isOpen, locked = false, true
 local currentApp = nil
 local data = { places = {}, policeTypes = {}, tickets = {}, busStops = {}, friends = {}, taxiPrice = VehicleConfig.TaxiPrice }
 local city = { stats = {}, done = {}, owned = {}, equipped = {} } -- работа, магазин, достижения
+local weaponState = { owned = {}, ammo = {}, blocked = false } -- оружие (WeaponServer)
 local chats = {} -- [имя] = { messages = { {mine, text} }, unread = 0, typingUntil = 0 }
 local openChat = nil
 local notifications = {}
@@ -16492,6 +19188,9 @@ function openApp(id: string)
 		remote:FireServer("Friends")
 	elseif id == "shop" or id == "awards" or id == "work" then
 		remote:FireServer("City")
+		if id == "shop" then
+			remote:FireServer("Weapons")
+		end
 	end
 	appLayer.Visible = true
 	appScale.Scale = 0.4
@@ -17084,6 +19783,30 @@ local function renderShop()
 		end)
 	end
 	text(content, "Вещи остаются у тебя навсегда. В одном месте (голова, лицо...) — одна вещь.", 12, Color3.fromRGB(160, 170, 195), false, { LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 34) })
+
+	-- 🔫 Оружие (WeaponServer)
+	local weaponConfig = ReplicatedStorage:FindFirstChild("WeaponConfig")
+	if weaponConfig and require(weaponConfig).Enabled then
+		local WC = require(weaponConfig)
+		local wcard = card(content, nil, 3)
+		list(wcard, 6)
+		text(wcard, "🔫 Оружие (18+)", 16, WHITE, true)
+		if weaponState.blocked then
+			text(wcard, "🚫 Недоступно, пока ты под арестом", 13, Color3.fromRGB(255, 120, 120), false)
+		end
+		for i, id in { "Pistol", "Rifle" } do
+			local def = WC.Weapons[id]
+			if def then
+				local owned = weaponState.owned[id] == true
+				local row = new("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 44), LayoutOrder = 10 + i }, wcard)
+				text(row, string.format("%s %s%s", def.Icon, def.Name, owned and ("  · " .. tostring(weaponState.ammo[id] or 0) .. " патр.") or ""), 14, WHITE, true, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, -110, 0, 20) })
+				text(row, string.format("Урон %d · магазин %d · %s", def.Damage, def.Magazine, table.concat(def.Modes, "/")), 11, Color3.fromRGB(170, 180, 205), false, { Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, -110, 0, 16) })
+				button(row, owned and ("+" .. def.Magazine .. " · " .. def.AmmoPrice .. " 🪙") or (def.Price .. " 🪙"), { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(104, 32), TextSize = 12, BackgroundColor3 = owned and Color3.fromRGB(90, 150, 255) or Color3.fromRGB(255, 190, 50), BackgroundTransparency = 0.25, Font = Enum.Font.GothamBold }, function()
+					remote:FireServer(owned and "AmmoBuy" or "WeaponBuy", id)
+				end)
+			end
+		end
+	end
 end
 
 local function renderAwards()
@@ -17257,6 +19980,11 @@ remote.OnClientEvent:Connect(function(action, payload)
 		if currentApp and currentApp ~= "map" then
 			renderApp()
 		end
+	elseif action == "Weapons" then
+		weaponState = payload
+		if currentApp == "shop" then
+			renderApp()
+		end
 	elseif action == "City" then
 		city = payload
 		if currentApp == "shop" or currentApp == "awards" or currentApp == "work" then
@@ -17355,7 +20083,7 @@ workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(functio
 end)
 
 ----------------------------------------------------------------------
--- 42. StarterPlayer → StarterPlayerScripts > LocalScript "CityLifeClient"
+-- 45. StarterPlayer → StarterPlayerScripts > LocalScript "CityLifeClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > CityLifeClient
@@ -17839,7 +20567,7 @@ DebugTimer.connect(RunService.RenderStepped, "CityLifeClient", function(dt)
 end)
 
 ----------------------------------------------------------------------
--- 43. StarterPlayer → StarterPlayerScripts > LocalScript "DebugClient"
+-- 46. StarterPlayer → StarterPlayerScripts > LocalScript "DebugClient"
 ----------------------------------------------------------------------
 
 -- LocalScript: StarterPlayer > StarterPlayerScripts > DebugClient
@@ -18575,6 +21303,22 @@ local function renderWorld()
 	btn(mf, "🗑 Сбросить прогресс", { BackgroundColor3 = Color3.fromRGB(90, 40, 40) }, function()
 		action("ResetCity")
 	end)
+
+	local wanted = section(body, "🔫 Оружие и розыск", 7)
+	local wf2 = hflow(wanted, 1)
+	for n = 0, 5 do
+		btn(wf2, n == 0 and "Снять розыск" or (string.rep("★", n)), { BackgroundColor3 = n == 0 and C.panel2 or Color3.fromRGB(80, 70, 30) }, function()
+			action("Wanted", n)
+		end)
+	end
+	local wf3 = hflow(wanted, 2)
+	btn(wf3, "🔫 Выдать оружие", {}, function()
+		action("GiveWeapons")
+	end)
+	btn(wf3, "🚔 Арестовать меня", {}, function()
+		action("ArrestMe")
+	end)
+	label(wanted, "Звёзды ставятся как звонок свидетеля с твоего места: полиция едет туда и ищет.", 11, C.dim, false, { LayoutOrder = 3 })
 
 	local cam = section(body, "🎥 Камера", 6)
 	local cf = hflow(cam, 1)
@@ -19413,3 +22157,1178 @@ player.CharacterAdded:Connect(function()
 		task.defer(stopFollow)
 	end
 end)
+
+----------------------------------------------------------------------
+-- 47. StarterPlayer → StarterPlayerScripts > LocalScript "WeaponClient"
+----------------------------------------------------------------------
+
+-- LocalScript: StarterPlayer > StarterPlayerScripts > WeaponClient
+-- Оружие на экране игрока (настройки — ReplicatedStorage > WeaponConfig):
+--   * камера из-за плеча, ПКМ — прицел (у винтовки — оптика с сеткой), ЛКМ — огонь;
+--   * V — режим огня (одиночные / очередь / авто), R — перезарядка, H — поднять руки (сдаться);
+--   * отдача, разброс, вспышка, трассеры, следы от пуль, кровь (17+), хитмаркер;
+--   * позы: руки с оружием (видят все), руки вверх, наручники.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local DebugTimer = require(game:GetService("ReplicatedStorage"):WaitForChild("DebugConfig")) -- секундомер для меню отладки
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
+local CollectionService = game:GetService("CollectionService")
+local Debris = game:GetService("Debris")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("WeaponConfig"))
+if not Config.Enabled then
+	return
+end
+local NPCConfig = require(ReplicatedStorage:WaitForChild("NPCConfig"))
+local Sounds = require(ReplicatedStorage:WaitForChild("SoundConfig"))
+local RigAnimator = require(ReplicatedStorage:WaitForChild("RigAnimator"))
+local remote = ReplicatedStorage:WaitForChild("WeaponRemote")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local gameSettings = UserSettings():GetService("UserGameSettings")
+local WHITE = Color3.new(1, 1, 1)
+local rng = Random.new()
+
+local function new(className: string, props, parent: Instance?)
+	local inst = Instance.new(className)
+	for k, v in pairs(props or {}) do
+		(inst :: any)[k] = v
+	end
+	if parent then
+		inst.Parent = parent
+	end
+	return inst
+end
+
+local effects = new("Folder", { Name = "WeaponEffects" }, workspace.Terrain)
+
+local function playAt(position: Vector3, def, pitch: number?)
+	if not def or def.Id == "" then
+		return
+	end
+	local holder = new("Attachment", { WorldPosition = position }, workspace.Terrain)
+	local s = new("Sound", { SoundId = def.Id, Volume = def.Volume or 0.5, PlaybackSpeed = pitch or 1, RollOffMaxDistance = 300, RollOffMinDistance = 8 }, holder)
+	s:Play()
+	Debris:AddItem(holder, 4)
+end
+
+---------------------------------------------------------------------
+-- Позы рук (для всех персонажей и полиции)
+---------------------------------------------------------------------
+
+local function aimPose(pitch: number, rifle: boolean)
+	local p = math.deg(pitch)
+	if rifle then
+		return {
+			RightShoulder = Vector3.new(78 + p, 0, -12),
+			LeftShoulder = Vector3.new(88 + p, 0, 38),
+			RightElbow = Vector3.new(25, 0, 0),
+			LeftElbow = Vector3.new(12, 0, 0),
+			Neck = Vector3.new(-p * 0.4, 0, 0),
+			R6 = { RightShoulder = Vector3.new(0, 0, 80 + p), LeftShoulder = Vector3.new(0, 0, -80 - p) },
+		}
+	end
+	return {
+		RightShoulder = Vector3.new(90 + p, 0, -6),
+		LeftShoulder = Vector3.new(88 + p, 0, 34),
+		LeftElbow = Vector3.new(22, 0, 0),
+		Neck = Vector3.new(-p * 0.4, 0, 0),
+		R6 = { RightShoulder = Vector3.new(0, 0, 90 + p), LeftShoulder = Vector3.new(0, 0, -80 - p) },
+	}
+end
+
+local HANDS_UP = {
+	RightShoulder = Vector3.new(165, 0, -12),
+	LeftShoulder = Vector3.new(165, 0, 12),
+	RightElbow = Vector3.new(25, 0, 0),
+	LeftElbow = Vector3.new(25, 0, 0),
+	R6 = { RightShoulder = Vector3.new(0, 0, 170), LeftShoulder = Vector3.new(0, 0, -170) },
+}
+local CUFFED = {
+	LeftShoulder = Vector3.new(-32, 0, 26),
+	RightShoulder = Vector3.new(-32, 0, -26),
+	LeftElbow = Vector3.new(38, 0, 0),
+	RightElbow = Vector3.new(38, 0, 0),
+}
+
+local function attrLayer(model: Model, attribute: string, priority: number, poseFn)
+	local weight = 0
+	return {
+		Priority = priority,
+		Update = function(rig, dt)
+			local on = model:GetAttribute(attribute) == true
+			weight = math.clamp(weight + (on and dt or -dt) * 6, 0, 1)
+			if not on and weight <= 0 then
+				return nil, 0, true
+			end
+			return RigAnimator.Frames(rig, poseFn()), weight
+		end,
+	}
+end
+
+local function watchModel(model: Model)
+	local function aimFn()
+		local dir = model:GetAttribute("AimDir")
+		local pitch = typeof(dir) == "Vector3" and math.asin(math.clamp(dir.Y, -1, 1)) or 0
+		local rifle = model:FindFirstChild("Rifle") ~= nil
+		return aimPose(pitch, rifle)
+	end
+	local function check()
+		if model:GetAttribute("AimGun") == true and not RigAnimator.HasLayer(model, "AimGun") then
+			RigAnimator.SetLayer(model, "AimGun", attrLayer(model, "AimGun", 34, aimFn))
+		end
+		if model:GetAttribute("HandsUp") == true and not RigAnimator.HasLayer(model, "HandsUp") then
+			RigAnimator.SetLayer(model, "HandsUp", attrLayer(model, "HandsUp", 45, function()
+				return HANDS_UP
+			end))
+		end
+		-- Наручники у игроков (у жителей — в NPCClient)
+		if model:GetAttribute("Cuffed") == true and Players:GetPlayerFromCharacter(model) and not RigAnimator.HasLayer(model, "PlayerCuffed") then
+			RigAnimator.SetLayer(model, "PlayerCuffed", attrLayer(model, "Cuffed", 46, function()
+				return CUFFED
+			end))
+		end
+	end
+	for _, a in { "AimGun", "HandsUp", "Cuffed" } do
+		model:GetAttributeChangedSignal(a):Connect(check)
+	end
+	check()
+end
+
+local function watchPlayer(p: Player)
+	if p.Character then
+		watchModel(p.Character)
+	end
+	p.CharacterAdded:Connect(watchModel)
+end
+for _, p in Players:GetPlayers() do
+	watchPlayer(p)
+end
+Players.PlayerAdded:Connect(watchPlayer)
+for _, m in CollectionService:GetTagged(NPCConfig.Tag) do
+	if m:IsA("Model") then
+		watchModel(m)
+	end
+end
+CollectionService:GetInstanceAddedSignal(NPCConfig.Tag):Connect(function(m)
+	if m:IsA("Model") then
+		watchModel(m)
+	end
+end)
+
+---------------------------------------------------------------------
+-- Эффекты выстрела (у всех)
+---------------------------------------------------------------------
+
+local holes = {}
+
+local function tracer(from: Vector3, to: Vector3)
+	local len = (to - from).Magnitude
+	if len < 1 then
+		return
+	end
+	local p = new("Part", {
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 220, 140),
+		Size = Vector3.new(0.07, 0.07, math.min(len, 14)),
+		CFrame = CFrame.lookAt(from, to) * CFrame.new(0, 0, -math.min(len, 14) / 2),
+		Transparency = 0.2,
+	}, effects)
+	-- Летит к цели
+	TweenService:Create(p, TweenInfo.new(math.clamp(len / 900, 0.03, 0.25), Enum.EasingStyle.Linear), {
+		CFrame = CFrame.lookAt(from, to) * CFrame.new(0, 0, -len + math.min(len, 14) / 2),
+		Transparency = 0.7,
+	}):Play()
+	Debris:AddItem(p, 0.3)
+end
+
+local function muzzleFlash(position: Vector3, look: Vector3?)
+	local p = new("Part", {
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 200, 90),
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(0.5, 0.5, 0.5) * rng:NextNumber(0.8, 1.3),
+		CFrame = CFrame.new(position + (look or Vector3.zero) * 0.25),
+		Transparency = 0.1,
+	}, effects)
+	new("PointLight", { Color = Color3.fromRGB(255, 190, 90), Brightness = 4, Range = 12 }, p)
+	Debris:AddItem(p, 0.05)
+end
+
+local function burst(position: Vector3, normal: Vector3?, color: Color3, count: number, speed: number, size: number)
+	local a = new("Attachment", { WorldPosition = position }, workspace.Terrain)
+	if normal then
+		a.WorldCFrame = CFrame.lookAt(position, position + normal) * CFrame.Angles(math.rad(-90), 0, 0)
+	end
+	local e = new("ParticleEmitter", {
+		Color = ColorSequence.new(color),
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, size), NumberSequenceKeypoint.new(1, size * 0.3) }),
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1) }),
+		Lifetime = NumberRange.new(0.25, 0.6),
+		Speed = NumberRange.new(speed * 0.5, speed),
+		SpreadAngle = Vector2.new(40, 40),
+		Acceleration = Vector3.new(0, -workspace.Gravity * 0.4, 0),
+		EmissionDirection = Enum.NormalId.Top,
+		Rate = 0,
+		LightInfluence = 1,
+	}, a)
+	e:Emit(count)
+	Debris:AddItem(a, 1)
+end
+
+local function bulletHole(position: Vector3, normal: Vector3)
+	local p = new("Part", {
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+		Shape = Enum.PartType.Cylinder,
+		Color = Color3.fromRGB(25, 22, 20),
+		Material = Enum.Material.SmoothPlastic,
+		Size = Vector3.new(0.02, 0.22, 0.22),
+		CFrame = CFrame.lookAt(position + normal * 0.012, position + normal * 2) * CFrame.Angles(0, math.rad(90), 0),
+	}, effects)
+	table.insert(holes, p)
+	if #holes > 60 then
+		table.remove(holes, 1):Destroy()
+	end
+	task.delay(20, function()
+		if p.Parent then
+			TweenService:Create(p, TweenInfo.new(2), { Transparency = 1 }):Play()
+			Debris:AddItem(p, 2)
+		end
+	end)
+end
+
+local function impact(kind: string, to: Vector3, normal: Vector3?)
+	if kind == "flesh" then
+		if Config.Blood then
+			burst(to, normal, Color3.fromRGB(120, 8, 12), 14, 9, 0.22)
+		else
+			burst(to, normal, Color3.fromRGB(230, 230, 230), 6, 6, 0.15)
+		end
+	elseif kind == "wall" and normal then
+		burst(to, normal, Color3.fromRGB(200, 180, 140), 8, 12, 0.12)
+		burst(to, normal, Color3.fromRGB(255, 220, 120), 3, 18, 0.06)
+		bulletHole(to, normal)
+		playAt(to, Sounds.Weapons and Sounds.Weapons.Impact, rng:NextNumber(0.9, 1.15))
+	end
+end
+
+local showHit -- объявлена ниже
+
+local function weaponSound(id: string?)
+	local def = id and Config.Weapons[id]
+	return Sounds.Weapons and Sounds.Weapons[def and def.Sound or "PistolShot"]
+end
+
+remote.OnClientEvent:Connect(function(action, data)
+	if action == "Shot" then
+		if data.shooter and data.shooter == player.Character then
+			return -- свои выстрелы рисуем сами, без задержки
+		end
+		muzzleFlash(data.from, (data.to - data.from).Unit)
+		tracer(data.from, data.to)
+		impact(data.kind, data.to, data.normal)
+		playAt(data.from, weaponSound(data.weapon), rng:NextNumber(0.94, 1.06))
+		-- Пуля просвистела рядом
+		local head = player.Character and player.Character:FindFirstChild("Head")
+		if head then
+			local ab = data.to - data.from
+			local t = math.clamp((head.Position - data.from):Dot(ab) / math.max(ab:Dot(ab), 0.01), 0, 1)
+			if (data.from + ab * t - head.Position).Magnitude < 5 then
+				playAt(head.Position, Sounds.Weapons and Sounds.Weapons.Whiz, rng:NextNumber(0.9, 1.2))
+			end
+		end
+	elseif action == "Hit" then
+		showHit(data.head, data.kill)
+	end
+end)
+
+---------------------------------------------------------------------
+-- Интерфейс: прицел, оптика, хитмаркер, патроны
+---------------------------------------------------------------------
+
+local gui = new("ScreenGui", { Name = "WeaponHud", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 6, Enabled = false }, player:WaitForChild("PlayerGui"))
+
+local cross = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(80, 80), BackgroundTransparency = 1 }, gui)
+local dot = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(4, 4), BackgroundColor3 = WHITE, BorderSizePixel = 0 }, cross)
+new("UICorner", { CornerRadius = UDim.new(1, 0) }, dot)
+new("UIStroke", { Color = Color3.new(0, 0, 0), Transparency = 0.5 }, dot)
+local lines = {}
+for i, d in { Vector2.new(0, -1), Vector2.new(0, 1), Vector2.new(-1, 0), Vector2.new(1, 0) } do
+	local l = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Size = d.X == 0 and UDim2.fromOffset(2, 9) or UDim2.fromOffset(9, 2), BackgroundColor3 = WHITE, BorderSizePixel = 0 }, cross)
+	new("UIStroke", { Color = Color3.new(0, 0, 0), Transparency = 0.5 }, l)
+	lines[i] = { frame = l, dir = d }
+end
+
+-- Оптика: круг с сеткой, вокруг — чёрное (обводка круга шире экрана)
+local scope = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.8, 0.8), BackgroundTransparency = 1, Visible = false }, gui)
+new("UIAspectRatioConstraint", { AspectRatio = 1, DominantAxis = Enum.DominantAxis.Height }, scope)
+new("UICorner", { CornerRadius = UDim.new(0.5, 0) }, scope)
+new("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 2500, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, scope)
+new("UIStroke", { Color = Color3.fromRGB(20, 20, 20), Thickness = 6 }, scope)
+local vignette = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, scope)
+new("UIGradient", { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.8, 1), NumberSequenceKeypoint.new(1, 0.4) }) }, vignette)
+new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0 }, scope)
+new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(0, 1, 1, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0 }, scope)
+for i = 1, 4 do
+	for _, sign in { -1, 1 } do
+		new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5 + sign * i * 0.06, 0), Size = UDim2.fromOffset(i == 4 and 18 or 10, 2), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0 }, scope)
+		new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5 + sign * i * 0.06, 0, 0.5, 0), Size = UDim2.fromOffset(2, i == 4 and 18 or 10), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0 }, scope)
+	end
+end
+local redDot = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(4, 4), BackgroundColor3 = Color3.fromRGB(255, 40, 40), BorderSizePixel = 0 }, scope)
+new("UICorner", { CornerRadius = UDim.new(1, 0) }, redDot)
+
+-- Хитмаркер
+local hit = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(34, 34), BackgroundTransparency = 1, Visible = false, ZIndex = 5 }, gui)
+local hitLines = {}
+for i, r in { 45, 135, 225, 315 } do
+	local a = math.rad(r)
+	hitLines[i] = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, math.cos(a) * 11, 0.5, math.sin(a) * 11), Size = UDim2.fromOffset(10, 2), Rotation = r, BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 5 }, hit)
+end
+local hitToken = 0
+function showHit(head: boolean, kill: boolean)
+	hitToken += 1
+	local token = hitToken
+	local color = kill and Color3.fromRGB(255, 50, 50) or head and Color3.fromRGB(255, 200, 60) or WHITE
+	for _, l in hitLines do
+		l.BackgroundColor3 = color
+	end
+	hit.Visible = true
+	hit.Size = UDim2.fromOffset(kill and 46 or 34, kill and 46 or 34)
+	playAt(camera.CFrame.Position, Sounds.Weapons and Sounds.Weapons.Hit, kill and 0.8 or 1.1)
+	task.delay(0.18, function()
+		if token == hitToken then
+			hit.Visible = false
+		end
+	end)
+end
+
+-- Патроны
+local ammoCard = new("Frame", { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -24, 1, -110), Size = UDim2.fromOffset(210, 74), BackgroundColor3 = Color3.fromRGB(16, 18, 26), BackgroundTransparency = 0.25 }, gui)
+new("UICorner", { CornerRadius = UDim.new(0, 12) }, ammoCard)
+local weaponLabel = new("TextLabel", { BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 18), Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = Color3.fromRGB(190, 200, 225), TextXAlignment = Enum.TextXAlignment.Left }, ammoCard)
+local ammoLabel = new("TextLabel", { BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 24), Size = UDim2.new(1, -24, 0, 32), Font = Enum.Font.GothamBlack, TextSize = 28, TextColor3 = WHITE, TextXAlignment = Enum.TextXAlignment.Left, RichText = true }, ammoCard)
+local modeLabel = new("TextLabel", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 30), Size = UDim2.fromOffset(80, 20), Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = Color3.fromRGB(255, 205, 90), TextXAlignment = Enum.TextXAlignment.Right }, ammoCard)
+local reloadBack = new("Frame", { Position = UDim2.new(0, 12, 1, -12), Size = UDim2.new(1, -24, 0, 4), BackgroundColor3 = Color3.fromRGB(50, 55, 70), BorderSizePixel = 0, Visible = false }, ammoCard)
+local reloadFill = new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.fromRGB(255, 205, 90), BorderSizePixel = 0 }, reloadBack)
+local hint = new("TextLabel", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -24, 1, -188), Size = UDim2.fromOffset(300, 18), Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = Color3.fromRGB(200, 205, 225), TextXAlignment = Enum.TextXAlignment.Right, TextStrokeTransparency = 0.6, Text = "ЛКМ — огонь · ПКМ — прицел · R — перезарядка · V — режим · H — руки вверх" }, gui)
+
+local MODE_NAMES = { Semi = "ОДИНОЧНЫЕ", Burst = "ОЧЕРЕДЬ", Auto = "АВТО" }
+
+---------------------------------------------------------------------
+-- Управление оружием
+---------------------------------------------------------------------
+
+local tool: Tool? = nil
+local def = nil
+local ads = false
+local triggerDown = false
+local fired = false -- одиночный: один выстрел на нажатие
+local burstLeft = 0
+local lastFire = 0
+local localAmmo = 0
+local bloom = 0
+local kick, recover = 0, 0
+local baseFov = 70
+local reloadStart = 0
+local aimSendTimer = 0
+local savedRotation = nil
+
+local function muzzlePos(): Vector3
+	local m = tool and tool:FindFirstChild("Muzzle", true)
+	if m and m:IsA("Attachment") then
+		return m.WorldPosition
+	end
+	local handle = tool and tool:FindFirstChild("Handle")
+	return handle and handle.Position or camera.CFrame.Position
+end
+
+local aimParams = RaycastParams.new()
+aimParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function aimPoint(range: number): Vector3
+	local cf = camera.CFrame
+	aimParams.FilterDescendantsInstances = { player.Character, effects }
+	local result = workspace:Raycast(cf.Position, cf.LookVector * range, aimParams)
+	return result and result.Position or cf.Position + cf.LookVector * range
+end
+
+local function spread(dir: Vector3, degrees: number): Vector3
+	local cf = CFrame.lookAt(Vector3.zero, dir)
+	local a = rng:NextNumber() * math.pi * 2
+	local r = math.rad(degrees) * math.sqrt(rng:NextNumber())
+	return (cf * CFrame.Angles(math.cos(a) * r, math.sin(a) * r, 0)).LookVector
+end
+
+local function canShoot(): boolean
+	local character = player.Character
+	return tool ~= nil and def ~= nil and character ~= nil and not character:GetAttribute("Cuffed") and not character:GetAttribute("HandsUp")
+		and not tool:GetAttribute("Reloading")
+end
+
+local function shoot()
+	if not canShoot() then
+		return
+	end
+	local t = os.clock()
+	if t - lastFire < 60 / def.RPM then
+		return
+	end
+	if localAmmo <= 0 then
+		lastFire = t
+		playAt(muzzlePos(), Sounds.Weapons and Sounds.Weapons.Empty)
+		fired = true
+		return
+	end
+	lastFire = t
+	localAmmo -= 1
+	local from = muzzlePos()
+	local target = aimPoint(def.Range)
+	local dir = (target - from)
+	if dir.Magnitude < 0.5 then
+		dir = camera.CFrame.LookVector
+	end
+	remote:FireServer("Fire", tool:GetAttribute("WeaponId"), from, dir.Unit)
+	-- Свои эффекты сразу
+	local shown = spread(dir.Unit, (ads and def.AimSpread or def.Spread) * 0.5 + bloom * 0.3)
+	aimParams.FilterDescendantsInstances = { player.Character, effects }
+	local result = workspace:Raycast(from, shown * def.Range, aimParams)
+	local to = result and result.Position or from + shown * def.Range
+	muzzleFlash(from, shown)
+	tracer(from, to)
+	if result then
+		local model = result.Instance:FindFirstAncestorOfClass("Model")
+		local isBody = model and model:FindFirstChildOfClass("Humanoid") ~= nil
+		impact(isBody and "flesh" or "wall", to, result.Normal)
+	end
+	playAt(from, weaponSound(tool:GetAttribute("WeaponId")), rng:NextNumber(0.96, 1.04))
+	-- Отдача
+	kick += def.Recoil * (ads and 0.6 or 1)
+	bloom = math.min(bloom + def.Recoil * 0.8, 8)
+end
+
+local function equip(newTool: Tool)
+	tool = newTool
+	def = Config.Weapons[newTool:GetAttribute("WeaponId")]
+	localAmmo = newTool:GetAttribute("Ammo") or 0
+	newTool:GetAttributeChangedSignal("Ammo"):Connect(function()
+		if tool == newTool then
+			localAmmo = newTool:GetAttribute("Ammo") or 0
+		end
+	end)
+	newTool:GetAttributeChangedSignal("Reloading"):Connect(function()
+		if newTool:GetAttribute("Reloading") then
+			reloadStart = os.clock()
+			playAt(muzzlePos(), Sounds.Weapons and Sounds.Weapons.Reload)
+		end
+	end)
+	gui.Enabled = true
+	baseFov = camera.FieldOfView
+	savedRotation = gameSettings.RotationType
+	gameSettings.RotationType = Enum.RotationType.CameraRelative
+	ContextActionService:BindActionAtPriority("WeaponReload", function(_, state)
+		if state == Enum.UserInputState.Begin then
+			remote:FireServer("Reload")
+		end
+		return Enum.ContextActionResult.Sink
+	end, true, 3000, Config.Keys.Reload)
+	ContextActionService:SetTitle("WeaponReload", "R")
+	ContextActionService:BindActionAtPriority("WeaponMode", function(_, state)
+		if state == Enum.UserInputState.Begin then
+			remote:FireServer("Mode")
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, 3000, Config.Keys.Mode)
+	-- Прицел на телефоне — кнопка
+	ContextActionService:BindActionAtPriority("WeaponAim", function(_, state)
+		if state == Enum.UserInputState.Begin then
+			ads = not ads
+		end
+		return Enum.ContextActionResult.Sink
+	end, true, 3000, Enum.KeyCode.ButtonL2)
+	ContextActionService:SetTitle("WeaponAim", "🎯")
+end
+
+local function unequip()
+	if not tool then
+		return
+	end
+	tool = nil
+	def = nil
+	ads = false
+	triggerDown = false
+	gui.Enabled = false
+	scope.Visible = false
+	ContextActionService:UnbindAction("WeaponReload")
+	ContextActionService:UnbindAction("WeaponMode")
+	ContextActionService:UnbindAction("WeaponAim")
+	if savedRotation then
+		gameSettings.RotationType = savedRotation
+	end
+	UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.CameraOffset = Vector3.zero
+	end
+	camera.FieldOfView = baseFov
+	remote:FireServer("Aim", camera.CFrame.LookVector, false)
+end
+
+local function watchCharacter(character: Model)
+	unequip()
+	character.ChildAdded:Connect(function(c)
+		if c:IsA("Tool") and c:GetAttribute("WeaponId") then
+			equip(c)
+			c.Activated:Connect(function()
+				-- Касание на телефоне — выстрел
+				if UserInputService.TouchEnabled then
+					shoot()
+				end
+			end)
+		end
+	end)
+	character.ChildRemoved:Connect(function(c)
+		if c == tool then
+			unequip()
+		end
+	end)
+end
+if player.Character then
+	watchCharacter(player.Character)
+end
+player.CharacterAdded:Connect(watchCharacter)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if not tool then
+		return
+	end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 and not processed then
+		triggerDown = true
+		fired = false
+		if def and tool:GetAttribute("Mode") == "Burst" then
+			burstLeft = def.BurstCount or 3
+		end
+	elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+		ads = true
+	end
+end)
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		triggerDown = false
+	elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+		ads = false
+	end
+end)
+
+-- Поднять руки — в любое время
+ContextActionService:BindAction("WeaponSurrender", function(_, state)
+	if state == Enum.UserInputState.Begin then
+		remote:FireServer("Surrender")
+	end
+	return Enum.ContextActionResult.Pass
+end, false, Config.Keys.Surrender)
+
+---------------------------------------------------------------------
+-- Каждый кадр
+---------------------------------------------------------------------
+
+RunService:BindToRenderStep("WeaponCamera", Enum.RenderPriority.Camera.Value + 1, function(dt)
+	if not tool or not def then
+		return
+	end
+	-- Отдача камеры: резкий подброс и частичный возврат
+	local apply = kick * math.min(1, dt * 30)
+	kick -= apply
+	recover += apply * 0.55
+	local back = recover * math.min(1, dt * 7)
+	recover -= back
+	local yaw = (rng:NextNumber() - 0.5) * apply * 0.35
+	camera.CFrame = camera.CFrame * CFrame.Angles(math.rad(apply - back), math.rad(yaw), 0)
+end)
+
+DebugTimer.connect(RunService.RenderStepped, "WeaponClient", function(dt)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not tool or not def or not humanoid then
+		return
+	end
+	UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+	-- Камера через плечо, в прицеле — ближе
+	local offset = ads and Vector3.new(1.1, 0.4, 0) or Vector3.new(1.8, 0.5, 0)
+	humanoid.CameraOffset = humanoid.CameraOffset:Lerp(offset, math.min(1, dt * 10))
+	local targetFov = ads and def.AimFov or baseFov
+	camera.FieldOfView += (targetFov - camera.FieldOfView) * math.min(1, dt * 12)
+	local scoped = ads and def.Scope and camera.FieldOfView < def.AimFov + 6
+	scope.Visible = scoped
+	cross.Visible = not scoped
+	-- Стрельба
+	local mode = tool:GetAttribute("Mode") or "Semi"
+	if triggerDown then
+		if mode == "Auto" then
+			shoot()
+		elseif mode == "Semi" and not fired then
+			fired = true
+			shoot()
+		elseif mode == "Burst" and burstLeft > 0 and os.clock() - lastFire >= 60 / def.RPM then
+			burstLeft -= 1
+			shoot()
+		end
+	elseif mode == "Burst" and burstLeft > 0 and os.clock() - lastFire >= 60 / def.RPM then
+		burstLeft -= 1
+		shoot()
+	end
+	-- Прицел: разброс
+	bloom = math.max(0, bloom - dt * 10)
+	local moving = humanoid.MoveDirection.Magnitude > 0.1
+	local gap = 6 + ((ads and def.AimSpread or def.Spread) + bloom + (moving and 1.5 or 0)) * 6
+	for _, l in lines do
+		l.frame.Position = UDim2.new(0.5, l.dir.X * gap, 0.5, l.dir.Y * gap)
+	end
+	-- Патроны и режим
+	local reserve = tool:GetAttribute("Reserve") or 0
+	weaponLabel.Text = def.Icon .. "  " .. def.Name
+	ammoLabel.Text = string.format("%d <font size=\"18\" color=\"#9aa3c0\">/ %d</font>", localAmmo, reserve)
+	ammoLabel.TextColor3 = localAmmo == 0 and Color3.fromRGB(255, 90, 90) or localAmmo <= def.Magazine * 0.25 and Color3.fromRGB(255, 200, 90) or WHITE
+	modeLabel.Text = MODE_NAMES[mode] or mode
+	local reloading = tool:GetAttribute("Reloading") == true
+	reloadBack.Visible = reloading
+	if reloading then
+		reloadFill.Size = UDim2.fromScale(math.clamp((os.clock() - reloadStart) / def.ReloadTime, 0, 1), 1)
+	end
+	hint.Visible = localAmmo > 0 or reserve > 0
+	if localAmmo == 0 and reserve == 0 then
+		hint.Visible = true
+		hint.Text = "Нет патронов — купи в 📱 Магазине"
+	else
+		hint.Text = "ЛКМ — огонь · ПКМ — прицел · R — перезарядка · V — режим · H — руки вверх"
+	end
+	-- Направление взгляда — серверу (поза рук видна всем, свидетели видят прицел)
+	aimSendTimer -= dt
+	if aimSendTimer <= 0 then
+		aimSendTimer = 0.1
+		remote:FireServer("Aim", camera.CFrame.LookVector, ads)
+	end
+end)
+
+----------------------------------------------------------------------
+-- 48. StarterPlayer → StarterPlayerScripts > LocalScript "WantedClient"
+----------------------------------------------------------------------
+
+-- LocalScript: StarterPlayer > StarterPlayerScripts > WantedClient
+-- Розыск и правосудие на экране игрока:
+--   ⭐ звёзды сверху, «📞 Вызвали полицию», «🚨 Тебя видят», «🔍 Ищут — уйдёшь через …»;
+--   АРЕСТОВАН / ПОТРАЧЕНО; в отделе: фото с ростомером, отпечатки пальцев, допрос;
+--   КПЗ, суд (приговор), тюрьма (срок), освобождение.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local StarterGui = game:GetService("StarterGui")
+local ContextActionService = game:GetService("ContextActionService")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("WeaponConfig"))
+if not Config.Enabled then
+	return
+end
+local Sounds = require(ReplicatedStorage:WaitForChild("SoundConfig"))
+local remote = ReplicatedStorage:WaitForChild("WantedRemote")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local GOLD = Color3.fromRGB(255, 205, 70)
+local WHITE = Color3.new(1, 1, 1)
+local DARK = Color3.fromRGB(16, 18, 26)
+local POP = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+local function new(className: string, props, parent: Instance?)
+	local inst = Instance.new(className)
+	for k, v in pairs(props or {}) do
+		(inst :: any)[k] = v
+	end
+	if parent then
+		inst.Parent = parent
+	end
+	return inst
+end
+local function corner(p: Instance, r: number)
+	new("UICorner", { CornerRadius = UDim.new(0, r) }, p)
+end
+local function text(parent: Instance, value: string, size: number, color: Color3?, font: Enum.Font?, props)
+	local l = new("TextLabel", {
+		BackgroundTransparency = 1,
+		Text = value,
+		TextSize = size,
+		TextColor3 = color or WHITE,
+		Font = font or Enum.Font.GothamBold,
+		TextWrapped = true,
+		Size = UDim2.new(1, 0, 0, size + 8),
+	}, parent)
+	for k, v in pairs(props or {}) do
+		(l :: any)[k] = v
+	end
+	return l
+end
+local function play(def)
+	if def and def.Id ~= "" then
+		local s = new("Sound", { SoundId = def.Id, Volume = def.Volume or 0.5 }, workspace)
+		s:Play()
+		s.Ended:Once(function()
+			s:Destroy()
+		end)
+	end
+end
+local W = Sounds.Weapons or {}
+
+local gui = new("ScreenGui", { Name = "WantedHud", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 30 }, player:WaitForChild("PlayerGui"))
+
+---------------------------------------------------------------------
+-- ⭐ Звёзды
+---------------------------------------------------------------------
+
+local starBar = new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 62), Size = UDim2.fromOffset(260, 64), BackgroundTransparency = 1, Visible = false }, gui)
+local starRow = new("Frame", { Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1 }, starBar)
+new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center, Padding = UDim.new(0, 4) }, starRow)
+local stars = {}
+for i = 1, 5 do
+	stars[i] = new("TextLabel", { Size = UDim2.fromOffset(34, 34), BackgroundTransparency = 1, Text = "★", TextSize = 34, Font = Enum.Font.GothamBlack, TextColor3 = Color3.fromRGB(70, 70, 80), TextStrokeTransparency = 0.3, LayoutOrder = i }, starRow)
+end
+local starScale = new("UIScale", {}, starRow)
+local status = text(starBar, "", 14, WHITE, Enum.Font.GothamBold, { Position = UDim2.fromOffset(0, 36), Size = UDim2.new(1, 0, 0, 18), TextStrokeTransparency = 0.4 })
+local evadeBack = new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 57), Size = UDim2.fromOffset(160, 4), BackgroundColor3 = Color3.fromRGB(40, 44, 58), BorderSizePixel = 0 }, starBar)
+local evadeFill = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = GOLD, BorderSizePixel = 0 }, evadeBack)
+
+-- Мигалки по краям экрана, когда тебя видят
+local flash = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, gui)
+local flashStroke = new("UIStroke", { Color = Color3.fromRGB(255, 40, 40), Thickness = 0, Transparency = 0.5 }, flash)
+
+local toastLabel = text(gui, "", 18, WHITE, Enum.Font.GothamBold, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 132), Size = UDim2.fromOffset(520, 26), TextStrokeTransparency = 0.3, Visible = false })
+local toastToken = 0
+local function toast(msg: string, color: Color3?)
+	toastToken += 1
+	local token = toastToken
+	toastLabel.Text = msg
+	toastLabel.TextColor3 = color or WHITE
+	toastLabel.Visible = true
+	task.delay(3.5, function()
+		if token == toastToken then
+			toastLabel.Visible = false
+		end
+	end)
+end
+
+local lastStars = 0
+local function updateStars()
+	local n = player:GetAttribute("WantedStars") or 0
+	local mode = player:GetAttribute("WantedMode") or "free"
+	starBar.Visible = n > 0 and (mode == "wanted" or mode == "arrested")
+	for i, s in stars do
+		s.TextColor3 = i <= n and GOLD or Color3.fromRGB(70, 70, 80)
+	end
+	if n > lastStars then
+		starScale.Scale = 1.5
+		TweenService:Create(starScale, POP, { Scale = 1 }):Play()
+		play(W.Wanted)
+	end
+	lastStars = n
+end
+player:GetAttributeChangedSignal("WantedStars"):Connect(updateStars)
+player:GetAttributeChangedSignal("WantedMode"):Connect(updateStars)
+updateStars()
+
+---------------------------------------------------------------------
+-- Этапы правосудия
+---------------------------------------------------------------------
+
+local stageFrame = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false }, gui)
+local black = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1, ZIndex = 50 }, gui)
+local timerCard = new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 62), Size = UDim2.fromOffset(330, 56), BackgroundColor3 = DARK, BackgroundTransparency = 0.15, Visible = false }, gui)
+corner(timerCard, 14)
+new("UIStroke", { Color = Color3.fromRGB(110, 120, 160), Thickness = 1.5, Transparency = 0.3 }, timerCard)
+local timerTitle = text(timerCard, "", 14, Color3.fromRGB(190, 200, 225), Enum.Font.GothamBold, { Position = UDim2.fromOffset(0, 6), Size = UDim2.new(1, 0, 0, 18) })
+local timerText = text(timerCard, "", 22, WHITE, Enum.Font.GothamBlack, { Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, 0, 0, 26) })
+local timerEnd = 0
+
+local function clearStage()
+	for _, c in stageFrame:GetChildren() do
+		c:Destroy()
+	end
+	stageFrame.Visible = false
+	camera.CameraType = Enum.CameraType.Custom
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		camera.CameraSubject = humanoid
+	end
+end
+
+local stageToken = 0
+local function done(data)
+	remote:FireServer("StageDone", data)
+end
+
+local function banner(title: string, sub: string, color: Color3, seconds: number)
+	local holder = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.42), Size = UDim2.fromOffset(700, 150), BackgroundTransparency = 1 }, stageFrame)
+	local t = text(holder, title, 84, color, Enum.Font.GothamBlack, { Size = UDim2.new(1, 0, 0, 96), TextStrokeTransparency = 0.2, TextStrokeColor3 = Color3.new(0, 0, 0) })
+	text(holder, sub, 20, WHITE, Enum.Font.GothamBold, { Position = UDim2.fromOffset(0, 100), Size = UDim2.new(1, 0, 0, 28), TextStrokeTransparency = 0.3 })
+	local sc = new("UIScale", { Scale = 1.6 }, holder)
+	TweenService:Create(sc, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	t.TextTransparency = 1
+	TweenService:Create(t, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
+	task.delay(seconds, function()
+		if holder.Parent then
+			holder:Destroy()
+		end
+	end)
+end
+
+local function photoFlash()
+	local f = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BackgroundTransparency = 0, ZIndex = 40 }, stageFrame)
+	TweenService:Create(f, TweenInfo.new(0.6), { BackgroundTransparency = 1 }):Play()
+	game:GetService("Debris"):AddItem(f, 0.7)
+	play(W.Camera)
+end
+
+local function lookAtMe(offsetFn: (CFrame) -> CFrame)
+	local head = player.Character and player.Character:FindFirstChild("Head")
+	if not head then
+		return
+	end
+	camera.CameraType = Enum.CameraType.Scriptable
+	local cf = head.CFrame
+	camera.CFrame = offsetFn(cf)
+end
+
+local STAGES = {}
+
+function STAGES.Busted(data, seconds)
+	play(W.Busted)
+	play(W.Cuffs)
+	local tint = new("ColorCorrectionEffect", { Name = "BustedTint", Saturation = -0.5, Contrast = 0.1 }, Lighting)
+	game:GetService("Debris"):AddItem(tint, seconds)
+	banner("АРЕСТОВАН", string.format("Розыск %s  ·  Тебя везут в отдел полиции", string.rep("★", data.stars or 0)), Color3.fromRGB(90, 150, 255), seconds)
+end
+
+function STAGES.Wasted(data, seconds)
+	local tint = new("ColorCorrectionEffect", { Name = "WastedTint", Saturation = -1, Contrast = 0.2, TintColor = Color3.fromRGB(255, 225, 225) }, Lighting)
+	game:GetService("Debris"):AddItem(tint, seconds)
+	banner("ПОТРАЧЕНО", string.format("-%d монет · оружие потеряно", data.lost or 0), Color3.fromRGB(220, 40, 40), seconds)
+end
+
+function STAGES.Mugshot(data)
+	-- Камера напротив лица, ростомер, табличка, две вспышки (анфас и профиль)
+	lookAtMe(function(cf)
+		local p = cf.Position + cf.LookVector * 6.5
+		return CFrame.lookAt(p, cf.Position)
+	end)
+	camera.FieldOfView = 45
+	local board = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, stageFrame)
+	for i = 0, 14 do
+		local y = 0.08 + i * 0.06
+		new("Frame", { Position = UDim2.new(0, 0, y, 0), Size = UDim2.new(1, 0, 0, i % 2 == 0 and 2 or 1), BackgroundColor3 = WHITE, BackgroundTransparency = 0.7, BorderSizePixel = 0 }, board)
+		text(board, tostring(200 - i * 5), 14, WHITE, Enum.Font.Code, { Position = UDim2.new(0, 12, y, -18), Size = UDim2.fromOffset(40, 16), TextXAlignment = Enum.TextXAlignment.Left, TextTransparency = 0.3 })
+	end
+	local plate = new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -40), Size = UDim2.fromOffset(380, 110), BackgroundColor3 = Color3.fromRGB(15, 15, 18) }, board)
+	corner(plate, 6)
+	new("UIStroke", { Color = WHITE, Thickness = 2 }, plate)
+	text(plate, "ПОЛИЦИЯ ГОРОДА", 18, WHITE, Enum.Font.GothamBlack, { Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 22) })
+	text(plate, string.format("№ %d", data.number or 0), 30, WHITE, Enum.Font.Code, { Position = UDim2.fromOffset(0, 32), Size = UDim2.new(1, 0, 0, 34) })
+	text(plate, string.format("%s   ·   %s   ·   %s", data.name or "", data.date or "", string.rep("★", data.stars or 0)), 15, WHITE, Enum.Font.GothamBold, { Position = UDim2.fromOffset(0, 72), Size = UDim2.new(1, 0, 0, 22) })
+	local hint = text(stageFrame, "📸 Смотрите в камеру…", 20, WHITE, Enum.Font.GothamBold, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 60), Size = UDim2.fromOffset(500, 28), TextStrokeTransparency = 0.3 })
+	task.wait(2)
+	photoFlash()
+	task.wait(1.6)
+	hint.Text = "↪ Повернитесь направо"
+	task.wait(1)
+	lookAtMe(function(cf)
+		local p = cf.Position + cf.RightVector * 6.5
+		return CFrame.lookAt(p, cf.Position)
+	end)
+	task.wait(1)
+	photoFlash()
+	task.wait(1.4)
+	camera.FieldOfView = 70
+	done()
+end
+
+function STAGES.Fingerprint()
+	camera.CameraType = Enum.CameraType.Custom
+	local panel = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(520, 340), BackgroundColor3 = DARK }, stageFrame)
+	corner(panel, 18)
+	new("UIStroke", { Color = Color3.fromRGB(90, 150, 255), Thickness = 2 }, panel)
+	text(panel, "🫆 Дактилоскопия", 22, WHITE, Enum.Font.GothamBlack, { Position = UDim2.fromOffset(0, 14), Size = UDim2.new(1, 0, 0, 28) })
+	local info = text(panel, "Прижми каждый палец к сканеру (нажми на него)", 14, Color3.fromRGB(190, 200, 225), Enum.Font.GothamMedium, { Position = UDim2.fromOffset(0, 46), Size = UDim2.new(1, 0, 0, 20) })
+	local row = new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 90), Size = UDim2.fromOffset(470, 200), BackgroundTransparency = 1 }, panel)
+	new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 10), HorizontalAlignment = Enum.HorizontalAlignment.Center }, row)
+	local names = { "Большой", "Указат.", "Средний", "Безым.", "Мизинец" }
+	local doneCount = 0
+	for i, name in names do
+		local cell = new("TextButton", { Size = UDim2.fromOffset(84, 190), BackgroundColor3 = Color3.fromRGB(30, 34, 48), Text = "", AutoButtonColor = true, LayoutOrder = i }, row)
+		corner(cell, 12)
+		local pad = new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 14), Size = UDim2.fromOffset(60, 80), BackgroundColor3 = Color3.fromRGB(230, 225, 215) }, cell)
+		new("UICorner", { CornerRadius = UDim.new(0.5, 0) }, pad)
+		text(cell, name, 12, Color3.fromRGB(190, 200, 225), Enum.Font.GothamBold, { Position = UDim2.fromOffset(0, 104), Size = UDim2.new(1, 0, 0, 16) })
+		local mark = text(cell, "○", 22, Color3.fromRGB(120, 130, 160), Enum.Font.GothamBold, { Position = UDim2.fromOffset(0, 140), Size = UDim2.new(1, 0, 0, 26) })
+		local scanned = false
+		cell.Activated:Connect(function()
+			if scanned then
+				return
+			end
+			scanned = true
+			-- Узор отпечатка: кольца появляются по очереди
+			for r = 1, 6 do
+				local ring = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.55), Size = UDim2.fromOffset(r * 9, r * 12), BackgroundTransparency = 1 }, pad)
+				new("UICorner", { CornerRadius = UDim.new(0.5, 0) }, ring)
+				new("UIStroke", { Color = Color3.fromRGB(40, 40, 60), Thickness = 1.5 }, ring)
+				task.wait(0.06)
+			end
+			local scan = new("Frame", { Size = UDim2.new(1, 0, 0, 3), BackgroundColor3 = Color3.fromRGB(90, 200, 255), BorderSizePixel = 0 }, pad)
+			TweenService:Create(scan, TweenInfo.new(0.5), { Position = UDim2.fromScale(0, 1) }):Play()
+			task.wait(0.5)
+			scan:Destroy()
+			mark.Text = "✓"
+			mark.TextColor3 = Color3.fromRGB(80, 210, 120)
+			doneCount += 1
+			if doneCount == #names then
+				info.Text = "✅ Отпечатки внесены в базу"
+				task.wait(1.2)
+				done()
+			end
+		end)
+	end
+end
+
+function STAGES.Interview(data)
+	local questions = data.questions or {}
+	local answers = {}
+	local panel = new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -40), Size = UDim2.fromOffset(640, 250), BackgroundColor3 = DARK }, stageFrame)
+	corner(panel, 18)
+	new("UIStroke", { Color = Color3.fromRGB(90, 150, 255), Thickness = 2 }, panel)
+	text(panel, "👮  Допрос", 20, WHITE, Enum.Font.GothamBlack, { Position = UDim2.fromOffset(20, 12), Size = UDim2.new(1, -40, 0, 26), TextXAlignment = Enum.TextXAlignment.Left })
+	local question = text(panel, "", 18, Color3.fromRGB(220, 228, 250), Enum.Font.GothamMedium, { Position = UDim2.fromOffset(20, 46), Size = UDim2.new(1, -40, 0, 50), TextXAlignment = Enum.TextXAlignment.Left })
+	local list = new("Frame", { Position = UDim2.fromOffset(20, 104), Size = UDim2.new(1, -40, 0, 130), BackgroundTransparency = 1 }, panel)
+	new("UIListLayout", { Padding = UDim.new(0, 8) }, list)
+	for qi, q in questions do
+		question.Text = string.format("Вопрос %d из %d: %s", qi, #questions, q.Text)
+		for _, c in list:GetChildren() do
+			if c:IsA("TextButton") then
+				c:Destroy()
+			end
+		end
+		local chosen = nil
+		for ai, a in q.Answers do
+			local b = new("TextButton", { Size = UDim2.new(1, 0, 0, 36), BackgroundColor3 = Color3.fromRGB(34, 38, 54), Text = "  " .. a[1], TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = WHITE, Font = Enum.Font.GothamMedium, TextSize = 15, LayoutOrder = ai }, list)
+			corner(b, 10)
+			b.Activated:Connect(function()
+				chosen = a[2]
+			end)
+		end
+		while not chosen and stageFrame.Visible do
+			task.wait(0.1)
+		end
+		table.insert(answers, chosen or "silent")
+		question.Text = chosen == "confess" and "— Записываю. Это зачтётся в суде." or chosen == "lie" and "— Странно… Проверим." or "— Молчание тоже ответ."
+		task.wait(1.4)
+	end
+	done(answers)
+end
+
+function STAGES.Holding(_, seconds)
+	timerTitle.Text = "🔒 КПЗ — ожидание суда"
+	timerEnd = os.clock() + seconds
+	timerCard.Visible = true
+end
+
+function STAGES.Court(data, seconds)
+	timerCard.Visible = false
+	local top = new("Frame", { Size = UDim2.new(1, 0, 0.12, 0), BackgroundColor3 = Color3.new(0, 0, 0) }, stageFrame)
+	local bottom = new("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0.22, 0), BackgroundColor3 = Color3.new(0, 0, 0) }, stageFrame)
+	text(top, "⚖️  ЗАСЕДАНИЕ СУДА", 22, GOLD, Enum.Font.GothamBlack, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromScale(0, 0.6) })
+	local speaker = text(bottom, data.judge or "Судья", 16, GOLD, Enum.Font.GothamBold, { Position = UDim2.new(0, 0, 0, 14), Size = UDim2.new(1, 0, 0, 20) })
+	local line = text(bottom, "", 22, WHITE, Enum.Font.GothamMedium, { Position = UDim2.new(0.1, 0, 0, 40), Size = UDim2.new(0.8, 0, 0, 60) })
+	local _ = speaker
+	local lines = data.lines or {}
+	local per = math.max(2, (seconds - 3) / math.max(#lines, 1))
+	for i, l in lines do
+		if not stageFrame.Visible then
+			return
+		end
+		if l then
+			line.Text = ""
+			local count = utf8.len(l) or #l
+			for k = 1, count do
+				line.Text = string.sub(l, 1, (utf8.offset(l, k + 1) or (#l + 1)) - 1)
+				task.wait(0.025)
+			end
+			if string.find(l, "Приговор") then
+				play(W.Gavel)
+				photoFlash()
+			end
+			task.wait(math.max(0.8, per - 0.025 * count))
+		end
+	end
+end
+
+function STAGES.Prison(data, seconds)
+	timerTitle.Text = "⛓ Тюрьма — срок"
+	timerEnd = os.clock() + seconds
+	timerCard.Visible = true
+	toast("Отбывай срок. Сбежать нельзя — уйдёшь далеко, вернут обратно.", Color3.fromRGB(200, 210, 230))
+	local _ = data
+end
+
+function STAGES.Released(_, seconds)
+	timerCard.Visible = false
+	banner("НА СВОБОДЕ", "Оружие конфисковано — новое можно купить в 📱 Магазине", Color3.fromRGB(80, 210, 120), seconds)
+end
+
+---------------------------------------------------------------------
+-- Ограничения на время ареста: без прыжка, без рюкзака, без «сброса»
+---------------------------------------------------------------------
+
+local restricted = false
+local function setRestricted(on: boolean)
+	if on == restricted then
+		return
+	end
+	restricted = on
+	pcall(function()
+		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, not on)
+	end)
+	task.spawn(function()
+		for _ = 1, 10 do
+			if pcall(function()
+				StarterGui:SetCore("ResetButtonCallback", not on)
+			end) then
+				break
+			end
+			task.wait(0.5)
+		end
+	end)
+	if on then
+		ContextActionService:BindActionAtPriority("JusticeNoJump", function()
+			return Enum.ContextActionResult.Sink
+		end, false, 4000, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
+	else
+		ContextActionService:UnbindAction("JusticeNoJump")
+	end
+end
+
+local function updateRestricted()
+	local mode = player:GetAttribute("WantedMode") or "free"
+	local cuffed = player.Character and player.Character:GetAttribute("Cuffed") == true
+	setRestricted(cuffed or (mode ~= "free" and mode ~= "wanted"))
+end
+player:GetAttributeChangedSignal("WantedMode"):Connect(updateRestricted)
+
+---------------------------------------------------------------------
+-- Сервер
+---------------------------------------------------------------------
+
+remote.OnClientEvent:Connect(function(action, a, b, c)
+	if action == "Stage" then
+		local name, data, seconds = a, b or {}, c or 5
+		clearStage()
+		if name ~= "Holding" and name ~= "Prison" then
+			timerCard.Visible = false
+		end
+		stageFrame.Visible = true
+		local fn = STAGES[name]
+		if fn then
+			task.spawn(fn, data, seconds)
+		end
+		stageToken += 1
+		local token = stageToken
+		if name == "Released" or name == "Wasted" or name == "Busted" then
+			task.delay(seconds, function()
+				if token == stageToken then
+					clearStage()
+				end
+			end)
+		end
+		updateRestricted()
+	elseif action == "Fade" then
+		black.BackgroundTransparency = 1
+		TweenService:Create(black, TweenInfo.new(0.4), { BackgroundTransparency = 0 }):Play()
+		task.delay(math.max(0.5, a or 1), function()
+			TweenService:Create(black, TweenInfo.new(0.6), { BackgroundTransparency = 1 }):Play()
+		end)
+	elseif action == "Called" then
+		toast("📞 Свидетель вызвал полицию: " .. tostring(a and a.why or ""), Color3.fromRGB(255, 205, 90))
+	elseif action == "Stars" then
+		if a and a.reason then
+			toast("⭐ Розыск: " .. a.reason, GOLD)
+		end
+	elseif action == "Evaded" then
+		toast("✅ Ты ушёл от погони", Color3.fromRGB(80, 210, 120))
+	end
+end)
+
+---------------------------------------------------------------------
+-- Каждый кадр
+---------------------------------------------------------------------
+
+RunService.RenderStepped:Connect(function()
+	local t = os.clock()
+	local n = player:GetAttribute("WantedStars") or 0
+	if starBar.Visible then
+		local seen = player:GetAttribute("WantedSeen") == true
+		local left = player:GetAttribute("WantedEvadeLeft")
+		local total = player:GetAttribute("WantedEvadeTotal") or 60
+		if seen then
+			status.Text = "🚨 Полиция тебя видит!"
+			status.TextColor3 = Color3.fromRGB(255, 120, 120)
+			for i, s in stars do
+				if i <= n then
+					s.TextColor3 = (t * 4) % 1 < 0.5 and Color3.fromRGB(255, 70, 70) or Color3.fromRGB(90, 150, 255)
+				end
+			end
+			flashStroke.Thickness = 6
+			flashStroke.Color = (t * 3) % 1 < 0.5 and Color3.fromRGB(255, 40, 40) or Color3.fromRGB(40, 110, 255)
+		else
+			for i, s in stars do
+				s.TextColor3 = i <= n and GOLD or Color3.fromRGB(70, 70, 80)
+			end
+			flashStroke.Thickness = 0
+			if type(left) == "number" then
+				status.Text = string.format("🔍 Тебя ищут · уйдёшь через %d с", math.ceil(left))
+				evadeFill.Size = UDim2.fromScale(math.clamp(1 - left / total, 0, 1), 1)
+			end
+			status.TextColor3 = WHITE
+		end
+		evadeBack.Visible = not seen
+	else
+		flashStroke.Thickness = 0
+	end
+	if timerCard.Visible then
+		local left = math.max(0, timerEnd - t)
+		timerText.Text = string.format("%d:%02d", math.floor(left / 60), math.floor(left % 60))
+	end
+end)
+
+player.CharacterAdded:Connect(function(character)
+	character:GetAttributeChangedSignal("Cuffed"):Connect(updateRestricted)
+	updateRestricted()
+end)
+if player.Character then
+	player.Character:GetAttributeChangedSignal("Cuffed"):Connect(updateRestricted)
+end

@@ -388,9 +388,9 @@ end
 ---------------------------------------------------------------------
 
 local EXPECTED = {
-	{ ReplicatedStorage, { "PoseConfig", "InvisibilityConfig", "LaserConfig", "FlightConfig", "CubeConfig", "NPCConfig", "VehicleConfig", "SoundConfig", "WeatherConfig", "CityConfig", "DebugConfig", "AbilityButton", "RigAnimator", "AbilityFx" } },
-	{ ServerScriptService, { "AbilityRegistry", "NPCRegistry", "VehicleDefaults", "PoseServer", "InvisibilityServer", "LaserServer", "FlightServer", "CubeServer", "NPCDemo", "NPCServer", "NPCDoors", "DayNightServer", "TrafficServer", "WeatherServer", "PhoneServer", "CityLifeServer", "DebugServer" } },
-	{ StarterPlayer:FindFirstChild("StarterPlayerScripts"), { "PoseClient", "InvisibilityClient", "LaserClient", "FlightClient", "CubeClient", "NPCClient", "VehicleClient", "PoliceDeskClient", "WeatherClient", "PhoneClient", "CityLifeClient", "DebugClient" } },
+	{ ReplicatedStorage, { "PoseConfig", "InvisibilityConfig", "LaserConfig", "FlightConfig", "CubeConfig", "NPCConfig", "VehicleConfig", "SoundConfig", "WeatherConfig", "CityConfig", "DebugConfig", "WeaponConfig", "AbilityButton", "RigAnimator", "AbilityFx" } },
+	{ ServerScriptService, { "AbilityRegistry", "NPCRegistry", "VehicleDefaults", "PoseServer", "InvisibilityServer", "LaserServer", "FlightServer", "CubeServer", "NPCDemo", "NPCServer", "NPCDoors", "DayNightServer", "TrafficServer", "WeatherServer", "PhoneServer", "CityLifeServer", "DebugServer", "WeaponServer", "WantedServer" } },
+	{ StarterPlayer:FindFirstChild("StarterPlayerScripts"), { "PoseClient", "InvisibilityClient", "LaserClient", "FlightClient", "CubeClient", "NPCClient", "VehicleClient", "PoliceDeskClient", "WeatherClient", "PhoneClient", "CityLifeClient", "DebugClient", "WeaponClient", "WantedClient" } },
 }
 
 local function runChecks()
@@ -593,6 +593,31 @@ local function runChecks()
 		local ownCw = #partsIn(map:FindFirstChild("Crosswalks"))
 		add(road > 0 and "ok" or "warn", "Пешеходы", "Зон проезжей части: " .. road .. (road == 0 and " — жители будут ходить по дорогам" or ""))
 		add(cw > 0 and "ok" or "warn", "Пешеходы", string.format("Переходов: %d%s", cw, ownCw == 0 and " (автоматически у перекрёстков — лучше поставить свои в TrafficSystem > Crosswalks)" or ""))
+		-- Правосудие: отдел, суд, тюрьма
+		for _, name in { "Mugshot", "Fingerprint", "Interview", "Holding" } do
+			local found = false
+			for _, p in partsIn(map:FindFirstChild("PoliceStation")) do
+				if p.Name == name then
+					found = true
+				end
+			end
+			add(found and "ok" or "warn", "Правосудие", (found and "Есть метка " or "Нет метки ") .. name .. (found and "" or " (этап пройдёт у стойки дежурного)"))
+		end
+		local justice = workspace:FindFirstChild("JusticeSystem")
+		local function jHas(group: string, prefix: string): number
+			local g = justice and justice:FindFirstChild(group)
+			local n = 0
+			for _, p in partsIn(g) do
+				if string.find(p.Name, "^" .. prefix) then
+					n += 1
+				end
+			end
+			return n
+		end
+		for _, item in { { "Court", "Judge" }, { "Court", "Dock" }, { "Court", "CourtDoor" }, { "Prison", "PrisonDoor" }, { "Prison", "PrisonCell" }, { "Prison", "PrisonExit" } } do
+			local n = jHas(item[1], item[2])
+			add(n > 0 and "ok" or "warn", "Правосудие", string.format("JusticeSystem > %s > %s: %d%s", item[1], item[2], n, n == 0 and " (без суда/тюрьмы приговор и срок — в участке)" or ""))
+		end
 		local calls = partsIn(map:FindFirstChild("PoliceCalls"))
 		add(#calls > 0 and "ok" or "warn", "Полиция", "Вызовов (PoliceCalls): " .. #calls)
 		local places = partsIn(map:FindFirstChild("Places"))
@@ -801,6 +826,35 @@ function ACTIONS.Teleport(player, arg)
 		return "Телепорт: " .. tostring(arg)
 	end
 	return err
+end
+function ACTIONS.Wanted(player, arg)
+	if not Registry.debugWanted then
+		return "WantedServer не запущен"
+	end
+	Registry.debugWanted(player, tonumber(arg) or 0)
+	return (tonumber(arg) or 0) > 0 and ("Розыск " .. tostring(arg) .. "★ — свидетель «позвонил» с твоего места") or "Розыск снят"
+end
+function ACTIONS.ArrestMe(player)
+	if not Registry.arrestPlayer then
+		return "WantedServer не запущен"
+	end
+	Registry.arrestPlayer(player)
+	return "Арест: отдел → КПЗ → суд → тюрьма"
+end
+function ACTIONS.GiveWeapons(player)
+	local p = Registry.weaponProfile and Registry.weaponProfile(player)
+	if not p then
+		return "WeaponServer не запущен"
+	end
+	for _, id in { "Pistol", "Rifle" } do
+		p.owned[id] = true
+		p.ammo[id] = 300
+		p.mag[id] = nil
+	end
+	if Registry.blockWeapons then
+		Registry.blockWeapons(player, false)
+	end
+	return "Пистолет и винтовка + патроны"
 end
 function ACTIONS.TeleportPos(player, arg)
 	if typeof(arg) == "Vector3" then

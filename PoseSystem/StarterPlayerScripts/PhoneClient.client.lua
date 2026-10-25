@@ -276,6 +276,7 @@ local isOpen, locked = false, true
 local currentApp = nil
 local data = { places = {}, policeTypes = {}, tickets = {}, busStops = {}, friends = {}, taxiPrice = VehicleConfig.TaxiPrice }
 local city = { stats = {}, done = {}, owned = {}, equipped = {} } -- работа, магазин, достижения
+local weaponState = { owned = {}, ammo = {}, blocked = false } -- оружие (WeaponServer)
 local chats = {} -- [имя] = { messages = { {mine, text} }, unread = 0, typingUntil = 0 }
 local openChat = nil
 local notifications = {}
@@ -511,6 +512,9 @@ function openApp(id: string)
 		remote:FireServer("Friends")
 	elseif id == "shop" or id == "awards" or id == "work" then
 		remote:FireServer("City")
+		if id == "shop" then
+			remote:FireServer("Weapons")
+		end
 	end
 	appLayer.Visible = true
 	appScale.Scale = 0.4
@@ -1103,6 +1107,30 @@ local function renderShop()
 		end)
 	end
 	text(content, "Вещи остаются у тебя навсегда. В одном месте (голова, лицо...) — одна вещь.", 12, Color3.fromRGB(160, 170, 195), false, { LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 34) })
+
+	-- 🔫 Оружие (WeaponServer)
+	local weaponConfig = ReplicatedStorage:FindFirstChild("WeaponConfig")
+	if weaponConfig and require(weaponConfig).Enabled then
+		local WC = require(weaponConfig)
+		local wcard = card(content, nil, 3)
+		list(wcard, 6)
+		text(wcard, "🔫 Оружие (18+)", 16, WHITE, true)
+		if weaponState.blocked then
+			text(wcard, "🚫 Недоступно, пока ты под арестом", 13, Color3.fromRGB(255, 120, 120), false)
+		end
+		for i, id in { "Pistol", "Rifle" } do
+			local def = WC.Weapons[id]
+			if def then
+				local owned = weaponState.owned[id] == true
+				local row = new("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 44), LayoutOrder = 10 + i }, wcard)
+				text(row, string.format("%s %s%s", def.Icon, def.Name, owned and ("  · " .. tostring(weaponState.ammo[id] or 0) .. " патр.") or ""), 14, WHITE, true, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, -110, 0, 20) })
+				text(row, string.format("Урон %d · магазин %d · %s", def.Damage, def.Magazine, table.concat(def.Modes, "/")), 11, Color3.fromRGB(170, 180, 205), false, { Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, -110, 0, 16) })
+				button(row, owned and ("+" .. def.Magazine .. " · " .. def.AmmoPrice .. " 🪙") or (def.Price .. " 🪙"), { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(104, 32), TextSize = 12, BackgroundColor3 = owned and Color3.fromRGB(90, 150, 255) or Color3.fromRGB(255, 190, 50), BackgroundTransparency = 0.25, Font = Enum.Font.GothamBold }, function()
+					remote:FireServer(owned and "AmmoBuy" or "WeaponBuy", id)
+				end)
+			end
+		end
+	end
 end
 
 local function renderAwards()
@@ -1274,6 +1302,11 @@ remote.OnClientEvent:Connect(function(action, payload)
 		end
 		renderHomeBadges()
 		if currentApp and currentApp ~= "map" then
+			renderApp()
+		end
+	elseif action == "Weapons" then
+		weaponState = payload
+		if currentApp == "shop" then
 			renderApp()
 		end
 	elseif action == "City" then
