@@ -3422,7 +3422,6 @@ end
 ---------------------------------------------------------------------
 
 local key = nil
-local keyChecked = false
 local disabledUntil = 0 -- после ошибки — пауза (или навсегда, если ключ неверный)
 local lastError = nil
 
@@ -3431,17 +3430,27 @@ local GEMINI = AI.Provider == "gemini"
 local SECRET = GEMINI and AI.Gemini.SecretName or AI.SecretName
 local MODEL = GEMINI and AI.Gemini.Model or AI.Model
 
+local nextKeyTry = 0
+local keyWarned = false
+-- Ключ из Secrets. Нет — пробуем снова раз в 20 секунд (секрет могли добавить, пока сервер работает)
 local function secret()
-	if not keyChecked then
-		keyChecked = true
-		local ok, value = pcall(function()
-			return HttpService:GetSecret(SECRET)
-		end)
-		if ok and value then
-			key = value
-		else
-			lastError = "нет секрета «" .. SECRET .. "»"
-			print("[Court] Нейросеть суда выключена: " .. lastError .. " (Creator Hub → Secrets). Суд идёт живым спором без неё.")
+	if key or os.clock() < nextKeyTry then
+		return key
+	end
+	nextKeyTry = os.clock() + 20
+	local ok, value = pcall(function()
+		return HttpService:GetSecret(SECRET)
+	end)
+	if ok and value then
+		key = value
+		lastError = nil
+		print("[Court] Нейросеть суда: ключ «" .. SECRET .. "» найден")
+	else
+		-- Причина от Roblox: в Studio нужен локальный секрет (Game Settings → Security → Secrets)
+		lastError = "нет секрета «" .. SECRET .. "» (" .. string.sub(tostring(value), 1, 120) .. ")"
+		if not keyWarned then
+			keyWarned = true
+			print("[Court] Нейросеть суда выключена: " .. lastError .. ". В Studio — Game Settings → Security → Secrets, в игре — Creator Hub → Secrets. Суд идёт живым спором без неё.")
 		end
 	end
 	return key
